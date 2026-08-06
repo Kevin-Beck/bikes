@@ -1,0 +1,2022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bike Shop — Client &amp; Bike Registry</title>
+<style>
+/* ==========================================================================
+   STYLES
+   Organised as: tokens -> base -> layout -> components -> utilities
+   ========================================================================== */
+
+/* --- tokens -------------------------------------------------------------- */
+:root {
+  --bg:        #f4f5f7;
+  --surface:   #ffffff;
+  --surface-2: #f0f2f5;
+  --border:    #dce0e6;
+  --text:      #1c2024;
+  --text-dim:  #666e79;
+  --accent:    #1f6feb;
+  --accent-fg: #ffffff;
+  --work:      #0f7b55;
+  --work-bg:   #e2f5ec;
+  --owner:     #9a5b00;
+  --owner-bg:  #fdf0da;
+  --danger:    #c02626;
+  --radius:    8px;
+  --shadow:    0 1px 2px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.05);
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:        #16181c;
+    --surface:   #1e2126;
+    --surface-2: #24282e;
+    --border:    #343a42;
+    --text:      #e6e8ea;
+    --text-dim:  #98a0aa;
+    --accent:    #4c8dff;
+    --accent-fg: #0b1220;
+    --work:      #4ad6a0;
+    --work-bg:   #12332a;
+    --owner:     #f0b45e;
+    --owner-bg:  #382a13;
+    --danger:    #ff6b6b;
+    --shadow:    0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  }
+}
+
+/* --- base ---------------------------------------------------------------- */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+h1, h2, h3, h4 { margin: 0; font-weight: 600; line-height: 1.25; }
+h1 { font-size: 20px; }
+h2 { font-size: 18px; }
+h3 { font-size: 16px; }
+h4 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); }
+p  { margin: 0; }
+a  { color: var(--accent); }
+
+/* --- layout -------------------------------------------------------------- */
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10;
+}
+.app-header .bar {
+  max-width: 1100px; margin: 0 auto; padding: 14px 20px 0;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.logo { font-size: 22px; }
+.tabs {
+  max-width: 1100px; margin: 0 auto; padding: 10px 20px 0;
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.tab {
+  appearance: none; border: 0; background: none; cursor: pointer;
+  font: inherit; color: var(--text-dim);
+  padding: 8px 14px; border-radius: var(--radius) var(--radius) 0 0;
+  border-bottom: 2px solid transparent;
+}
+.tab:hover { color: var(--text); background: var(--surface-2); }
+.tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+main { max-width: 1100px; margin: 0 auto; padding: 22px 20px 80px; }
+.stack > * + * { margin-top: 16px; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row.between { justify-content: space-between; }
+.spacer { flex: 1 1 auto; }
+
+/* --- components ---------------------------------------------------------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.card.clickable { cursor: pointer; }
+.card.clickable:hover { border-color: var(--accent); }
+.card-title { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+
+.btn {
+  appearance: none; font: inherit; cursor: pointer;
+  padding: 7px 13px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--text-dim); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { background: none; border-color: transparent; color: var(--text-dim); }
+.btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn-danger { color: var(--danger); border-color: transparent; background: none; }
+.btn-danger:hover { background: var(--surface-2); }
+.btn-sm { padding: 4px 9px; font-size: 13px; }
+
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--text-dim);
+}
+.badge-work  { background: var(--work-bg);  color: var(--work); }
+.badge-owner { background: var(--owner-bg); color: var(--owner); }
+.chip {
+  display: inline-block; padding: 3px 9px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-size: 12px; color: var(--text-dim);
+}
+.chip strong { color: var(--text); font-weight: 600; }
+
+.breadcrumb { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--text-dim); flex-wrap: wrap; }
+.breadcrumb button {
+  appearance: none; border: 0; background: none; font: inherit; color: var(--accent);
+  cursor: pointer; padding: 0;
+}
+
+.empty {
+  text-align: center; padding: 46px 20px; color: var(--text-dim);
+  border: 1px dashed var(--border); border-radius: var(--radius);
+}
+.empty .big { font-size: 30px; display: block; margin-bottom: 8px; }
+
+.search {
+  flex: 1 1 200px; min-width: 160px;
+  padding: 8px 11px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit;
+}
+
+/* spec tables */
+.spec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 18px; }
+.spec-item { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 14px; }
+.spec-item dt { color: var(--text-dim); }
+.spec-item dd { margin: 0; text-align: right; font-weight: 500; overflow-wrap: anywhere; }
+
+/* changelog timeline */
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline > li { position: relative; padding: 0 0 18px 22px; border-left: 2px solid var(--border); }
+.timeline > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.timeline > li::before {
+  content: ""; position: absolute; left: -7px; top: 4px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--text-dim);
+}
+.timeline > li.type-work::before  { border-color: var(--work); }
+.timeline > li.type-owner::before { border-color: var(--owner); }
+.entry-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.entry-date { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.entry-body { margin-top: 4px; white-space: pre-wrap; }
+.diff-list { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
+.diff-list li { padding: 3px 0; }
+.diff-label { color: var(--text-dim); }
+.diff-from { text-decoration: line-through; opacity: .7; }
+.diff-to   { font-weight: 600; }
+.diff-arrow { color: var(--text-dim); padding: 0 4px; }
+
+/* stats */
+.stat { background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; }
+.stat .n { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .l { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
+
+/* --- forms & modal ------------------------------------------------------- */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 24px 16px; overflow-y: auto; z-index: 100;
+}
+.modal {
+  background: var(--surface); border-radius: 10px; border: 1px solid var(--border);
+  width: min(760px, 100%); box-shadow: 0 12px 40px rgba(0,0,0,.35);
+  display: flex; flex-direction: column; max-height: calc(100vh - 48px);
+}
+.modal header, .modal footer { padding: 14px 18px; }
+.modal header { border-bottom: 1px solid var(--border); }
+.modal footer { border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; background: var(--surface-2); border-radius: 0 0 10px 10px; }
+.modal .body { padding: 18px; overflow-y: auto; }
+.modal .body > * + * { margin-top: 16px; }
+
+fieldset { border: 0; padding: 0; margin: 0; }
+fieldset + fieldset { margin-top: 18px; }
+legend { padding: 0 0 8px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field.wide { grid-column: 1 / -1; }
+.field label { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+.field input, .field textarea, .field select {
+  font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; width: 100%;
+}
+.field input:focus, .field textarea:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.field textarea { min-height: 76px; resize: vertical; }
+.hint { font-size: 12px; color: var(--text-dim); }
+
+.dyn-row { display: grid; gap: 8px; align-items: end; margin-bottom: 8px; }
+.dyn-row.kv     { grid-template-columns: 1fr 1.4fr auto; }
+.dyn-row.change { grid-template-columns: 1.1fr 1.3fr .6fr auto; }
+@media (max-width: 620px) {
+  .dyn-row.kv, .dyn-row.change { grid-template-columns: 1fr; }
+}
+.dyn-note { font-size: 12px; color: var(--text-dim); margin: -4px 0 8px; }
+
+.muted { color: var(--text-dim); }
+.small { font-size: 13px; }
+.nowrap { white-space: nowrap; }
+.money { font-variant-numeric: tabular-nums; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="bar">
+    <span class="logo" aria-hidden="true">🚲</span>
+    <h1>Bike Shop Registry</h1>
+    <span class="spacer"></span>
+    <span id="save-status" class="small muted"></span>
+  </div>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+</header>
+
+<main id="view" role="main"></main>
+
+<div id="modal-root"></div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   Bike Shop Registry — single-file client & bike tracker
+   --------------------------------------------------------------------------
+   ARCHITECTURE (top to bottom, each layer only depends on the ones above it):
+
+     1. CONFIG & SCHEMA   Declarative description of every bike spec field.
+                          Add a field here and forms, detail views and the
+                          changelog pick it up automatically.
+     2. UTIL              Pure helpers (ids, escaping, formatting, DOM build).
+     3. STORE             localStorage persistence + in-memory database.
+     4. DOMAIN            Entity factories, lookups and derived values.
+                          Pure-ish functions over the db; no DOM.
+     5. ACTIONS           The only functions that mutate the db. Each one
+                          saves and re-renders. UI never mutates directly.
+     6. COMPONENTS        Reusable render helpers (modal, forms, dynamic rows).
+     7. VIEWS             Pure render functions: state -> HTML string / DOM.
+     8. CONTROLLER        Router state + a single delegated click handler
+                          mapping `data-action` attributes to handlers.
+     9. BOOTSTRAP         Wire it all up.
+
+   CONVENTIONS
+     - Views return HTML strings and MUST pass user text through `esc()`.
+     - Interactive elements declare `data-action="name"` plus any
+       `data-client`, `data-bike`, `data-event` ids; see HANDLERS.
+     - Modals are built with real DOM nodes (they hold dynamic sub-rows).
+   ========================================================================== */
+
+/* ==========================================================================
+   1. CONFIG & SCHEMA
+   ========================================================================== */
+
+const CONFIG = {
+  storageKey: "bikeshop.db.v1",
+  routeKey:   "bikeshop.route.v1",
+  currency:   "USD",   // single place to change money formatting
+  locale:     undefined // undefined = browser default
+};
+
+/**
+ * Bike specification schema.
+ *
+ * Groups render in order. Every field is stored flat on `bike.specs[key]`,
+ * which keeps diffing in the changelog trivial.
+ *
+ * field: { key, label, type?, suggest?, wide? }
+ *   type    "text" (default) | "number" | "textarea"
+ *   suggest array of datalist options (still free text)
+ *   wide    span the full width of the form grid
+ */
+const SPEC_GROUPS = [
+  {
+    id: "core",
+    label: "Core",
+    hint: "The defining details of the bike — what it fundamentally is.",
+    fields: [
+      { key: "brand",      label: "Brand / Make", suggest: ["Specialized","Trek","Giant","Cannondale","Canyon","Cervélo","Santa Cruz","Bianchi","Scott","Salsa","Surly","BMC","Pinarello","Orbea"] },
+      { key: "model",      label: "Model" },
+      { key: "year",       label: "Model year", type: "number" },
+      { key: "bikeType",   label: "Type", suggest: ["Road","Gravel","Mountain — XC","Mountain — Trail","Mountain — Enduro","Hybrid","Commuter","Touring","Cyclocross","Triathlon / TT","E-bike","BMX","Kids"] },
+      { key: "frameMaterial", label: "Frame material", suggest: ["Carbon","Aluminium","Steel","Titanium","Chromoly","Carbon / Alu mix"] },
+      { key: "frameSize",  label: "Frame size", suggest: ["XS","S","M","L","XL","44","47","49","51","52","54","56","58","61"] },
+      { key: "serial",     label: "Serial number" },
+      { key: "color",      label: "Colour / finish" },
+      { key: "groupset",   label: "Groupset", suggest: ["Shimano Claris","Shimano Sora","Shimano Tiagra","Shimano 105 R7100 Di2","Shimano Ultegra R8100 Di2","Shimano Dura-Ace R9200","Shimano GRX","Shimano Deore","Shimano SLX","Shimano XT","SRAM Apex AXS","SRAM Rival AXS","SRAM Force AXS","SRAM Red AXS","SRAM GX Eagle","SRAM XX1 Eagle","Campagnolo Chorus","Campagnolo Record"] },
+      { key: "drivetrain", label: "Drivetrain", suggest: ["1x11","1x12","1x13","2x10","2x11","2x12","3x9","Internal hub","Singlespeed"] },
+      { key: "brakeType",  label: "Brake type", suggest: ["Hydraulic disc","Mechanical disc","Rim — caliper","Rim — cantilever","Rim — V-brake","Coaster"] },
+      { key: "wheelset",   label: "Wheelset" },
+      { key: "tires",      label: "Tyres (model / size)" }
+    ]
+  },
+  {
+    id: "extras",
+    label: "Extras",
+    hint: "Component-level detail. Useful, but not needed to identify the bike.",
+    fields: [
+      { key: "fork",        label: "Fork" },
+      { key: "shifters",    label: "Shifters" },
+      { key: "frontDer",    label: "Front derailleur" },
+      { key: "rearDer",     label: "Rear derailleur" },
+      { key: "crankset",    label: "Crankset" },
+      { key: "chainrings",  label: "Chainrings" },
+      { key: "cassette",    label: "Cassette" },
+      { key: "chain",       label: "Chain" },
+      { key: "bottomBracket", label: "Bottom bracket" },
+      { key: "calipers",    label: "Brake calipers" },
+      { key: "rotors",      label: "Rotors / pads" },
+      { key: "headset",     label: "Headset" },
+      { key: "stem",        label: "Stem" },
+      { key: "handlebar",   label: "Handlebar" },
+      { key: "barTape",     label: "Bar tape / grips" },
+      { key: "saddle",      label: "Saddle" },
+      { key: "seatpost",    label: "Seatpost" },
+      { key: "pedals",      label: "Pedals" },
+      { key: "suspension",  label: "Suspension" },
+      { key: "powerMeter",  label: "Power meter" },
+      { key: "accessories", label: "Accessories" },
+      { key: "tubeless",    label: "Tubeless setup", suggest: ["Yes — sealant","No — tubes","Tubular"] }
+    ]
+  }
+];
+
+/** Fast lookup: spec key -> { key, label, group } */
+const SPEC_FIELDS = (() => {
+  const map = new Map();
+  SPEC_GROUPS.forEach(g => g.fields.forEach(f => map.set(f.key, Object.assign({ group: g.id }, f))));
+  return map;
+})();
+
+/** Client-level fields, same declarative shape as spec fields. */
+const CLIENT_FIELDS = [
+  { key: "name",    label: "Name", required: true, wide: true },
+  { key: "phone",   label: "Phone" },
+  { key: "email",   label: "Email" },
+  { key: "company", label: "Company / team" },
+  { key: "address", label: "Address" },
+  { key: "notes",   label: "Notes", type: "textarea", wide: true }
+];
+
+/** Changelog entry kinds. `owner` = work the shop did not perform. */
+const ENTRY_KINDS = {
+  work:  { label: "Shop work",    badge: "badge-work",  verb: "Add work",
+           titlePlaceholder: "e.g. Annual service + new chain",
+           byLabel: "Performed by", byPlaceholder: "Mechanic name" },
+  owner: { label: "Owner change", badge: "badge-owner", verb: "Add owner change",
+           titlePlaceholder: "e.g. Owner fitted new saddle",
+           byLabel: "Changed by",  byPlaceholder: "Owner, other shop, …" }
+};
+
+/* ==========================================================================
+   2. UTIL
+   ========================================================================== */
+
+const Util = {
+  uid: (prefix) => prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+
+  /** Escape for safe interpolation into HTML. Always use on user text. */
+  esc(value) {
+    return String(value ?? "").replace(/[&<>"']/g, c =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  },
+
+  today: () => new Date().toISOString().slice(0, 10),
+
+  /** "2025-04-08" -> "8 Apr 2025" (falls back to raw text). */
+  formatDate(iso) {
+    if (!iso) return "";
+    const d = new Date(iso + "T00:00:00");
+    if (isNaN(d)) return iso;
+    return d.toLocaleDateString(CONFIG.locale, { day: "numeric", month: "short", year: "numeric" });
+  },
+
+  money(n) {
+    const v = Number(n) || 0;
+    return v.toLocaleString(CONFIG.locale, { style: "currency", currency: CONFIG.currency });
+  },
+
+  /** Parse a user-typed amount; returns 0 for blank/garbage. */
+  parseMoney(text) {
+    const n = parseFloat(String(text ?? "").replace(/[^0-9.\-]/g, ""));
+    return isNaN(n) ? 0 : n;
+  },
+
+  /** Sort helper: newest date first, ties broken by creation time. */
+  byDateDesc(a, b) {
+    return (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0);
+  },
+
+  /** Build a DOM element: el("div", {class:"x"}, [childNode, "text"]) */
+  el(tag, attrs = {}, children = []) {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === "class") node.className = v;
+      else if (k === "text") node.textContent = v;
+      else if (k === "html") node.innerHTML = v;
+      else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
+      else node.setAttribute(k, v === true ? "" : v);
+    }
+    (Array.isArray(children) ? children : [children])
+      .filter(c => c !== null && c !== undefined && c !== false)
+      .forEach(c => node.append(c));
+    return node;
+  },
+
+  download(filename, text) {
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    const a = Util.el("a", { href: url, download: filename });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+};
+const esc = Util.esc; // used constantly in views
+
+/* ==========================================================================
+   3. STORE  — persistence boundary
+   ========================================================================== */
+
+const Store = {
+  /** Shape of a brand-new database. */
+  empty: () => ({ schemaVersion: 1, clients: [], updatedAt: Date.now() }),
+
+  load() {
+    try {
+      const raw = localStorage.getItem(CONFIG.storageKey);
+      if (!raw) return Store.empty();
+      const parsed = JSON.parse(raw);
+      return Store.migrate(parsed);
+    } catch (err) {
+      console.error("Could not read saved data; starting empty.", err);
+      return Store.empty();
+    }
+  },
+
+  /** Upgrade older payloads. Keep every past version handled here. */
+  migrate(data) {
+    if (!data || typeof data !== "object" || !Array.isArray(data.clients)) return Store.empty();
+    data.schemaVersion = data.schemaVersion || 1;
+    return data;
+  },
+
+  save(db) {
+    db.updatedAt = Date.now();
+    try {
+      localStorage.setItem(CONFIG.storageKey, JSON.stringify(db));
+      Store.flashStatus("Saved " + new Date().toLocaleTimeString(CONFIG.locale));
+      return true;
+    } catch (err) {
+      console.error(err);
+      Store.flashStatus("⚠️ Could not save — storage full or blocked", true);
+      return false;
+    }
+  },
+
+  flashStatus(text, sticky) {
+    const node = document.getElementById("save-status");
+    if (!node) return;
+    node.textContent = text;
+    clearTimeout(Store._t);
+    if (!sticky) Store._t = setTimeout(() => { node.textContent = ""; }, 2500);
+  },
+
+  loadRoute() {
+    try { return JSON.parse(localStorage.getItem(CONFIG.routeKey)) || null; }
+    catch { return null; }
+  },
+
+  saveRoute(route) {
+    try { localStorage.setItem(CONFIG.routeKey, JSON.stringify(route)); } catch { /* non-fatal */ }
+  }
+};
+
+/* ==========================================================================
+   4. DOMAIN — factories, lookups, derived values (no DOM, no mutation)
+   ========================================================================== */
+
+const Domain = {
+  /* --- factories --- */
+  newClient: (data = {}) => ({
+    id: Util.uid("c"),
+    name: data.name || "Unnamed client",
+    phone: data.phone || "",
+    email: data.email || "",
+    company: data.company || "",
+    address: data.address || "",
+    notes: data.notes || "",
+    createdAt: Date.now(),
+    bikes: []
+  }),
+
+  newBike: (data = {}) => ({
+    id: Util.uid("b"),
+    label: data.label || "",           // nickname, e.g. "Blue gravel bike"
+    specs: data.specs || {},           // flat map keyed by SPEC_FIELDS key
+    other: data.other || [],           // [{ id, label, value }] free-form extras
+    events: [],                        // changelog, newest sorted at render time
+    createdAt: Date.now()
+  }),
+
+  /**
+   * A changelog entry.
+   * changes: [{ target: "spec"|"other"|"note", key, label, from, to, cost }]
+   */
+  newEvent: (data = {}) => ({
+    id: Util.uid("e"),
+    kind: data.kind === "owner" ? "owner" : "work",
+    date: data.date || Util.today(),
+    title: data.title || "",
+    description: data.description || "",
+    by: data.by || "",
+    cost: Util.parseMoney(data.cost),
+    changes: data.changes || [],
+    createdAt: Date.now()
+  }),
+
+  /* --- lookups --- */
+  client: (db, id) => db.clients.find(c => c.id === id) || null,
+
+  bike(db, clientId, bikeId) {
+    const client = Domain.client(db, clientId);
+    return client ? client.bikes.find(b => b.id === bikeId) || null : null;
+  },
+
+  /** Every bike in the shop, each paired with its owner. */
+  allBikes: (db) => db.clients.flatMap(c => c.bikes.map(b => ({ client: c, bike: b }))),
+
+  /** Every changelog entry with full context, newest first. */
+  allEvents: (db) =>
+    Domain.allBikes(db)
+      .flatMap(({ client, bike }) => bike.events.map(e => ({ client, bike, event: e })))
+      .sort((a, b) => Util.byDateDesc(a.event, b.event)),
+
+  /* --- derived values --- */
+  bikeTitle(bike) {
+    const s = bike.specs || {};
+    const built = [s.year, s.brand, s.model].filter(Boolean).join(" ");
+    return bike.label || built || "Untitled bike";
+  },
+
+  bikeSubtitle(bike) {
+    const s = bike.specs || {};
+    // If the label is doing the naming, show the make/model underneath.
+    const built = [s.year, s.brand, s.model].filter(Boolean).join(" ");
+    return bike.label && built ? built : (s.bikeType || "");
+  },
+
+  bikeSpend: (bike) => bike.events.reduce((sum, e) => sum + (Number(e.cost) || 0), 0),
+
+  clientSpend: (client) => client.bikes.reduce((sum, b) => sum + Domain.bikeSpend(b), 0),
+
+  lastEvent(bike) {
+    return bike.events.slice().sort(Util.byDateDesc)[0] || null;
+  },
+
+  /** Human label for a change target, whatever its source. */
+  changeLabel(change) {
+    if (change.label) return change.label;
+    const field = SPEC_FIELDS.get(change.key);
+    return field ? field.label : change.key;
+  },
+
+  /** Free-text blob used by the search boxes. */
+  bikeSearchText(bike) {
+    return [Domain.bikeTitle(bike), bike.label,
+            ...Object.values(bike.specs || {}),
+            ...(bike.other || []).map(o => o.label + " " + o.value)
+           ].join(" ").toLowerCase();
+  },
+
+  clientSearchText(client) {
+    return [client.name, client.phone, client.email, client.company, client.notes,
+            ...client.bikes.map(Domain.bikeSearchText)].join(" ").toLowerCase();
+  },
+
+  /** Shop-wide summary numbers for the Overview tab. */
+  stats(db) {
+    const bikes = Domain.allBikes(db);
+    const events = bikes.flatMap(({ bike }) => bike.events);
+    return {
+      clients: db.clients.length,
+      bikes: bikes.length,
+      entries: events.length,
+      workEntries: events.filter(e => e.kind === "work").length,
+      revenue: events.reduce((sum, e) => sum + (Number(e.cost) || 0), 0)
+    };
+  }
+};
+
+/* ==========================================================================
+   5. ACTIONS — the only place the database is mutated
+   ========================================================================== */
+
+const Actions = {
+  /** Mutate through this so saving + re-rendering can never be forgotten. */
+  commit(mutator) {
+    mutator(App.db);
+    Store.save(App.db);
+    App.render();
+  },
+
+  addClient(data) {
+    const client = Domain.newClient(data);
+    Actions.commit(db => db.clients.push(client));
+    App.navigate({ tab: "clients", clientId: client.id, bikeId: null });
+  },
+
+  updateClient(clientId, data) {
+    Actions.commit(db => Object.assign(Domain.client(db, clientId), data));
+  },
+
+  deleteClient(clientId) {
+    Actions.commit(db => { db.clients = db.clients.filter(c => c.id !== clientId); });
+    App.navigate({ tab: "clients", clientId: null, bikeId: null });
+  },
+
+  addBike(clientId, data) {
+    const bike = Domain.newBike(data);
+    Actions.commit(db => Domain.client(db, clientId).bikes.push(bike));
+    App.navigate({ tab: "clients", clientId, bikeId: bike.id });
+  },
+
+  /** Direct spec edit — corrections and data entry, deliberately not logged. */
+  updateBike(clientId, bikeId, data) {
+    Actions.commit(db => Object.assign(Domain.bike(db, clientId, bikeId), data));
+  },
+
+  deleteBike(clientId, bikeId) {
+    Actions.commit(db => {
+      const client = Domain.client(db, clientId);
+      client.bikes = client.bikes.filter(b => b.id !== bikeId);
+    });
+    App.navigate({ tab: "clients", clientId, bikeId: null });
+  },
+
+  /**
+   * Record a changelog entry and apply its part changes to the live spec.
+   * This is the one path where history and current state move together.
+   */
+  addEvent(clientId, bikeId, data) {
+    const event = Domain.newEvent(data);
+    Actions.commit(db => {
+      const bike = Domain.bike(db, clientId, bikeId);
+      event.changes.forEach(change => Actions._applyChange(bike, change));
+      bike.events.push(event);
+    });
+  },
+
+  /** Apply one recorded change to the bike's current specification. */
+  _applyChange(bike, change) {
+    if (change.target === "spec") {
+      bike.specs[change.key] = change.to;
+    } else if (change.target === "other") {
+      const entry = (bike.other || []).find(o => o.id === change.key);
+      if (entry) entry.value = change.to;
+      else (bike.other = bike.other || []).push({ id: Util.uid("o"), label: change.label, value: change.to });
+    }
+    // target === "note": recorded in history only, by design.
+  },
+
+  /**
+   * Remove a changelog entry. The bike's current spec is left as-is: history
+   * is a record of what happened, and un-applying it would be a guess.
+   */
+  deleteEvent(clientId, bikeId, eventId) {
+    Actions.commit(db => {
+      const bike = Domain.bike(db, clientId, bikeId);
+      bike.events = bike.events.filter(e => e.id !== eventId);
+    });
+  },
+
+  replaceDatabase(data) {
+    App.db = Store.migrate(data);
+    Store.save(App.db);
+    App.navigate({ tab: "clients", clientId: null, bikeId: null });
+  }
+};
+
+/* ==========================================================================
+   6. COMPONENTS — reusable DOM builders (modal + form primitives)
+   ========================================================================== */
+
+const Modal = {
+  /**
+   * Open a form modal.
+   *   title       heading text
+   *   build(body) fills the scrollable body; return value ignored
+   *   submitLabel primary button text
+   *   onSubmit(body)  -> return false to keep the modal open
+   *   randomize(body) -> optional; adds the 🎲 test-data button to the footer
+   */
+  open({ title, build, submitLabel = "Save", onSubmit, randomize }) {
+    Modal.close();
+
+    const body = Util.el("div", { class: "body" });
+    build(body);
+
+    const form = Util.el("form", {
+      class: "modal", role: "dialog", "aria-modal": "true", "aria-label": title,
+      onsubmit: (ev) => {
+        ev.preventDefault();
+        if (onSubmit(body) !== false) Modal.close();
+      }
+    }, [
+      Util.el("header", {}, [Util.el("h2", { text: title })]),
+      body,
+      Util.el("footer", {}, [
+        randomize ? Util.el("button", {
+          type: "button", class: "btn", text: "🎲 Random",
+          title: "Fill this form with plausible test data",
+          onclick: () => randomize(body)
+        }) : null,
+        randomize ? Util.el("span", { class: "spacer" }) : null,
+        Util.el("button", { type: "button", class: "btn", text: "Cancel", onclick: Modal.close }),
+        Util.el("button", { type: "submit", class: "btn btn-primary", text: submitLabel })
+      ])
+    ]);
+
+    const backdrop = Util.el("div", {
+      class: "modal-backdrop",
+      onmousedown: (ev) => { if (ev.target === backdrop) Modal.close(); }
+    }, [form]);
+
+    document.getElementById("modal-root").append(backdrop);
+    document.addEventListener("keydown", Modal._onKey);
+    const first = body.querySelector("input, textarea, select");
+    if (first) first.focus();
+  },
+
+  close() {
+    document.getElementById("modal-root").innerHTML = "";
+    document.removeEventListener("keydown", Modal._onKey);
+  },
+
+  _onKey(ev) { if (ev.key === "Escape") Modal.close(); }
+};
+
+const Form = {
+  /** One labelled control. `field` uses the schema shape from section 1. */
+  field(field, value = "") {
+    const id = "f_" + field.key;
+    let input;
+
+    if (field.type === "textarea") {
+      input = Util.el("textarea", { id, name: field.key, text: value, rows: field.rows || 3 });
+    } else {
+      input = Util.el("input", {
+        id, name: field.key, value: value ?? "",
+        type: field.type === "number" ? "number" : (field.type || "text"),
+        step: field.step, placeholder: field.placeholder,
+        required: !!field.required,
+        list: field.suggest ? id + "_list" : null,
+        autocomplete: "off"
+      });
+    }
+
+    const children = [Util.el("label", { for: id, text: field.label + (field.required ? " *" : "") }), input];
+    if (field.suggest) {
+      children.push(Util.el("datalist", { id: id + "_list" },
+        field.suggest.map(opt => Util.el("option", { value: opt }))));
+    }
+    if (field.hint) children.push(Util.el("div", { class: "hint", text: field.hint }));
+
+    return Util.el("div", { class: "field" + (field.wide || field.type === "textarea" ? " wide" : "") }, children);
+  },
+
+  /** A <fieldset> of fields laid out in the responsive grid. */
+  section(legend, fields, values = {}, hint) {
+    return Util.el("fieldset", {}, [
+      Util.el("legend", {}, [
+        Util.el("h4", { text: legend }),
+        hint ? Util.el("div", { class: "hint", text: hint }) : null
+      ].filter(Boolean)),
+      Util.el("div", { class: "fields" }, fields.map(f => Form.field(f, values[f.key])))
+    ]);
+  },
+
+  /** Read every named control inside a container into a plain object. */
+  values(container) {
+    const out = {};
+    container.querySelectorAll("[name]").forEach(input => {
+      if (input.closest(".dyn-row")) return;   // dynamic rows are parsed separately
+      out[input.name] = input.value.trim();
+    });
+    return out;
+  }
+};
+
+/**
+ * Repeatable rows (free-form "other" entries and part-change entries).
+ * Each row is a .dyn-row; `parse` reads them back out of the DOM.
+ */
+const DynRows = {
+  container(className) {
+    return Util.el("div", { class: "dyn-rows", "data-rows": className });
+  },
+
+  addButton(label, container, factory) {
+    return Util.el("button", {
+      type: "button", class: "btn btn-sm", text: label,
+      onclick: () => {
+        container.append(factory());
+        const inputs = container.lastElementChild.querySelectorAll("input, select");
+        if (inputs.length) inputs[0].focus();
+      }
+    });
+  },
+
+  removeButton() {
+    return Util.el("button", {
+      type: "button", class: "btn btn-sm btn-danger", text: "Remove",
+      title: "Remove this row",
+      onclick: (ev) => ev.target.closest(".dyn-row").remove()
+    });
+  },
+
+  /* --- free-form label/value rows --- */
+  kvRow(entry = {}) {
+    return Util.el("div", { class: "dyn-row kv", "data-id": entry.id || "" }, [
+      Util.el("div", { class: "field" }, [
+        Util.el("label", { text: "Label" }),
+        Util.el("input", { "data-kv": "label", value: entry.label || "", placeholder: "e.g. Fit measurements" })
+      ]),
+      Util.el("div", { class: "field" }, [
+        Util.el("label", { text: "Detail" }),
+        Util.el("input", { "data-kv": "value", value: entry.value || "", placeholder: "e.g. Saddle height 742mm" })
+      ]),
+      DynRows.removeButton()
+    ]);
+  },
+
+  parseKV(container) {
+    return Array.from(container.querySelectorAll(".dyn-row.kv")).map(row => ({
+      id: row.dataset.id || Util.uid("o"),
+      label: row.querySelector('[data-kv="label"]').value.trim(),
+      value: row.querySelector('[data-kv="value"]').value.trim()
+    })).filter(entry => entry.label || entry.value);
+  },
+
+  /* --- part-change rows (used by the add-work / owner-change form) --- */
+
+  /** Everything a change can point at: spec fields, existing extras, or a note. */
+  changeTargets(bike) {
+    const options = [];
+    SPEC_GROUPS.forEach(group => {
+      group.fields.forEach(f => options.push({
+        value: "spec:" + f.key,
+        label: group.label + " — " + f.label,
+        current: (bike.specs || {})[f.key] || ""
+      }));
+    });
+    (bike.other || []).forEach(o => options.push({
+      value: "other:" + o.id,
+      label: "Other — " + (o.label || "untitled"),
+      current: o.value || ""
+    }));
+    options.push({ value: "note:", label: "Something else (log only)", current: "" });
+    return options;
+  },
+
+  changeRow(bike) {
+    const targets = DynRows.changeTargets(bike);
+
+    const select = Util.el("select", { "data-change": "target" }, [
+      Util.el("option", { value: "", text: "Choose a part…" }),
+      ...targets.map(t => Util.el("option", { value: t.value, text: t.label }))
+    ]);
+
+    const noteLabel = Util.el("input", {
+      "data-change": "note-label", placeholder: "What changed?", style: "display:none"
+    });
+    const toInput = Util.el("input", { "data-change": "to", placeholder: "New value" });
+    const costInput = Util.el("input", { "data-change": "cost", placeholder: "0.00", inputmode: "decimal" });
+    const currentHint = Util.el("div", { class: "hint", text: " " });
+
+    select.addEventListener("change", () => {
+      const target = targets.find(t => t.value === select.value);
+      const isNote = select.value.startsWith("note:");
+      noteLabel.style.display = isNote ? "" : "none";
+      currentHint.textContent = !target || isNote ? " "
+        : (target.current ? "Currently: " + target.current : "Currently: (empty)");
+    });
+
+    return Util.el("div", { class: "dyn-row change" }, [
+      Util.el("div", { class: "field" }, [
+        Util.el("label", { text: "Part" }), select, currentHint, noteLabel
+      ]),
+      Util.el("div", { class: "field" }, [
+        Util.el("label", { text: "New value" }), toInput
+      ]),
+      Util.el("div", { class: "field" }, [
+        Util.el("label", { text: "Part cost" }), costInput
+      ]),
+      DynRows.removeButton()
+    ]);
+  },
+
+  /** Turn change rows into stored change records (captures the old value). */
+  parseChanges(container, bike) {
+    const targets = DynRows.changeTargets(bike);
+    return Array.from(container.querySelectorAll(".dyn-row.change")).map(row => {
+      const value = row.querySelector('[data-change="target"]').value;
+      if (!value) return null;
+
+      const [target, key] = [value.slice(0, value.indexOf(":")), value.slice(value.indexOf(":") + 1)];
+      const to = row.querySelector('[data-change="to"]').value.trim();
+      const cost = Util.parseMoney(row.querySelector('[data-change="cost"]').value);
+      const noteLabel = row.querySelector('[data-change="note-label"]').value.trim();
+      const match = targets.find(t => t.value === value);
+
+      if (target === "note") {
+        if (!noteLabel && !to) return null;
+        return { target: "note", key: "", label: noteLabel || "Note", from: "", to, cost };
+      }
+      return {
+        target, key,
+        label: match ? match.label.replace(/^.*— /, "") : key,
+        from: match ? match.current : "",
+        to, cost
+      };
+    }).filter(Boolean);
+  }
+};
+
+/* ==========================================================================
+   6.5 RANDOM — test-data generation
+   --------------------------------------------------------------------------
+   A development aid: powers the 🎲 button on every form and the bulk
+   generator in the Data tab. Nothing else in the app depends on it, so this
+   whole section (plus the `randomize:` options in HANDLERS and the two
+   generator buttons in View.dataTab) can be deleted for a production build.
+
+   Bikes are generated from ARCHETYPES so the result stays coherent — you get
+   a carbon road bike with a road groupset, not a steel triathlon e-bike.
+   ========================================================================== */
+
+const Random = {
+
+  /* --- primitives --- */
+  int:    (min, max) => min + Math.floor(Math.random() * (max - min + 1)),
+  pick:   (arr) => arr[Math.floor(Math.random() * arr.length)],
+  chance: (p) => Math.random() < p,
+  /** n distinct members of arr (fewer if arr is short). */
+  sample(arr, n) {
+    const copy = arr.slice();
+    const out = [];
+    while (out.length < n && copy.length) out.push(...copy.splice(Random.int(0, copy.length - 1), 1));
+    return out;
+  },
+  /** ISO date somewhere in the last `days` days. */
+  dateWithin: (days) => new Date(Date.now() - Random.int(0, days) * 86400000).toISOString().slice(0, 10),
+
+  /* --- pools --- */
+  NAMES: {
+    first: ["Dana","Marco","Priya","Elliot","Saoirse","Tom","Aisha","Jonas","Mei","Rowan","Beatriz","Kwame",
+            "Lena","Hiro","Nadia","Felix","Imani","Oskar","Yuki","Camille","Rafael","Ingrid","Theo","Amara"],
+    last:  ["Whitfield","Reyes","Nair","Brennan","Doyle","Kaminski","Okafor","Lindqvist","Chen","Hargreaves",
+            "Moreau","Santos","Vogel","Tanaka","Halvorsen","Delgado","Osei","Novak","Fischer","Aaltonen"]
+  },
+  COMPANIES: ["Northside Couriers","Ridgeline Racing","Harbour Cycling Club","Velo Collective",
+              "Summit Tri Team","Bike Bus Co-op","Copperfield Cabs"],
+  STREETS: ["Alder","Birch","Canal","Dunmore","Elmwood","Foundry","Granary","Harbour","Ivy","Juniper"],
+  CLIENT_NOTES: [
+    "Rides most weekends. Prefers a call before any work over $150.",
+    "Commutes daily — needs same-day turnaround where possible.",
+    "Racing season runs April to September; keep the race wheels aside.",
+    "Very particular about bar tape. Always ask before replacing.",
+    "Drops off after 5pm. Partner sometimes collects.",
+    "Happy for us to use our judgement on consumables.",
+    "New to cycling — explain the work in plain terms.",
+    "Has an account with the shop; invoice monthly."
+  ],
+
+  /** Coherent bike families. Each supplies its own plausible core spec. */
+  ARCHETYPES: [
+    { types: ["Road"],
+      models: { Specialized: ["Tarmac SL7","Allez Sprint","Aethos"], Trek: ["Émonda SL6","Madone SLR 7"],
+                Cannondale: ["SuperSix EVO","CAAD13"], "Cervélo": ["Caledonia 5","S5"], Giant: ["TCR Advanced 2","Defy Advanced"] },
+      materials: ["Carbon","Carbon","Aluminium","Steel"],
+      sizes: ["49","52","54","56","58","61"],
+      groupsets: ["Shimano 105 R7100 Di2","Shimano Ultegra R8100 Di2","Shimano Dura-Ace R9200","SRAM Rival AXS","SRAM Force AXS","Campagnolo Chorus"],
+      drivetrains: ["2x11","2x12"],
+      brakes: ["Hydraulic disc","Hydraulic disc","Rim — caliper"],
+      wheelsets: ["DT Swiss ARC 1400","Roval Rapide CLX","Zipp 303 S","Fulcrum Racing 5","Mavic Ksyrium S"],
+      tires: ["Continental GP5000 700x28","Vittoria Corsa 700x25","Pirelli P Zero Race 700x28","Schwalbe Pro One 700x30"] },
+
+    { types: ["Gravel"],
+      models: { Salsa: ["Warbird","Journeyer"], Specialized: ["Diverge Comp","Crux"], Canyon: ["Grail CF SL","Grizl 7"],
+                Trek: ["Checkpoint SL5"], Surly: ["Midnight Special"] },
+      materials: ["Carbon","Aluminium","Steel","Titanium"],
+      sizes: ["S","M","L","XL","52","54","56"],
+      groupsets: ["Shimano GRX","Shimano GRX Di2","SRAM Apex AXS","SRAM Rival AXS","Shimano 105 R7100 Di2"],
+      drivetrains: ["1x11","1x12","2x11"],
+      brakes: ["Hydraulic disc"],
+      wheelsets: ["DT Swiss G1800","Hunt 4 Season Gravel","Zipp 303 Firecrest","Industry Nine Ultralite 250"],
+      tires: ["Panaracer GravelKing SK 700x43","René Herse Fleecer Ridge 700x45","WTB Riddler 700x37","Schwalbe G-One 700x40"] },
+
+    { types: ["Mountain — XC","Mountain — Trail","Mountain — Enduro"],
+      models: { "Santa Cruz": ["Hightower","Tallboy","Megatower"], Trek: ["Fuel EX 8","Top Fuel"],
+                Specialized: ["Stumpjumper Alloy","Epic Evo"], Giant: ["Trance X 29"], Canyon: ["Spectral 29"] },
+      materials: ["Carbon","Aluminium"],
+      sizes: ["S","M","L","XL"],
+      groupsets: ["Shimano Deore","Shimano SLX","Shimano XT","SRAM GX Eagle","SRAM XX1 Eagle"],
+      drivetrains: ["1x11","1x12"],
+      brakes: ["Hydraulic disc"],
+      wheelsets: ["DT Swiss XM 1700","Industry Nine Enduro S","Stan's Flow S2","Race Face AR30"],
+      tires: ["Maxxis Minion DHF 29x2.5","Schwalbe Nobby Nic 29x2.35","Continental Kryptotal 29x2.4"] },
+
+    { types: ["Commuter","Hybrid","Touring"],
+      models: { Trek: ["FX 3 Disc","Verve 2"], Surly: ["Steamroller","Cross-Check"], Giant: ["Escape 2"],
+                Specialized: ["Sirrus X 3.0"], Bianchi: ["C-Sport 2"] },
+      materials: ["Aluminium","Steel","Chromoly"],
+      sizes: ["S","M","L","XL","54","56"],
+      groupsets: ["Shimano Claris","Shimano Sora","Shimano Deore","Shimano Alivio"],
+      drivetrains: ["1x9","2x9","3x9","Singlespeed","Internal hub"],
+      brakes: ["Hydraulic disc","Mechanical disc","Rim — V-brake","Rim — caliper"],
+      wheelsets: ["Alex rims on Shimano hubs","Bontrager Connection","Stock alloy wheelset"],
+      tires: ["Bontrager H2 700x35","Schwalbe Marathon 700x38","Continental Contact 700x32"] },
+
+    { types: ["E-bike"],
+      models: { Specialized: ["Turbo Vado 4.0","Turbo Como"], Trek: ["Allant+ 7","Verve+ 2"],
+                Giant: ["Explore E+ 2"], Canyon: ["Pathlite:ON 7"] },
+      materials: ["Aluminium"],
+      sizes: ["S","M","L","XL"],
+      groupsets: ["Shimano Deore","Shimano SLX","Shimano Alivio"],
+      drivetrains: ["1x10","1x11","2x10"],
+      brakes: ["Hydraulic disc"],
+      wheelsets: ["Stock alloy, 36h","DT Swiss H1900 Hybrid"],
+      tires: ["Schwalbe Super Moto-X 27.5x2.4","Continental Contact Plus 700x42"] }
+  ],
+
+  /** Values used for extras and for part-change swaps, keyed by spec field. */
+  POOLS: {
+    fork:        ["Carbon, tapered","RockShox SID SL 100mm","Fox 34 Factory 130mm","Alloy rigid","Fox 36 Performance 160mm"],
+    shifters:    ["Shimano ST-R7170","Shimano ST-RX600","SRAM Rival AXS eTap","Shimano SL-M6100","Campagnolo Ergopower"],
+    frontDer:    ["Shimano FD-R7150","Shimano FD-RX810","None (1x)","Shimano FD-M2000"],
+    rearDer:     ["Shimano RD-R7150","Shimano RD-RX822 GRX","SRAM GX Eagle AXS","Shimano RD-M8100 XT","SRAM Force AXS"],
+    crankset:    ["Shimano FC-R7100 50/34","GRX FC-RX810 48/31","SRAM Force 46/33","Shimano XT M8100 32t","Race Face Aeffect 30t"],
+    chainrings:  ["50/34","52/36","48/31","40t","32t","34t"],
+    cassette:    ["Shimano 105 11-34","Shimano Ultegra 11-30","Shimano GRX 11-40","SRAM Eagle 10-52","Shimano XT 10-51","SRAM XPLR 10-44"],
+    chain:       ["Shimano HG601","Shimano XT M8100","SRAM PC-1130","KMC X11EL","KMC X12","Shimano CN-M6100"],
+    bottomBracket: ["Shimano BB-RS500","Praxis M30","SRAM DUB BSA","Chris King ThreadFit","Hope BSA"],
+    calipers:    ["Shimano BR-R7170","Shimano BR-M6100","SRAM Rival hydraulic","TRP Spyre mechanical","Hope Tech 4 E4"],
+    rotors:      ["Shimano RT-CL800 160mm","Shimano RT-MT800 180mm","SRAM Centerline 160mm","Galfer 203mm"],
+    headset:     ["Cane Creek 40","FSA Orbit","Chris King InSet","Stock integrated"],
+    stem:        ["Zipp Service Course 100mm","PRO Vibe 90mm","Race Face Aeffect 50mm","Bontrager Elite 110mm"],
+    handlebar:   ["Zipp Service Course 42cm","PRO Discover 44cm flare","Race Face Turbine 780mm","Bontrager Comp VR-C 40cm"],
+    barTape:     ["Lizard Skins 3.2mm","Supacaz Super Sticky Kush","Fizik Vento Solocush","Ergon GA3 grips","ODI Elite Pro grips"],
+    saddle:      ["Fizik Argo Tempo","Specialized Power Expert","Selle Italia Model X","Brooks C17","Ergon SM Pro"],
+    seatpost:    ["Alloy 27.2mm","Carbon 27.2mm","OneUp V2 dropper 150mm","Fox Transfer 125mm"],
+    pedals:      ["Shimano XT M8100","Shimano 105 R7000","Look Keo Classic","Crank Brothers Candy 3","Flat alloy platform"],
+    suspension:  ["RockShox SID SL / SIDLuxe 100mm","Fox 34 / Float DPS 130mm","Fox 36 / Float X 160mm"],
+    powerMeter:  ["4iiii left crank","Stages LR","Quarq DZero","Favero Assioma Duo pedals"],
+    accessories: ["Wahoo mount, rear light","Full mudguards + rear rack","Bottle cages x2, saddle bag","Garmin mount, bell","Front dynamo light"],
+    tubeless:    ["Yes — sealant","Yes — sealant","No — tubes"],
+    wheelset:    ["DT Swiss ARC 1400","Hunt 4 Season Gravel","Zipp 303 S","Stan's Flow S2","Fulcrum Racing 5"],
+    tires:       ["Continental GP5000 700x28","Panaracer GravelKing SK 700x43","Maxxis Minion DHF 29x2.5","Schwalbe Marathon 700x38"],
+    groupset:    ["Shimano 105 R7100 Di2","Shimano GRX","SRAM Rival AXS","Shimano XT"]
+  },
+
+  /** Free-form "Other" entries. */
+  OTHER: [
+    () => ({ label: "Fit measurements", value: `Saddle height ${Random.int(680, 790)}mm, setback ${Random.int(40, 90)}mm` }),
+    () => ({ label: "Purchased", value: `${Random.pick(["January","March","June","September","November"])} ${Random.int(2016, 2025)}, ${Random.pick(["from us","secondhand","online","from another shop"])}` }),
+    () => ({ label: "Insurance", value: `Listed with ${Random.pick(["Laka","Velosurance","home policy"])} — value ${Util.money(Random.int(800, 6000))}` }),
+    () => ({ label: "Known quirk", value: Random.pick([
+      "Creak from the BB under load — repacked twice, watch it.",
+      "Rear thru-axle threads are tired; do not overtighten.",
+      "Owner's original bar tape kept in the parts bin.",
+      "Frame has a repaired chainstay chip; keep an eye on it.",
+      "Dropper cable routing is fiddly — allow extra time."]) }),
+    () => ({ label: "Storage", value: Random.pick(["Kept outdoors under cover","Garage, dry","Hallway — carried up stairs"]) })
+  ],
+
+  WORK_JOBS: [
+    { title: "Annual service", desc: "Full strip and clean, bled brakes, trued both wheels, checked bearing play.", wear: ["chain"] },
+    { title: "Drivetrain refresh", desc: "Chain measured past 0.75%. Replaced chain and cassette, cleaned rings.", wear: ["chain","cassette"] },
+    { title: "Brake service", desc: "Bled both brakes, replaced pads, faced one rotor. Lever feel much firmer.", wear: ["rotors","calipers"] },
+    { title: "New tyres fitted", desc: "Customer wanted more grip for winter. Set up tubeless, checked clearance.", wear: ["tires","tubeless"] },
+    { title: "Wheel rebuild", desc: "Rear wheel rebuilt onto a new rim, retensioned and stress-relieved.", wear: ["wheelset"] },
+    { title: "Gear indexing + hanger", desc: "Straightened derailleur hanger, reindexed. Shifting clean across the block.", wear: ["rearDer"] },
+    { title: "Bar tape and cables", desc: "Fresh tape, replaced inner and outer cables front and rear.", wear: ["barTape"] },
+    { title: "Crash check", desc: "Post-crash inspection. Frame and fork sound. Realigned bars, replaced damaged parts.", wear: ["handlebar","stem"] },
+    { title: "Bike fit adjustments", desc: "Raised saddle, shorter stem fitted. Customer reports less shoulder strain.", wear: ["stem","saddle"] },
+    { title: "Bottom bracket replacement", desc: "Traced the creak to a dry BB. Replaced and torqued to spec.", wear: ["bottomBracket"] },
+    { title: "Suspension service", desc: "Lowers service and air can rebuild, fresh seals and oil.", wear: ["suspension"] },
+    { title: "Pre-season tune", desc: "Safety check, torque check, lubed and adjusted throughout. No parts needed.", wear: [] }
+  ],
+
+  OWNER_JOBS: [
+    { title: "Owner fitted new saddle", desc: "Swapped to a saddle brought back from a bike fit elsewhere.", wear: ["saddle"] },
+    { title: "Owner changed pedals", desc: "Moved to a different pedal system; old pedals kept.", wear: ["pedals"] },
+    { title: "Tyres swapped by owner", desc: "Fitted winter tyres at home before a wet spell.", wear: ["tires"] },
+    { title: "Work done at another shop", desc: "Serviced while away on a trip. No paperwork supplied.", wear: ["chain","cassette"] },
+    { title: "Owner added accessories", desc: "Fitted their own lights, mudguards and a rack.", wear: ["accessories"] },
+    { title: "Owner replaced bar tape", desc: "Re-wrapped at home after a wet winter.", wear: ["barTape"] },
+    { title: "Wheels upgraded privately", desc: "Bought a secondhand wheelset from a club mate.", wear: ["wheelset"] },
+    { title: "Owner reports a noise", desc: "Intermittent click under power. Nothing changed — logged for next visit.", wear: [] }
+  ],
+
+  /* --- entity generators --- */
+
+  clientData() {
+    const first = Random.pick(Random.NAMES.first);
+    const last = Random.pick(Random.NAMES.last);
+    return {
+      name: `${first} ${last}`,
+      phone: `555-0${Random.int(100, 199)}`,
+      email: `${first}.${last}@example.com`.toLowerCase(),
+      company: Random.chance(0.25) ? Random.pick(Random.COMPANIES) : "",
+      address: Random.chance(0.5) ? `${Random.int(1, 240)} ${Random.pick(Random.STREETS)} ${Random.pick(["Street","Road","Lane","Avenue"])}` : "",
+      notes: Random.chance(0.6) ? Random.pick(Random.CLIENT_NOTES) : ""
+    };
+  },
+
+  /** A coherent bike: nickname, core + extras specs, and a few Other rows. */
+  bikeData() {
+    const arch = Random.pick(Random.ARCHETYPES);
+    const type = Random.pick(arch.types);
+    const brand = Random.pick(Object.keys(arch.models));
+    const isDrop = ["Road","Gravel","Touring"].includes(type);
+    const isMTB = type.startsWith("Mountain") || type === "E-bike";
+
+    const specs = {
+      brand,
+      model: Random.pick(arch.models[brand]),
+      year: String(Random.int(2015, 2025)),
+      bikeType: type,
+      frameMaterial: Random.pick(arch.materials),
+      frameSize: Random.pick(arch.sizes),
+      serial: Random.chance(0.7) ? `${brand.slice(0, 2).toUpperCase()}${Random.int(10, 25)}-${Random.int(100000, 999999)}` : "",
+      color: Random.pick(["Deep blue","Matte black","Gloss red","Sage green","Raw / polished","Pearl white","Burnt orange","Slate grey"]),
+      groupset: Random.pick(arch.groupsets),
+      drivetrain: Random.pick(arch.drivetrains),
+      brakeType: Random.pick(arch.brakes),
+      wheelset: Random.pick(arch.wheelsets),
+      tires: Random.pick(arch.tires)
+    };
+
+    // Extras: fill roughly half, skipping anything that makes no sense here.
+    SPEC_GROUPS.find(g => g.id === "extras").fields.forEach(f => {
+      if (f.key === "suspension" && !isMTB) return;
+      if (f.key === "barTape" && !isDrop && !Random.chance(0.4)) return;
+      if (f.key === "powerMeter" && !Random.chance(0.2)) return;
+      if (Random.POOLS[f.key] && Random.chance(0.55)) specs[f.key] = Random.pick(Random.POOLS[f.key]);
+    });
+
+    return {
+      label: Random.chance(0.45)
+        ? `${Random.pick(["Blue","Black","Red","Green","Silver","Winter","Summer","Old","Best"])} ${Random.pick(["gravel bike","road bike","commuter","trail bike","hack","race bike"])}`
+        : "",
+      specs,
+      other: Random.sample(Random.OTHER, Random.int(0, 3)).map(make => Object.assign({ id: Util.uid("o") }, make()))
+    };
+  },
+
+  /**
+   * A changelog entry for a specific bike. Part changes are drawn from the
+   * job's wear items so the story and the swapped parts agree.
+   */
+  eventData(bike, kind) {
+    const job = Random.pick(kind === "owner" ? Random.OWNER_JOBS : Random.WORK_JOBS);
+    const changes = job.wear
+      .filter(key => Random.chance(0.85) && SPEC_FIELDS.has(key))
+      .map(key => ({
+        target: "spec",
+        key,
+        label: SPEC_FIELDS.get(key).label,
+        from: (bike.specs || {})[key] || "",
+        to: Random.pick(Random.POOLS[key] || [`New ${SPEC_FIELDS.get(key).label.toLowerCase()}`]),
+        cost: kind === "owner" ? 0 : Random.int(2, 24) * 5
+      }));
+
+    const partsTotal = changes.reduce((sum, c) => sum + c.cost, 0);
+    return {
+      kind,
+      date: Random.dateWithin(730),
+      by: kind === "owner"
+        ? Random.pick(["Owner","Owner","Another shop","Club mechanic"])
+        : Random.pick(["Ellis","Sam","Priya","Marek","Jo"]),
+      title: job.title,
+      description: job.desc,
+      cost: kind === "owner"
+        ? (Random.chance(0.4) ? String(partsTotal || Random.int(4, 30) * 5) : "0")
+        : String(partsTotal + Random.int(6, 30) * 5),
+      changes
+    };
+  },
+
+  /** A whole client with bikes and applied history — used by bulk generation. */
+  fullClient() {
+    const client = Domain.newClient(Random.clientData());
+
+    for (let i = Random.int(1, 3); i > 0; i--) {
+      const bike = Domain.newBike(Random.bikeData());
+
+      // Generate oldest-first and apply as we go, so the current spec is the
+      // result of its own history — exactly as if it had been entered by hand.
+      const events = Array.from({ length: Random.int(0, 6) }, () =>
+        Domain.newEvent(Random.eventData(bike, Random.chance(0.25) ? "owner" : "work")))
+        .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+      events.forEach(event => {
+        event.changes.forEach(change => {
+          change.from = bike.specs[change.key] || "";   // re-anchor to the live value
+          Actions._applyChange(bike, change);
+        });
+        bike.events.push(event);
+      });
+
+      client.bikes.push(bike);
+    }
+    return client;
+  },
+
+  /* --- form fillers (called by the 🎲 buttons) --- */
+
+  /** Set a named control inside a modal body. */
+  _set(body, name, value) {
+    const input = body.querySelector(`[name="${name}"]`);
+    if (input) input.value = value ?? "";
+  },
+
+  fillClientForm(body) {
+    const data = Random.clientData();
+    CLIENT_FIELDS.forEach(f => Random._set(body, f.key, data[f.key]));
+  },
+
+  fillBikeForm(body) {
+    const data = Random.bikeData();
+    Random._set(body, "label", data.label);
+    SPEC_FIELDS.forEach(f => Random._set(body, f.key, data.specs[f.key] || ""));
+
+    const rows = body.querySelector('[data-rows="kv"]');
+    if (rows) {
+      rows.innerHTML = "";
+      data.other.forEach(entry => rows.append(DynRows.kvRow(entry)));
+    }
+  },
+
+  fillEventForm(body, bike, kind) {
+    const data = Random.eventData(bike, kind);
+    ["date", "by", "title", "description", "cost"].forEach(key => Random._set(body, key, data[key]));
+
+    const rows = body.querySelector('[data-rows="change"]');
+    if (!rows) return;
+    rows.innerHTML = "";
+    data.changes.forEach(change => {
+      const row = DynRows.changeRow(bike);
+      rows.append(row);
+      const select = row.querySelector('[data-change="target"]');
+      select.value = "spec:" + change.key;
+      select.dispatchEvent(new Event("change"));   // refresh the "Currently:" hint
+      row.querySelector('[data-change="to"]').value = change.to;
+      row.querySelector('[data-change="cost"]').value = change.cost || "";
+    });
+    rows.append(DynRows.changeRow(bike));          // leave one blank row ready
+  }
+};
+
+/* ==========================================================================
+   7. VIEWS — pure functions returning HTML strings
+   ========================================================================== */
+
+const TABS = [
+  { id: "clients",  label: "Clients" },
+  { id: "bikes",    label: "All bikes" },
+  { id: "activity", label: "Activity" },
+  { id: "data",     label: "Data" }
+];
+
+const View = {
+
+  tabs(route) {
+    return TABS.map(t => `
+      <button class="tab" role="tab" aria-selected="${t.id === route.tab}"
+              data-action="tab" data-tab="${t.id}">${esc(t.label)}</button>`).join("");
+  },
+
+  /* --- shared fragments ------------------------------------------------- */
+
+  empty(icon, title, body, action) {
+    return `<div class="empty">
+      <span class="big">${icon}</span>
+      <h3>${esc(title)}</h3>
+      <p class="small">${esc(body)}</p>
+      ${action ? `<p style="margin-top:14px">${action}</p>` : ""}
+    </div>`;
+  },
+
+  specChips(bike) {
+    const s = bike.specs || {};
+    return ["bikeType", "groupset", "frameMaterial", "frameSize", "drivetrain"]
+      .filter(k => s[k])
+      .map(k => `<span class="chip">${esc(SPEC_FIELDS.get(k).label)}: <strong>${esc(s[k])}</strong></span>`)
+      .join(" ");
+  },
+
+  /** One changelog entry. `context` adds the client/bike line for feeds. */
+  entry(clientId, bikeId, event, context) {
+    const kind = ENTRY_KINDS[event.kind] || ENTRY_KINDS.work;
+    const changes = (event.changes || []).map(ch => `
+      <li>
+        <span class="diff-label">${esc(Domain.changeLabel(ch))}:</span>
+        ${ch.from ? `<span class="diff-from">${esc(ch.from)}</span><span class="diff-arrow">→</span>` : ""}
+        <span class="diff-to">${esc(ch.to || "—")}</span>
+        ${ch.cost ? `<span class="muted money"> · ${esc(Util.money(ch.cost))}</span>` : ""}
+      </li>`).join("");
+
+    return `<li class="type-${esc(event.kind)}">
+      <div class="entry-head">
+        <span class="badge ${kind.badge}">${esc(kind.label)}</span>
+        <strong>${esc(event.title || "(untitled)")}</strong>
+        <span class="entry-date">${esc(Util.formatDate(event.date))}</span>
+        ${event.by ? `<span class="entry-date">· ${esc(event.by)}</span>` : ""}
+        <span class="spacer"></span>
+        ${event.cost ? `<strong class="money">${esc(Util.money(event.cost))}</strong>` : ""}
+        <button class="btn btn-sm btn-danger" data-action="event:delete"
+                data-client="${esc(clientId)}" data-bike="${esc(bikeId)}"
+                data-event="${esc(event.id)}" title="Delete this entry">✕</button>
+      </div>
+      ${context ? `<div class="small muted">${esc(context)}</div>` : ""}
+      ${event.description ? `<div class="entry-body small">${esc(event.description)}</div>` : ""}
+      ${changes ? `<ul class="diff-list">${changes}</ul>` : ""}
+    </li>`;
+  },
+
+  /* --- tab: clients ----------------------------------------------------- */
+
+  clientList(db, filter) {
+    const needle = (filter || "").toLowerCase();
+    const clients = db.clients
+      .filter(c => !needle || Domain.clientSearchText(c).includes(needle))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const cards = clients.map(c => `
+      <article class="card clickable" data-action="client:open" data-client="${esc(c.id)}">
+        <div class="card-title">
+          <h3>${esc(c.name)}</h3>
+          <span class="badge">${c.bikes.length} bike${c.bikes.length === 1 ? "" : "s"}</span>
+        </div>
+        <p class="small muted">${esc([c.phone, c.email].filter(Boolean).join(" · ") || "No contact details")}</p>
+        ${c.bikes.length ? `<p class="small" style="margin-top:8px">${
+          c.bikes.slice(0, 3).map(b => esc(Domain.bikeTitle(b))).join("<br>")
+        }${c.bikes.length > 3 ? `<br><span class="muted">+${c.bikes.length - 3} more</span>` : ""}</p>` : ""}
+      </article>`).join("");
+
+    return `
+      <div class="stack">
+        <div class="row between">
+          <h2>Clients</h2>
+          <div class="row">
+            <input class="search" type="search" placeholder="Search clients, bikes, parts…"
+                   value="${esc(filter || "")}" data-action="search" data-scope="clients">
+            <button class="btn btn-primary" data-action="client:add">+ Add client</button>
+          </div>
+        </div>
+        ${clients.length
+          ? `<div class="grid">${cards}</div>`
+          : View.empty("👤", db.clients.length ? "No matches" : "No clients yet",
+              db.clients.length ? "Try a different search term."
+                                : "Add your first client to start tracking their bikes.",
+              db.clients.length ? "" : `<button class="btn btn-primary" data-action="client:add">+ Add client</button>`)}
+      </div>`;
+  },
+
+  clientDetail(db, client) {
+    const details = CLIENT_FIELDS
+      .filter(f => f.key !== "name" && f.key !== "notes" && client[f.key])
+      .map(f => `<div class="spec-item"><dt>${esc(f.label)}</dt><dd>${esc(client[f.key])}</dd></div>`)
+      .join("");
+
+    const bikes = client.bikes.map(b => {
+      const last = Domain.lastEvent(b);
+      return `
+      <article class="card clickable" data-action="bike:open"
+               data-client="${esc(client.id)}" data-bike="${esc(b.id)}">
+        <div class="card-title">
+          <h3>${esc(Domain.bikeTitle(b))}</h3>
+          <span class="badge">${b.events.length} entr${b.events.length === 1 ? "y" : "ies"}</span>
+        </div>
+        <p class="small muted">${esc(Domain.bikeSubtitle(b) || "—")}</p>
+        <p style="margin-top:10px">${View.specChips(b)}</p>
+        <p class="small muted" style="margin-top:10px">
+          ${last ? `Last: ${esc(Util.formatDate(last.date))} — ${esc(last.title || ENTRY_KINDS[last.kind].label)}`
+                 : "No work recorded yet"}
+        </p>
+      </article>`;
+    }).join("");
+
+    return `
+      <div class="stack">
+        ${View.breadcrumb([{ label: "Clients", action: "nav:clients" }, { label: client.name }])}
+
+        <div class="card">
+          <div class="row between">
+            <div>
+              <h2>${esc(client.name)}</h2>
+              <p class="small muted">${esc([client.phone, client.email, client.company].filter(Boolean).join(" · ") || "No contact details")}</p>
+            </div>
+            <div class="row">
+              <button class="btn" data-action="client:edit" data-client="${esc(client.id)}">Edit client</button>
+              <button class="btn btn-danger" data-action="client:delete" data-client="${esc(client.id)}">Delete</button>
+            </div>
+          </div>
+          ${details ? `<dl class="spec-grid" style="margin-top:14px">${details}</dl>` : ""}
+          ${client.notes ? `<p class="small" style="margin-top:14px;white-space:pre-wrap">${esc(client.notes)}</p>` : ""}
+          <div class="row" style="margin-top:14px">
+            <span class="chip">Bikes: <strong>${client.bikes.length}</strong></span>
+            <span class="chip">Recorded spend: <strong>${esc(Util.money(Domain.clientSpend(client)))}</strong></span>
+          </div>
+        </div>
+
+        <div class="row between">
+          <h3>Bikes</h3>
+          <button class="btn btn-primary" data-action="bike:add" data-client="${esc(client.id)}">+ Add bike</button>
+        </div>
+        ${client.bikes.length
+          ? `<div class="grid">${bikes}</div>`
+          : View.empty("🚲", "No bikes yet", "Add a bike to record its build and service history.",
+              `<button class="btn btn-primary" data-action="bike:add" data-client="${esc(client.id)}">+ Add bike</button>`)}
+      </div>`;
+  },
+
+  bikeDetail(db, client, bike) {
+    const specSection = (group) => {
+      const rows = group.fields
+        .filter(f => bike.specs[f.key])
+        .map(f => `<div class="spec-item"><dt>${esc(f.label)}</dt><dd>${esc(bike.specs[f.key])}</dd></div>`)
+        .join("");
+      return `
+        <section class="card">
+          <h4>${esc(group.label)}</h4>
+          ${rows ? `<dl class="spec-grid" style="margin-top:10px">${rows}</dl>`
+                 : `<p class="small muted" style="margin-top:8px">Nothing recorded. Use “Edit details”.</p>`}
+        </section>`;
+    };
+
+    const otherRows = (bike.other || []).filter(o => o.label || o.value)
+      .map(o => `<div class="spec-item"><dt>${esc(o.label)}</dt><dd>${esc(o.value)}</dd></div>`).join("");
+
+    const events = bike.events.slice().sort(Util.byDateDesc)
+      .map(e => View.entry(client.id, bike.id, e)).join("");
+
+    return `
+      <div class="stack">
+        ${View.breadcrumb([
+          { label: "Clients", action: "nav:clients" },
+          { label: client.name, action: "client:open", client: client.id },
+          { label: Domain.bikeTitle(bike) }
+        ])}
+
+        <div class="card">
+          <div class="row between">
+            <div>
+              <h2>${esc(Domain.bikeTitle(bike))}</h2>
+              <p class="small muted">${esc(Domain.bikeSubtitle(bike) || "")} · owned by ${esc(client.name)}</p>
+            </div>
+            <div class="row">
+              <button class="btn" data-action="bike:edit" data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">Edit details</button>
+              <button class="btn btn-danger" data-action="bike:delete" data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">Delete</button>
+            </div>
+          </div>
+          <p style="margin-top:12px">${View.specChips(bike)}</p>
+          <div class="row" style="margin-top:12px">
+            <span class="chip">Log entries: <strong>${bike.events.length}</strong></span>
+            <span class="chip">Recorded spend: <strong>${esc(Util.money(Domain.bikeSpend(bike)))}</strong></span>
+          </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+          ${SPEC_GROUPS.map(specSection).join("")}
+          <section class="card">
+            <h4>Other</h4>
+            ${otherRows ? `<dl class="spec-grid" style="margin-top:10px">${otherRows}</dl>`
+                        : `<p class="small muted" style="margin-top:8px">No extra notes recorded.</p>`}
+          </section>
+        </div>
+
+        <div class="card">
+          <div class="row between">
+            <h3>Changelog</h3>
+            <div class="row">
+              <button class="btn btn-primary" data-action="event:add" data-kind="work"
+                      data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">+ Add work</button>
+              <button class="btn" data-action="event:add" data-kind="owner"
+                      data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">+ Add owner change</button>
+            </div>
+          </div>
+          <div style="margin-top:14px">
+            ${events ? `<ul class="timeline">${events}</ul>`
+                     : View.empty("🧰", "Nothing logged yet",
+                        "Record work you performed, or a change the owner made elsewhere.")}
+          </div>
+        </div>
+      </div>`;
+  },
+
+  breadcrumb(items) {
+    return `<nav class="breadcrumb">` + items.map((item, i) => {
+      const sep = i ? `<span aria-hidden="true">›</span>` : "";
+      const node = item.action
+        ? `<button data-action="${esc(item.action)}"${item.client ? ` data-client="${esc(item.client)}"` : ""}>${esc(item.label)}</button>`
+        : `<span>${esc(item.label)}</span>`;
+      return sep + node;
+    }).join("") + `</nav>`;
+  },
+
+  /* --- tab: all bikes --------------------------------------------------- */
+
+  bikesTab(db, filter) {
+    const needle = (filter || "").toLowerCase();
+    const rows = Domain.allBikes(db)
+      .filter(({ client, bike }) =>
+        !needle || (Domain.bikeSearchText(bike) + " " + client.name.toLowerCase()).includes(needle))
+      .sort((a, b) => Domain.bikeTitle(a.bike).localeCompare(Domain.bikeTitle(b.bike)))
+      .map(({ client, bike }) => `
+        <article class="card clickable" data-action="bike:open"
+                 data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">
+          <div class="card-title">
+            <h3>${esc(Domain.bikeTitle(bike))}</h3>
+            <span class="badge">${bike.events.length}</span>
+          </div>
+          <p class="small muted">${esc(client.name)}${Domain.bikeSubtitle(bike) ? " · " + esc(Domain.bikeSubtitle(bike)) : ""}</p>
+          <p style="margin-top:10px">${View.specChips(bike)}</p>
+        </article>`).join("");
+
+    return `
+      <div class="stack">
+        <div class="row between">
+          <h2>All bikes</h2>
+          <input class="search" type="search" placeholder="Search by bike, part or owner…"
+                 value="${esc(filter || "")}" data-action="search" data-scope="bikes">
+        </div>
+        ${rows ? `<div class="grid">${rows}</div>`
+               : View.empty("🔍", "No bikes to show", "Bikes appear here once they are added to a client.")}
+      </div>`;
+  },
+
+  /* --- tab: activity ---------------------------------------------------- */
+
+  activityTab(db, filter) {
+    const stats = Domain.stats(db);
+    const entries = Domain.allEvents(db)
+      .filter(({ event }) => filter === "all" || event.kind === filter)
+      .slice(0, 200)
+      .map(({ client, bike, event }) =>
+        View.entry(client.id, bike.id, event, client.name + " · " + Domain.bikeTitle(bike)))
+      .join("");
+
+    const filterBtn = (id, label) =>
+      `<button class="btn btn-sm ${filter === id ? "btn-primary" : ""}"
+               data-action="activity:filter" data-filter="${id}">${esc(label)}</button>`;
+
+    return `
+      <div class="stack">
+        <h2>Activity</h2>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+          <div class="stat"><div class="n">${stats.clients}</div><div class="l">Clients</div></div>
+          <div class="stat"><div class="n">${stats.bikes}</div><div class="l">Bikes</div></div>
+          <div class="stat"><div class="n">${stats.workEntries}</div><div class="l">Jobs done</div></div>
+          <div class="stat"><div class="n">${stats.entries}</div><div class="l">Log entries</div></div>
+          <div class="stat"><div class="n money">${esc(Util.money(stats.revenue))}</div><div class="l">Recorded spend</div></div>
+        </div>
+        <div class="row">
+          ${filterBtn("all", "Everything")} ${filterBtn("work", "Shop work")} ${filterBtn("owner", "Owner changes")}
+        </div>
+        <div class="card">
+          ${entries ? `<ul class="timeline">${entries}</ul>`
+                    : View.empty("📋", "Nothing here yet", "Changelog entries from every bike show up in this feed.")}
+        </div>
+      </div>`;
+  },
+
+  /* --- tab: data -------------------------------------------------------- */
+
+  dataTab(db) {
+    const stats = Domain.stats(db);
+    const bytes = new Blob([JSON.stringify(db)]).size;
+    return `
+      <div class="stack">
+        <h2>Data</h2>
+        <div class="card stack">
+          <h3>Where your data lives</h3>
+          <p class="small muted">
+            Everything is stored in this browser only, under <code>${esc(CONFIG.storageKey)}</code>.
+            It is not sent anywhere. Clearing browser data, or using a different browser,
+            device or private window, means you will not see it. Export regularly.
+          </p>
+          <div class="row">
+            <span class="chip">Clients: <strong>${stats.clients}</strong></span>
+            <span class="chip">Bikes: <strong>${stats.bikes}</strong></span>
+            <span class="chip">Entries: <strong>${stats.entries}</strong></span>
+            <span class="chip">Size: <strong>${(bytes / 1024).toFixed(1)} KB</strong></span>
+            <span class="chip">Last saved: <strong>${db.updatedAt ? esc(new Date(db.updatedAt).toLocaleString(CONFIG.locale)) : "—"}</strong></span>
+          </div>
+        </div>
+
+        <div class="card stack">
+          <h3>Backup &amp; restore</h3>
+          <p class="small muted">Export writes a JSON file containing every client, bike and changelog entry.</p>
+          <div class="row">
+            <button class="btn btn-primary" data-action="data:export">⬇ Export JSON</button>
+            <button class="btn" data-action="data:import">⬆ Import JSON…</button>
+            <input type="file" id="import-file" accept="application/json,.json" class="sr-only">
+          </div>
+          <p class="hint">Importing replaces everything currently stored. Export first if in doubt.</p>
+        </div>
+
+        <div class="card stack">
+          <h3>Test data</h3>
+          <p class="small muted">
+            For trying the app out. Generated clients are added alongside whatever is already
+            stored; every form also has a 🎲 button that fills it in for you.
+          </p>
+          <div class="row">
+            <button class="btn" data-action="data:generate" data-count="5">+ 5 random clients</button>
+            <button class="btn" data-action="data:generate" data-count="25">+ 25 random clients</button>
+            <button class="btn" data-action="data:sample">Load curated sample</button>
+          </div>
+          <p class="hint">Each generated client gets 1–3 bikes with a full build spec and up to 6 changelog entries.</p>
+        </div>
+
+        <div class="card stack">
+          <h3>Danger zone</h3>
+          <div class="row">
+            <button class="btn btn-danger" data-action="data:reset">Delete everything</button>
+          </div>
+        </div>
+      </div>`;
+  }
+};
+
+/* ==========================================================================
+   8. CONTROLLER — route state, render dispatch, delegated events
+   ========================================================================== */
+
+const App = {
+  db: null,
+
+  /** All transient UI state lives here; never persisted except the route. */
+  route: { tab: "clients", clientId: null, bikeId: null },
+  ui: { searchClients: "", searchBikes: "", activityFilter: "all" },
+
+  navigate(patch) {
+    Object.assign(App.route, patch);
+    Store.saveRoute(App.route);
+    App.render();
+  },
+
+  render() {
+    const view = document.getElementById("view");
+    document.getElementById("tabs").innerHTML = View.tabs(App.route);
+
+    // Resolve the route defensively: entities can be deleted underneath it.
+    const client = App.route.clientId ? Domain.client(App.db, App.route.clientId) : null;
+    const bike = client && App.route.bikeId ? Domain.bike(App.db, client.id, App.route.bikeId) : null;
+
+    let html;
+    switch (App.route.tab) {
+      case "bikes":    html = View.bikesTab(App.db, App.ui.searchBikes); break;
+      case "activity": html = View.activityTab(App.db, App.ui.activityFilter); break;
+      case "data":     html = View.dataTab(App.db); break;
+      default:
+        if (client && bike)  html = View.bikeDetail(App.db, client, bike);
+        else if (client)     html = View.clientDetail(App.db, client);
+        else                 html = View.clientList(App.db, App.ui.searchClients);
+    }
+    view.innerHTML = html;
+  }
+};
+
+/**
+ * Delegated handlers, keyed by the `data-action` attribute.
+ * Each receives (dataset, element).
+ */
+const HANDLERS = {
+
+  /* --- navigation --- */
+  "tab": (d) => App.navigate({ tab: d.tab }),
+  "nav:clients": () => App.navigate({ tab: "clients", clientId: null, bikeId: null }),
+  "client:open": (d) => App.navigate({ tab: "clients", clientId: d.client, bikeId: null }),
+  "bike:open":   (d) => App.navigate({ tab: "clients", clientId: d.client, bikeId: d.bike }),
+  "activity:filter": (d) => { App.ui.activityFilter = d.filter; App.render(); },
+
+  /* --- clients --- */
+  "client:add": () => Modal.open({
+    title: "New client",
+    submitLabel: "Create client",
+    build: (body) => body.append(Form.section("Client details", CLIENT_FIELDS, {})),
+    randomize: Random.fillClientForm,
+    onSubmit: (body) => {
+      const values = Form.values(body);
+      if (!values.name) return false;
+      Actions.addClient(values);
+    }
+  }),
+
+  "client:edit": (d) => {
+    const client = Domain.client(App.db, d.client);
+    Modal.open({
+      title: "Edit client",
+      build: (body) => body.append(Form.section("Client details", CLIENT_FIELDS, client)),
+      randomize: Random.fillClientForm,
+      onSubmit: (body) => {
+        const values = Form.values(body);
+        if (!values.name) return false;
+        Actions.updateClient(client.id, values);
+      }
+    });
+  },
+
+  "client:delete": (d) => {
+    const client = Domain.client(App.db, d.client);
+    const msg = `Delete ${client.name}, their ${client.bikes.length} bike(s) and all changelog history?\n\nThis cannot be undone.`;
+    if (confirm(msg)) Actions.deleteClient(client.id);
+  },
+
+  /* --- bikes --- */
+  "bike:add": (d) => HANDLERS._bikeForm(d.client, null),
+  "bike:edit": (d) => HANDLERS._bikeForm(d.client, d.bike),
+
+  /** Shared add/edit bike form — the same fields either way. */
+  _bikeForm(clientId, bikeId) {
+    const bike = bikeId ? Domain.bike(App.db, clientId, bikeId) : null;
+    const specs = bike ? bike.specs : {};
+
+    Modal.open({
+      title: bike ? "Edit bike details" : "New bike",
+      submitLabel: bike ? "Save changes" : "Add bike",
+      build: (body) => {
+        body.append(Form.section("Identification", [
+          { key: "label", label: "Nickname (optional)", wide: true,
+            placeholder: "e.g. Blue gravel bike — how the shop refers to it",
+            hint: "Leave blank to name the bike from its year, brand and model." }
+        ], { label: bike ? bike.label : "" }));
+
+        SPEC_GROUPS.forEach(group =>
+          body.append(Form.section(group.label, group.fields, specs, group.hint)));
+
+        // "Other" — free-form rows, appended last.
+        const rows = DynRows.container("kv");
+        ((bike && bike.other) || []).forEach(entry => rows.append(DynRows.kvRow(entry)));
+        body.append(Util.el("fieldset", {}, [
+          Util.el("legend", {}, [
+            Util.el("h4", { text: "Other" }),
+            Util.el("div", { class: "hint", text: "Anything else worth keeping: fit numbers, insurance, quirks, history." })
+          ]),
+          rows,
+          DynRows.addButton("+ Add entry", rows, () => DynRows.kvRow())
+        ]));
+      },
+      randomize: Random.fillBikeForm,
+      onSubmit: (body) => {
+        const values = Form.values(body);
+        const label = values.label || "";
+        delete values.label;
+        const data = { label, specs: values, other: DynRows.parseKV(body) };
+        if (bike) Actions.updateBike(clientId, bike.id, data);
+        else Actions.addBike(clientId, data);
+      }
+    });
+  },
+
+  "bike:delete": (d) => {
+    const bike = Domain.bike(App.db, d.client, d.bike);
+    if (confirm(`Delete “${Domain.bikeTitle(bike)}” and its ${bike.events.length} changelog entr(ies)?\n\nThis cannot be undone.`)) {
+      Actions.deleteBike(d.client, d.bike);
+    }
+  },
+
+  /* --- changelog --- */
+
+  /**
+   * Add work / add owner change. Both use one form; `kind` only changes
+   * wording and which badge the entry gets.
+   */
+  "event:add": (d) => {
+    const bike = Domain.bike(App.db, d.client, d.bike);
+    const kind = ENTRY_KINDS[d.kind] ? d.kind : "work";
+    const meta = ENTRY_KINDS[kind];
+
+    Modal.open({
+      title: meta.verb + " — " + Domain.bikeTitle(bike),
+      submitLabel: "Save to changelog",
+      build: (body) => {
+        body.append(Form.section("What happened", [
+          { key: "date",  label: "Date", type: "date" },
+          { key: "by",    label: meta.byLabel, placeholder: meta.byPlaceholder },
+          { key: "title", label: "Summary", required: true, wide: true, placeholder: meta.titlePlaceholder },
+          { key: "description", label: "Details", type: "textarea", wide: true,
+            placeholder: "Notes for future reference: what was found, what was done, what to watch." }
+        ], { date: Util.today() }));
+
+        // Part changes — each one updates the bike's current spec on save.
+        const rows = DynRows.container("change");
+        rows.append(DynRows.changeRow(bike));
+        body.append(Util.el("fieldset", {}, [
+          Util.el("legend", {}, [
+            Util.el("h4", { text: "Part changes" }),
+            Util.el("div", { class: "hint", text: "Each row updates the bike's current specification and is recorded as a before → after in the changelog." })
+          ]),
+          rows,
+          DynRows.addButton("+ Add part change", rows, () => DynRows.changeRow(bike))
+        ]));
+
+        body.append(Form.section("Cost", [
+          { key: "cost", label: kind === "work" ? "Total charged" : "Cost (if known)",
+            placeholder: "0.00", hint: "Parts and labour combined." }
+        ], {}));
+      },
+      randomize: (body) => Random.fillEventForm(body, bike, kind),
+      onSubmit: (body) => {
+        const values = Form.values(body);
+        if (!values.title) return false;
+        Actions.addEvent(d.client, d.bike, {
+          kind,
+          date: values.date || Util.today(),
+          by: values.by,
+          title: values.title,
+          description: values.description,
+          cost: values.cost,
+          changes: DynRows.parseChanges(body, bike)
+        });
+      }
+    });
+  },
+
+  "event:delete": (d) => {
+    if (confirm("Delete this changelog entry?\n\nThe bike's current specification will NOT be reverted.")) {
+      Actions.deleteEvent(d.client, d.bike, d.event);
+    }
+  },
+
+  /* --- data --- */
+  "data:export": () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    Util.download(`bikeshop-backup-${stamp}.json`, JSON.stringify(App.db, null, 2));
+  },
+
+  "data:import": () => document.getElementById("import-file").click(),
+
+  "data:generate": (d) => {
+    const count = Math.min(parseInt(d.count, 10) || 5, 200);
+    Actions.commit(db => {
+      for (let i = 0; i < count; i++) db.clients.push(Random.fullClient());
+    });
+    Store.flashStatus(`Generated ${count} random client(s)`);
+  },
+
+  "data:sample": () => {
+    if (App.db.clients.length && !confirm("Loading sample data replaces everything currently stored. Continue?")) return;
+    Actions.replaceDatabase(SAMPLE_DATA());
+  },
+
+  "data:reset": () => {
+    if (!confirm("Delete every client, bike and changelog entry?\n\nThis cannot be undone. Export a backup first if you might want it back.")) return;
+    if (!confirm("Really delete everything?")) return;
+    Actions.replaceDatabase(Store.empty());
+  }
+};
+
+/* ==========================================================================
+   9. BOOTSTRAP
+   ========================================================================== */
+
+/** Single click listener for the whole app; finds the nearest data-action. */
+document.addEventListener("click", (ev) => {
+  const target = ev.target.closest("[data-action]");
+  if (!target || target.closest(".modal")) return;   // modals wire their own handlers
+  const handler = HANDLERS[target.dataset.action];
+  if (!handler) return;
+  ev.preventDefault();
+  handler(target.dataset, target);
+});
+
+/** Search boxes: keep the caret by updating state without a full re-render. */
+document.addEventListener("input", (ev) => {
+  const input = ev.target.closest('[data-action="search"]');
+  if (!input) return;
+  const caret = input.selectionStart;
+  if (input.dataset.scope === "clients") App.ui.searchClients = input.value;
+  else App.ui.searchBikes = input.value;
+  App.render();
+  // The re-render replaced the input, so restore focus and caret position.
+  const next = document.querySelector(`[data-action="search"][data-scope="${input.dataset.scope}"]`);
+  if (next) { next.focus(); next.setSelectionRange(caret, caret); }
+});
+
+/** File picker for JSON import. */
+document.addEventListener("change", (ev) => {
+  if (ev.target.id !== "import-file") return;
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data || !Array.isArray(data.clients)) throw new Error("Not a registry backup file.");
+      const count = data.clients.length;
+      if (confirm(`Import ${count} client(s)? This replaces everything currently stored.`)) {
+        Actions.replaceDatabase(data);
+      }
+    } catch (err) {
+      alert("Could not import that file: " + err.message);
+    }
+    ev.target.value = "";
+  };
+  reader.readAsText(file);
+});
+
+/** Demo content so the app can be evaluated without typing everything in. */
+function SAMPLE_DATA() {
+  const db = Store.empty();
+
+  const client = Domain.newClient({
+    name: "Dana Whitfield", phone: "555-0142", email: "dana.w@example.com",
+    notes: "Rides most weekends. Prefers a call before any work over $150."
+  });
+
+  const bike = Domain.newBike({
+    label: "Blue gravel bike",
+    specs: {
+      brand: "Salsa", model: "Warbird", year: "2022", bikeType: "Gravel",
+      frameMaterial: "Carbon", frameSize: "54", serial: "WB22-884120", color: "Deep blue",
+      groupset: "Shimano GRX", drivetrain: "2x11", brakeType: "Hydraulic disc",
+      wheelset: "DT Swiss G1800", tires: "Panaracer GravelKing SK 700x43",
+      crankset: "GRX FC-RX810", cassette: "11-34", chain: "Shimano HG601",
+      saddle: "Fizik Argo Tempo", barTape: "Lizard Skins 3.2mm", pedals: "Shimano XT M8100",
+      tubeless: "Yes — sealant"
+    },
+    other: [
+      { id: Util.uid("o"), label: "Fit measurements", value: "Saddle height 742mm, setback 65mm" },
+      { id: Util.uid("o"), label: "Purchased", value: "March 2022, from us" }
+    ]
+  });
+
+  bike.events.push(
+    Domain.newEvent({
+      kind: "work", date: "2025-03-14", by: "Ellis", title: "Spring service",
+      description: "Full strip and clean, bled both brakes, trued rear wheel. Chain at 0.6% — replaced.",
+      cost: "145", changes: [
+        { target: "spec", key: "chain", label: "Chain", from: "Shimano HG601", to: "Shimano HG601 (new)", cost: 32 }
+      ]
+    }),
+    Domain.newEvent({
+      kind: "owner", date: "2025-06-02", by: "Owner", title: "Fitted own saddle",
+      description: "Swapped to a saddle brought back from a bike fit elsewhere.",
+      cost: "0", changes: [
+        { target: "spec", key: "saddle", label: "Saddle", from: "Fizik Argo Tempo", to: "Specialized Power Expert", cost: 0 }
+      ]
+    }),
+    Domain.newEvent({
+      kind: "work", date: "2025-09-21", by: "Ellis", title: "Tyre upgrade + cassette",
+      description: "Customer wanted lower gearing for a tour. Fitted wider tyres, checked clearance — fine at 45mm.",
+      cost: "268", changes: [
+        { target: "spec", key: "tires", label: "Tyres", from: "Panaracer GravelKing SK 700x43", to: "René Herse Fleecer Ridge 700x45", cost: 128 },
+        { target: "spec", key: "cassette", label: "Cassette", from: "11-34", to: "11-40", cost: 74 },
+        { target: "note", key: "", label: "Rear derailleur", from: "", to: "B-screw adjusted for larger cassette", cost: 0 }
+      ]
+    })
+  );
+
+  const commuter = Domain.newBike({
+    specs: {
+      brand: "Trek", model: "FX 3 Disc", year: "2019", bikeType: "Hybrid",
+      frameMaterial: "Aluminium", frameSize: "M", color: "Matte black",
+      drivetrain: "2x9", brakeType: "Hydraulic disc", tires: "Bontrager H2 700x35"
+    }
+  });
+
+  client.bikes.push(bike, commuter);
+
+  const second = Domain.newClient({ name: "Marco Reyes", phone: "555-0197", company: "Northside Couriers" });
+  second.bikes.push(Domain.newBike({
+    label: "Courier singlespeed",
+    specs: { brand: "Surly", model: "Steamroller", frameMaterial: "Steel", frameSize: "56",
+             bikeType: "Commuter", drivetrain: "Singlespeed", brakeType: "Rim — caliper" }
+  }));
+
+  db.clients.push(client, second);
+  return db;
+}
+
+/* Start. */
+App.db = Store.load();
+Object.assign(App.route, Store.loadRoute() || {});
+App.render();
+</script>
+</body>
+</html>
