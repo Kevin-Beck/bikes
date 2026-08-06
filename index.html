@@ -24,7 +24,16 @@
   --work-bg:   #e2f5ec;
   --owner:     #9a5b00;
   --owner-bg:  #fdf0da;
+  --edit:      #5b52b8;
+  --edit-bg:   #ebe9fa;
   --danger:    #c02626;
+  /* workflow status */
+  --st-in:     #1f6feb;
+  --st-in-bg:  #e6efff;
+  --st-done:   #0f7b55;
+  --st-done-bg:#e2f5ec;
+  --st-sched:  #9a5b00;
+  --st-sched-bg:#fdf0da;
   --radius:    8px;
   --shadow:    0 1px 2px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.05);
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
@@ -43,7 +52,15 @@
     --work-bg:   #12332a;
     --owner:     #f0b45e;
     --owner-bg:  #382a13;
+    --edit:      #a79cf5;
+    --edit-bg:   #262341;
     --danger:    #ff6b6b;
+    --st-in:     #4c8dff;
+    --st-in-bg:  #16233d;
+    --st-done:   #4ad6a0;
+    --st-done-bg:#12332a;
+    --st-sched:  #f0b45e;
+    --st-sched-bg:#382a13;
     --shadow:    0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
   }
 }
@@ -106,6 +123,13 @@ main { max-width: 1100px; margin: 0 auto; padding: 22px 20px 80px; }
 .card.clickable:hover { border-color: var(--accent); }
 .card-title { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 
+/* A bike card wears its workflow status as a coloured edge; "out of shop"
+   is the resting state and deliberately gets no stripe. */
+.card[data-status] { border-left-width: 3px; }
+.card[data-status="in_shop"]   { border-left-color: var(--st-in); }
+.card[data-status="completed"] { border-left-color: var(--st-done); }
+.card[data-status="scheduled"] { border-left-color: var(--st-sched); }
+
 .btn {
   appearance: none; font: inherit; cursor: pointer;
   padding: 7px 13px; border-radius: 6px;
@@ -127,12 +151,37 @@ main { max-width: 1100px; margin: 0 auto; padding: 22px 20px 80px; }
 }
 .badge-work  { background: var(--work-bg);  color: var(--work); }
 .badge-owner { background: var(--owner-bg); color: var(--owner); }
+.badge-edit  { background: var(--edit-bg);  color: var(--edit); }
+/* workflow status badges — one per BIKE_STATUSES entry, plus the log badge */
+.badge-in     { background: var(--st-in-bg);    color: var(--st-in); }
+.badge-done   { background: var(--st-done-bg);  color: var(--st-done); }
+.badge-sched  { background: var(--st-sched-bg); color: var(--st-sched); }
+.badge-out    { background: var(--surface-2);   color: var(--text-dim); }
+.badge-status { background: var(--st-in-bg);    color: var(--st-in); }
 .chip {
   display: inline-block; padding: 3px 9px; border-radius: 999px;
   background: var(--surface-2); border: 1px solid var(--border);
   font-size: 12px; color: var(--text-dim);
 }
 .chip strong { color: var(--text); font-weight: 600; }
+
+/* status control (bike page) */
+.status-bar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.seg button {
+  appearance: none; font: inherit; font-size: 13px; cursor: pointer;
+  background: var(--surface); color: var(--text-dim);
+  border: 0; border-left: 1px solid var(--border); padding: 6px 11px; white-space: nowrap;
+}
+.seg button:first-child { border-left: 0; }
+.seg button:hover { background: var(--surface-2); color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+
+.status-group + .status-group { margin-top: 22px; }
+.status-group > .grid { margin-top: 10px; }
 
 .breadcrumb { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--text-dim); flex-wrap: wrap; }
 .breadcrumb button {
@@ -154,6 +203,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 22px 20px 80px; }
 
 /* spec tables */
 .spec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 18px; }
+/* Same rows, one per line — for lists that read as a worklist, not a spec sheet. */
+.spec-grid.one-per-line { grid-template-columns: 1fr; }
 .spec-item { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 14px; }
 .spec-item dt { color: var(--text-dim); }
 .spec-item dd { margin: 0; text-align: right; font-weight: 500; overflow-wrap: anywhere; }
@@ -169,6 +220,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 22px 20px 80px; }
 }
 .timeline > li.type-work::before  { border-color: var(--work); }
 .timeline > li.type-owner::before { border-color: var(--owner); }
+/* Record edits are hollow-dotted: the log moved, the bike did not. */
+.timeline > li.type-edit::before  { border-color: var(--edit); border-style: dotted; }
+.timeline > li.type-status::before { border-color: var(--st-in); }
 .entry-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .entry-date { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .entry-body { margin-top: 4px; white-space: pre-wrap; }
@@ -357,6 +411,42 @@ const SPEC_FIELDS = (() => {
   return map;
 })();
 
+/**
+ * Where a bike is in the shop workflow.
+ *
+ * Listed in workflow order — the order the segmented control on the bike page
+ * shows them, and the order `next` walks:
+ *
+ *   out of shop → scheduled for work → in shop → work completed → out of shop
+ *
+ * `rank` is a separate, deliberately different ordering: it is how bikes are
+ * sorted and grouped in lists, so what is under the shop's roof right now
+ * floats to the top and the resting state sinks to the bottom.
+ */
+const BIKE_STATUSES = [
+  { id: "scheduled", rank: 2, label: "Scheduled for work", short: "Scheduled",
+    action: "Schedule for work",    next: "in_shop",   badge: "badge-sched",
+    groupHint: "Expected in — the client plans to bring these bikes to us." },
+  { id: "in_shop",   rank: 0, label: "In shop",           short: "In shop",
+    action: "Mark in shop",         next: "completed", badge: "badge-in",
+    groupHint: "With us now, work outstanding." },
+  { id: "completed", rank: 1, label: "Work completed",    short: "Completed",
+    action: "Mark work completed",  next: "out",       badge: "badge-done",
+    groupHint: "Done and waiting for the client to collect." },
+  { id: "out",       rank: 3, label: "Out of shop",       short: "Out",
+    action: "Mark picked up",       next: "scheduled", badge: "badge-out",
+    groupHint: "With their owners. Nothing outstanding." }
+];
+
+/** Fast lookup: status id -> status. */
+const BIKE_STATUS = new Map(BIKE_STATUSES.map(s => [s.id, s]));
+
+/** Statuses in list order (In shop, Work completed, Scheduled, Out of shop). */
+const BIKE_STATUSES_RANKED = BIKE_STATUSES.slice().sort((a, b) => a.rank - b.rank);
+
+/** A bike is out of the shop until someone says otherwise. */
+const DEFAULT_STATUS = "out";
+
 /** Client-level fields, same declarative shape as spec fields. */
 const CLIENT_FIELDS = [
   { key: "name",    label: "Name", required: true, wide: true },
@@ -367,14 +457,30 @@ const CLIENT_FIELDS = [
   { key: "notes",   label: "Notes", type: "textarea", wide: true }
 ];
 
-/** Changelog entry kinds. `owner` = work the shop did not perform. */
+/**
+ * Changelog entry kinds.
+ *   work   the shop did it
+ *   owner  someone else did it
+ *   edit   nobody touched the bike — the *record* changed. Written
+ *          automatically when "Edit details" alters stored data, so a
+ *          correction or a newly-noticed detail is still dated evidence.
+ *   status the bike moved through the shop workflow. Written automatically
+ *          whenever its status is re-tagged, so "when did this arrive?" and
+ *          "how long did it sit finished?" are answerable later.
+ *
+ * `manual: true` marks the kinds a user can add directly from the changelog.
+ */
 const ENTRY_KINDS = {
-  work:  { label: "Shop work",    badge: "badge-work",  verb: "Add work",
+  work:  { label: "Shop work",    badge: "badge-work",  verb: "Add work", manual: true,
            titlePlaceholder: "e.g. Annual service + new chain",
            byLabel: "Performed by", byPlaceholder: "Mechanic name" },
-  owner: { label: "Owner change", badge: "badge-owner", verb: "Add owner change",
+  owner: { label: "Owner change", badge: "badge-owner", verb: "Add owner change", manual: true,
            titlePlaceholder: "e.g. Owner fitted new saddle",
-           byLabel: "Changed by",  byPlaceholder: "Owner, other shop, …" }
+           byLabel: "Changed by",  byPlaceholder: "Owner, other shop, …" },
+  edit:  { label: "Record edit",  badge: "badge-edit",  verb: "Edit details",
+           byLabel: "Edited by",   byPlaceholder: "" },
+  status:{ label: "Status",       badge: "badge-status", verb: "Change status",
+           byLabel: "Changed by",  byPlaceholder: "" }
 };
 
 /* ==========================================================================
@@ -450,7 +556,7 @@ const esc = Util.esc; // used constantly in views
 
 const Store = {
   /** Shape of a brand-new database. */
-  empty: () => ({ schemaVersion: 1, clients: [], updatedAt: Date.now() }),
+  empty: () => ({ schemaVersion: 2, clients: [], updatedAt: Date.now() }),
 
   load() {
     try {
@@ -467,7 +573,16 @@ const Store = {
   /** Upgrade older payloads. Keep every past version handled here. */
   migrate(data) {
     if (!data || typeof data !== "object" || !Array.isArray(data.clients)) return Store.empty();
-    data.schemaVersion = data.schemaVersion || 1;
+
+    // v1 -> v2: bikes gained a workflow status. Anything without a valid one
+    // predates the field (or came from a hand-edited export) and is assumed to
+    // be with its owner. Also runs on import, so old backups still open.
+    data.clients.forEach(client => (client.bikes || []).forEach(bike => {
+      if (!BIKE_STATUS.has(bike.status)) bike.status = DEFAULT_STATUS;
+      if (!bike.statusDate) bike.statusDate = "";
+    }));
+
+    data.schemaVersion = 2;
     return data;
   },
 
@@ -526,6 +641,8 @@ const Domain = {
     specs: data.specs || {},           // flat map keyed by SPEC_FIELDS key
     other: data.other || [],           // [{ id, label, value }] free-form extras
     events: [],                        // changelog, newest sorted at render time
+    status: BIKE_STATUS.has(data.status) ? data.status : DEFAULT_STATUS,
+    statusDate: data.statusDate || "", // when it entered that status
     createdAt: Date.now()
   }),
 
@@ -535,7 +652,7 @@ const Domain = {
    */
   newEvent: (data = {}) => ({
     id: Util.uid("e"),
-    kind: data.kind === "owner" ? "owner" : "work",
+    kind: ENTRY_KINDS[data.kind] ? data.kind : "work",
     date: data.date || Util.today(),
     title: data.title || "",
     description: data.description || "",
@@ -555,6 +672,58 @@ const Domain = {
 
   /** Every bike in the shop, each paired with its owner. */
   allBikes: (db) => db.clients.flatMap(c => c.bikes.map(b => ({ client: c, bike: b }))),
+
+  /* --- workflow status --- */
+
+  /** The status record for a bike; never null, unknown ids fall back. */
+  status: (bike) => BIKE_STATUS.get(bike && bike.status) || BIKE_STATUS.get(DEFAULT_STATUS),
+
+  /** The next step in the workflow — what the big button on the bike page does. */
+  nextStatus: (bike) => BIKE_STATUS.get(Domain.status(bike).next),
+
+  /** True while the bike is anywhere other than back with its owner. */
+  isActive: (bike) => Domain.status(bike).id !== DEFAULT_STATUS,
+
+  /**
+   * Has any shop work been logged since the bike most recently arrived?
+   *
+   * This is the test behind the "work completed" warning. A finished job that
+   * left no trace in the changelog is nearly always a forgotten entry, but
+   * work from an earlier visit must not count as cover for this one — so only
+   * entries recorded after the last "In shop" tagging are considered. A bike
+   * whose arrival was never tagged has no such cutoff, and every work entry
+   * counts.
+   */
+  hasWorkSinceArrival(bike) {
+    const events = (bike && bike.events) || [];
+    const arrivedLabel = BIKE_STATUS.get("in_shop").label;
+
+    // events is in the order things were recorded, so a plain index is "when".
+    let arrival = -1;
+    events.forEach((e, i) => {
+      if (e.kind === "status" && (e.changes || []).some(c => c.to === arrivedLabel)) arrival = i;
+    });
+
+    return events.some((e, i) => e.kind === "work" && i > arrival);
+  },
+
+  /** Bikes grouped by status in list order, empty groups included. */
+  byStatus(entries) {
+    return BIKE_STATUSES_RANKED.map(status => ({
+      status,
+      items: entries.filter(entry => Domain.status(entry.bike).id === status.id)
+    }));
+  },
+
+  /** Count of a client's bikes per status id, e.g. { in_shop: 2, out: 1 }. */
+  clientStatusCounts(client) {
+    const counts = {};
+    client.bikes.forEach(b => {
+      const id = Domain.status(b).id;
+      counts[id] = (counts[id] || 0) + 1;
+    });
+    return counts;
+  },
 
   /** Every changelog entry with full context, newest first. */
   allEvents: (db) =>
@@ -584,6 +753,72 @@ const Domain = {
     return bike.events.slice().sort(Util.byDateDesc)[0] || null;
   },
 
+  /**
+   * Compare a bike against the values coming back from the edit form and
+   * describe the difference in the same change-record shape the changelog
+   * already uses: { target, key, label, from, to, cost }.
+   *
+   * Only genuine differences are returned, so re-saving an untouched form
+   * writes nothing.
+   */
+  diffBike(bike, next) {
+    const changes = [];
+    const norm = (v) => String(v ?? "").trim();
+
+    if (norm(bike.label) !== norm(next.label)) {
+      changes.push({ target: "meta", key: "label", label: "Nickname",
+                     from: norm(bike.label), to: norm(next.label), cost: 0 });
+    }
+
+    SPEC_FIELDS.forEach(field => {
+      const from = norm((bike.specs || {})[field.key]);
+      const to = norm((next.specs || {})[field.key]);
+      if (from !== to) {
+        changes.push({ target: "spec", key: field.key, label: field.label, from, to, cost: 0 });
+      }
+    });
+
+    // "Other" rows are matched by id, so renames and removals are visible
+    // rather than showing up as one row vanishing and another appearing.
+    const before = bike.other || [];
+    const after = next.other || [];
+    const afterById = new Map(after.map(o => [o.id, o]));
+
+    before.forEach(prev => {
+      const now = afterById.get(prev.id);
+      if (!now) {
+        changes.push({ target: "other", key: prev.id, label: norm(prev.label) || "Other entry",
+                       from: norm(prev.value), to: "", cost: 0 });
+        return;
+      }
+      if (norm(prev.label) !== norm(now.label)) {
+        changes.push({ target: "other", key: now.id, label: "Other entry renamed",
+                       from: norm(prev.label), to: norm(now.label), cost: 0 });
+      }
+      if (norm(prev.value) !== norm(now.value)) {
+        changes.push({ target: "other", key: now.id, label: norm(now.label) || "Other entry",
+                       from: norm(prev.value), to: norm(now.value), cost: 0 });
+      }
+    });
+
+    const beforeIds = new Set(before.map(o => o.id));
+    after.forEach(entry => {
+      if (beforeIds.has(entry.id)) return;
+      changes.push({ target: "other", key: entry.id, label: norm(entry.label) || "Other entry",
+                     from: "", to: norm(entry.value), cost: 0 });
+    });
+
+    return changes;
+  },
+
+  /** Auto-title for an edit entry: "Record edited — Bar tape, Saddle +2 more". */
+  editSummary(changes) {
+    if (!changes.length) return "Record reviewed";
+    const labels = changes.map(c => c.label);
+    const shown = labels.slice(0, 3).join(", ");
+    return "Record edited — " + shown + (labels.length > 3 ? ` +${labels.length - 3} more` : "");
+  },
+
   /** Human label for a change target, whatever its source. */
   changeLabel(change) {
     if (change.label) return change.label;
@@ -593,7 +828,7 @@ const Domain = {
 
   /** Free-text blob used by the search boxes. */
   bikeSearchText(bike) {
-    return [Domain.bikeTitle(bike), bike.label,
+    return [Domain.bikeTitle(bike), bike.label, Domain.status(bike).label,
             ...Object.values(bike.specs || {}),
             ...(bike.other || []).map(o => o.label + " " + o.value)
            ].join(" ").toLowerCase();
@@ -608,12 +843,17 @@ const Domain = {
   stats(db) {
     const bikes = Domain.allBikes(db);
     const events = bikes.flatMap(({ bike }) => bike.events);
+    const byStatus = {};
+    BIKE_STATUSES.forEach(s => { byStatus[s.id] = 0; });
+    bikes.forEach(({ bike }) => { byStatus[Domain.status(bike).id]++; });
+
     return {
       clients: db.clients.length,
       bikes: bikes.length,
       entries: events.length,
       workEntries: events.filter(e => e.kind === "work").length,
-      revenue: events.reduce((sum, e) => sum + (Number(e.cost) || 0), 0)
+      revenue: events.reduce((sum, e) => sum + (Number(e.cost) || 0), 0),
+      byStatus
     };
   }
 };
@@ -651,9 +891,69 @@ const Actions = {
     App.navigate({ tab: "clients", clientId, bikeId: bike.id });
   },
 
-  /** Direct spec edit — corrections and data entry, deliberately not logged. */
-  updateBike(clientId, bikeId, data) {
-    Actions.commit(db => Object.assign(Domain.bike(db, clientId, bikeId), data));
+  /**
+   * Direct edit of the bike record. No work was performed — but the stored
+   * facts changed, and when that happened is worth knowing ("when did I first
+   * note the creaky bottom bracket?"), so any real difference is written to
+   * the changelog as an `edit` entry.
+   *
+   * `note` is the optional reason typed into the form.
+   */
+  updateBike(clientId, bikeId, data, note) {
+    Actions.commit(db => {
+      const bike = Domain.bike(db, clientId, bikeId);
+      const changes = Domain.diffBike(bike, data);
+
+      Object.assign(bike, { label: data.label, specs: data.specs, other: data.other });
+
+      // An untouched form writes nothing; a note on its own is still logged,
+      // since "looked it over, nothing changed" is a real observation.
+      if (changes.length || note) {
+        bike.events.push(Domain.newEvent({
+          kind: "edit",
+          date: Util.today(),
+          title: Domain.editSummary(changes),
+          description: note || "",
+          cost: 0,
+          changes
+        }));
+      }
+    });
+  },
+
+  /**
+   * Move a bike through the workflow.
+   *
+   * The status is current state, so it lives on the bike; but *when* it moved
+   * is history, so every transition also writes a changelog entry. Re-tagging
+   * a bike to the status it already has is a no-op rather than a duplicate
+   * line in the log.
+   */
+  setBikeStatus(clientId, bikeId, statusId, note) {
+    if (!BIKE_STATUS.has(statusId)) return;
+    Actions.commit(db => {
+      const bike = Domain.bike(db, clientId, bikeId);
+      if (!bike) return;
+
+      const from = Domain.status(bike);
+      if (from.id === statusId) return;
+      const to = BIKE_STATUS.get(statusId);
+
+      bike.status = to.id;
+      bike.statusDate = Util.today();
+
+      bike.events.push(Domain.newEvent({
+        kind: "status",
+        date: bike.statusDate,
+        title: to.label,
+        description: note || "",
+        cost: 0,
+        // Recorded as a "note" change: the log shows the move, but nothing on
+        // the bike's specification is touched by it.
+        changes: [{ target: "note", key: "status", label: "Status",
+                    from: from.label, to: to.label, cost: 0 }]
+      }));
+    });
   },
 
   deleteBike(clientId, bikeId) {
@@ -747,15 +1047,52 @@ const Modal = {
       ])
     ]);
 
+    Modal._mount(form);
+    const first = body.querySelector("input, textarea, select");
+    if (first) first.focus();
+  },
+
+  /**
+   * A question with several ways out — no form, no saving.
+   *
+   * `message` is plain text; blank lines split it into paragraphs. `actions`
+   * are rendered after Cancel in the order given, each `{ label, class, run }`.
+   * The dialog closes before `run()` is called, so an action is free to open a
+   * modal of its own.
+   */
+  ask({ title, message, actions = [] }) {
+    Modal.close();
+
+    const dialog = Util.el("div", {
+      class: "modal", role: "alertdialog", "aria-modal": "true", "aria-label": title
+    }, [
+      Util.el("header", {}, [Util.el("h2", { text: title })]),
+      Util.el("div", { class: "body" },
+        String(message).split("\n\n").map(text => Util.el("p", { text }))),
+      Util.el("footer", {}, [
+        Util.el("button", { type: "button", class: "btn", text: "Cancel", onclick: Modal.close })
+      ].concat(actions.map(action => Util.el("button", {
+        type: "button",
+        class: "btn " + (action.class || ""),
+        text: action.label,
+        onclick: () => { Modal.close(); action.run(); }
+      }))))
+    ]);
+
+    Modal._mount(dialog);
+    const buttons = dialog.querySelectorAll("footer button");
+    if (buttons.length) buttons[buttons.length - 1].focus();
+  },
+
+  /** Put a built dialog on screen behind a click-to-dismiss backdrop. */
+  _mount(dialog) {
     const backdrop = Util.el("div", {
       class: "modal-backdrop",
       onmousedown: (ev) => { if (ev.target === backdrop) Modal.close(); }
-    }, [form]);
+    }, [dialog]);
 
     document.getElementById("modal-root").append(backdrop);
     document.addEventListener("keydown", Modal._onKey);
-    const first = body.querySelector("input, textarea, select");
-    if (first) first.focus();
   },
 
   close() {
@@ -1176,11 +1513,17 @@ const Random = {
       if (Random.POOLS[f.key] && Random.chance(0.55)) specs[f.key] = Random.pick(Random.POOLS[f.key]);
     });
 
+    // Most bikes are with their owners; a minority are somewhere in the
+    // workflow, so generated data exercises every group in the lists.
+    const status = Random.chance(0.72) ? "out" : Random.pick(["scheduled", "in_shop", "in_shop", "completed"]);
+
     return {
       label: Random.chance(0.45)
         ? `${Random.pick(["Blue","Black","Red","Green","Silver","Winter","Summer","Old","Best"])} ${Random.pick(["gravel bike","road bike","commuter","trail bike","hack","race bike"])}`
         : "",
       specs,
+      status,
+      statusDate: status === "out" ? "" : Random.dateWithin(14),
       other: Random.sample(Random.OTHER, Random.int(0, 3)).map(make => Object.assign({ id: Util.uid("o") }, make()))
     };
   },
@@ -1319,6 +1662,40 @@ const View = {
     </div>`;
   },
 
+  /** The bike's current status as a badge. `short` fits inside card titles. */
+  statusBadge(bike, short) {
+    const s = Domain.status(bike);
+    return `<span class="badge ${s.badge}">${esc(short ? s.short : s.label)}</span>`;
+  },
+
+  /**
+   * Tagging control for the bike page: where it is now, the one-click next
+   * step in the workflow, and a segmented control for jumping anywhere else
+   * (a bike that never got tagged as arrived can still be marked completed).
+   */
+  statusBar(client, bike) {
+    const current = Domain.status(bike);
+    const next = Domain.nextStatus(bike);
+
+    const segment = BIKE_STATUSES.map(s => `
+      <button type="button" aria-pressed="${s.id === current.id}"
+              title="${esc(s.action)}"
+              data-action="bike:status" data-client="${esc(client.id)}"
+              data-bike="${esc(bike.id)}" data-status="${esc(s.id)}">${esc(s.short)}</button>`).join("");
+
+    return `
+      <div class="status-bar">
+        <span class="small muted">Status</span>
+        ${View.statusBadge(bike)}
+        ${bike.statusDate ? `<span class="small muted">since ${esc(Util.formatDate(bike.statusDate))}</span>` : ""}
+        <span class="spacer"></span>
+        <button class="btn btn-sm btn-primary" data-action="bike:status"
+                data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
+                data-status="${esc(next.id)}">${esc(next.action)}</button>
+        <div class="seg" role="group" aria-label="Set status">${segment}</div>
+      </div>`;
+  },
+
   specChips(bike) {
     const s = bike.specs || {};
     return ["bikeType", "groupset", "frameMaterial", "frameSize", "drivetrain"]
@@ -1364,17 +1741,28 @@ const View = {
       .filter(c => !needle || Domain.clientSearchText(c).includes(needle))
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    const cards = clients.map(c => `
+    const cards = clients.map(c => {
+      // Only the statuses that need attention are worth the space here;
+      // "out of shop" is the norm and says nothing.
+      const counts = Domain.clientStatusCounts(c);
+      const active = BIKE_STATUSES_RANKED
+        .filter(s => s.id !== DEFAULT_STATUS && counts[s.id])
+        .map(s => `<span class="badge ${s.badge}">${counts[s.id]} ${esc(s.short.toLowerCase())}</span>`)
+        .join(" ");
+
+      return `
       <article class="card clickable" data-action="client:open" data-client="${esc(c.id)}">
         <div class="card-title">
           <h3>${esc(c.name)}</h3>
           <span class="badge">${c.bikes.length} bike${c.bikes.length === 1 ? "" : "s"}</span>
         </div>
         <p class="small muted">${esc([c.phone, c.email].filter(Boolean).join(" · ") || "No contact details")}</p>
+        ${active ? `<p style="margin-top:8px">${active}</p>` : ""}
         ${c.bikes.length ? `<p class="small" style="margin-top:8px">${
           c.bikes.slice(0, 3).map(b => esc(Domain.bikeTitle(b))).join("<br>")
         }${c.bikes.length > 3 ? `<br><span class="muted">+${c.bikes.length - 3} more</span>` : ""}</p>` : ""}
-      </article>`).join("");
+      </article>`;
+    }).join("");
 
     return `
       <div class="stack">
@@ -1396,25 +1784,31 @@ const View = {
   },
 
   clientDetail(db, client) {
+    const statusCounts = Domain.clientStatusCounts(client);
     const details = CLIENT_FIELDS
       .filter(f => f.key !== "name" && f.key !== "notes" && client[f.key])
       .map(f => `<div class="spec-item"><dt>${esc(f.label)}</dt><dd>${esc(client[f.key])}</dd></div>`)
       .join("");
 
-    const bikes = client.bikes.map(b => {
+    // Same ordering as the All bikes tab: whatever the shop is holding first.
+    const bikes = client.bikes.slice()
+      .sort((a, b) => Domain.status(a).rank - Domain.status(b).rank ||
+                      Domain.bikeTitle(a).localeCompare(Domain.bikeTitle(b)))
+      .map(b => {
       const last = Domain.lastEvent(b);
       return `
-      <article class="card clickable" data-action="bike:open"
+      <article class="card clickable" data-action="bike:open" data-status="${esc(Domain.status(b).id)}"
                data-client="${esc(client.id)}" data-bike="${esc(b.id)}">
         <div class="card-title">
           <h3>${esc(Domain.bikeTitle(b))}</h3>
-          <span class="badge">${b.events.length} entr${b.events.length === 1 ? "y" : "ies"}</span>
+          ${View.statusBadge(b, true)}
         </div>
         <p class="small muted">${esc(Domain.bikeSubtitle(b) || "—")}</p>
         <p style="margin-top:10px">${View.specChips(b)}</p>
         <p class="small muted" style="margin-top:10px">
-          ${last ? `Last: ${esc(Util.formatDate(last.date))} — ${esc(last.title || ENTRY_KINDS[last.kind].label)}`
-                 : "No work recorded yet"}
+          ${b.events.length} entr${b.events.length === 1 ? "y" : "ies"} ·
+          ${last ? `last ${esc(Util.formatDate(last.date))} — ${esc(last.title || ENTRY_KINDS[last.kind].label)}`
+                 : "nothing recorded yet"}
         </p>
       </article>`;
     }).join("");
@@ -1439,6 +1833,10 @@ const View = {
           <div class="row" style="margin-top:14px">
             <span class="chip">Bikes: <strong>${client.bikes.length}</strong></span>
             <span class="chip">Recorded spend: <strong>${esc(Util.money(Domain.clientSpend(client)))}</strong></span>
+            ${BIKE_STATUSES_RANKED
+              .filter(s => s.id !== DEFAULT_STATUS && statusCounts[s.id])
+              .map(s => `<span class="badge ${s.badge}">${statusCounts[s.id]} ${esc(s.short.toLowerCase())}</span>`)
+              .join(" ")}
           </div>
         </div>
 
@@ -1481,7 +1879,7 @@ const View = {
           { label: Domain.bikeTitle(bike) }
         ])}
 
-        <div class="card">
+        <div class="card" data-status="${esc(Domain.status(bike).id)}">
           <div class="row between">
             <div>
               <h2>${esc(Domain.bikeTitle(bike))}</h2>
@@ -1497,6 +1895,7 @@ const View = {
             <span class="chip">Log entries: <strong>${bike.events.length}</strong></span>
             <span class="chip">Recorded spend: <strong>${esc(Util.money(Domain.bikeSpend(bike)))}</strong></span>
           </div>
+          ${View.statusBar(client, bike)}
         </div>
 
         <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
@@ -1521,7 +1920,7 @@ const View = {
           <div style="margin-top:14px">
             ${events ? `<ul class="timeline">${events}</ul>`
                      : View.empty("🧰", "Nothing logged yet",
-                        "Record work you performed, or a change the owner made elsewhere.")}
+                        "Record work you performed or a change the owner made elsewhere. Corrections made through “Edit details” are logged here too.")}
           </div>
         </div>
       </div>`;
@@ -1541,30 +1940,56 @@ const View = {
 
   bikesTab(db, filter) {
     const needle = (filter || "").toLowerCase();
-    const rows = Domain.allBikes(db)
+    const matches = Domain.allBikes(db)
       .filter(({ client, bike }) =>
-        !needle || (Domain.bikeSearchText(bike) + " " + client.name.toLowerCase()).includes(needle))
-      .sort((a, b) => Domain.bikeTitle(a.bike).localeCompare(Domain.bikeTitle(b.bike)))
-      .map(({ client, bike }) => `
-        <article class="card clickable" data-action="bike:open"
-                 data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">
-          <div class="card-title">
-            <h3>${esc(Domain.bikeTitle(bike))}</h3>
-            <span class="badge">${bike.events.length}</span>
+        !needle || (Domain.bikeSearchText(bike) + " " + client.name.toLowerCase()).includes(needle));
+
+    const card = ({ client, bike }) => `
+      <article class="card clickable" data-action="bike:open" data-status="${esc(Domain.status(bike).id)}"
+               data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">
+        <div class="card-title">
+          <h3>${esc(Domain.bikeTitle(bike))}</h3>
+          ${View.statusBadge(bike, true)}
+        </div>
+        <p class="small muted">${esc(client.name)}${Domain.bikeSubtitle(bike) ? " · " + esc(Domain.bikeSubtitle(bike)) : ""}</p>
+        <p style="margin-top:10px">${View.specChips(bike)}</p>
+        <p class="small muted" style="margin-top:10px">
+          ${bike.events.length} log entr${bike.events.length === 1 ? "y" : "ies"}${
+            bike.statusDate ? ` · ${esc(Domain.status(bike).short.toLowerCase())} since ${esc(Util.formatDate(bike.statusDate))}` : ""}
+        </p>
+      </article>`;
+
+    // Grouped by status in workflow-urgency order — in shop, completed,
+    // scheduled, then everything resting with its owner.
+    const groups = Domain.byStatus(matches)
+      .filter(group => group.items.length)
+      .map(({ status, items }) => `
+        <section class="status-group">
+          <div class="row">
+            <h3>${esc(status.label)}</h3>
+            <span class="badge ${status.badge}">${items.length}</span>
+            <span class="small muted">${esc(status.groupHint)}</span>
           </div>
-          <p class="small muted">${esc(client.name)}${Domain.bikeSubtitle(bike) ? " · " + esc(Domain.bikeSubtitle(bike)) : ""}</p>
-          <p style="margin-top:10px">${View.specChips(bike)}</p>
-        </article>`).join("");
+          <div class="grid">${
+            items.sort((a, b) => Domain.bikeTitle(a.bike).localeCompare(Domain.bikeTitle(b.bike)))
+                 .map(card).join("")
+          }</div>
+        </section>`).join("");
+
+    const summary = BIKE_STATUSES_RANKED.map(s => {
+      const n = matches.filter(m => Domain.status(m.bike).id === s.id).length;
+      return `<span class="chip">${esc(s.label)}: <strong>${n}</strong></span>`;
+    }).join(" ");
 
     return `
       <div class="stack">
         <div class="row between">
           <h2>All bikes</h2>
-          <input class="search" type="search" placeholder="Search by bike, part or owner…"
+          <input class="search" type="search" placeholder="Search by bike, part, owner or status…"
                  value="${esc(filter || "")}" data-action="search" data-scope="bikes">
         </div>
-        ${rows ? `<div class="grid">${rows}</div>`
-               : View.empty("🔍", "No bikes to show", "Bikes appear here once they are added to a client.")}
+        ${matches.length ? `<div class="row">${summary}</div>` : ""}
+        ${groups || View.empty("🔍", "No bikes to show", "Bikes appear here once they are added to a client.")}
       </div>`;
   },
 
@@ -1583,18 +2008,44 @@ const View = {
       `<button class="btn btn-sm ${filter === id ? "btn-primary" : ""}"
                data-action="activity:filter" data-filter="${id}">${esc(label)}</button>`;
 
+    // The working board: everything the shop is currently responsible for,
+    // in the same order as the All bikes tab.
+    const board = Domain.byStatus(Domain.allBikes(db).filter(({ bike }) => Domain.isActive(bike)))
+      .filter(group => group.items.length)
+      .map(({ status, items }) => items
+        .sort((a, b) => Domain.bikeTitle(a.bike).localeCompare(Domain.bikeTitle(b.bike)))
+        .map(({ client, bike }) => `
+          <div class="spec-item" data-action="bike:open"
+               data-client="${esc(client.id)}" data-bike="${esc(bike.id)}" style="cursor:pointer">
+            <dt><span class="badge ${status.badge}">${esc(status.short)}</span>
+                <strong style="color:var(--accent)">${esc(Domain.bikeTitle(bike))}</strong></dt>
+            <dd class="muted">${esc(client.name)}${
+              bike.statusDate ? ` · since ${esc(Util.formatDate(bike.statusDate))}` : ""}</dd>
+          </div>`).join("")).join("");
+
     return `
       <div class="stack">
         <h2>Activity</h2>
         <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
           <div class="stat"><div class="n">${stats.clients}</div><div class="l">Clients</div></div>
           <div class="stat"><div class="n">${stats.bikes}</div><div class="l">Bikes</div></div>
+          <div class="stat"><div class="n">${stats.byStatus.in_shop}</div><div class="l">In shop</div></div>
+          <div class="stat"><div class="n">${stats.byStatus.completed}</div><div class="l">Awaiting pickup</div></div>
+          <div class="stat"><div class="n">${stats.byStatus.scheduled}</div><div class="l">Scheduled</div></div>
           <div class="stat"><div class="n">${stats.workEntries}</div><div class="l">Jobs done</div></div>
           <div class="stat"><div class="n">${stats.entries}</div><div class="l">Log entries</div></div>
           <div class="stat"><div class="n money">${esc(Util.money(stats.revenue))}</div><div class="l">Recorded spend</div></div>
         </div>
+        ${board ? `
+        <div class="card">
+          <h3>On the books</h3>
+          <p class="small muted" style="margin-top:4px">Bikes that are with us or due in.</p>
+          <dl class="spec-grid one-per-line" style="margin-top:10px">${board}</dl>
+        </div>` : ""}
         <div class="row">
-          ${filterBtn("all", "Everything")} ${filterBtn("work", "Shop work")} ${filterBtn("owner", "Owner changes")}
+          ${filterBtn("all", "Everything")} ${filterBtn("work", "Shop work")}
+          ${filterBtn("owner", "Owner changes")} ${filterBtn("status", "Status changes")}
+          ${filterBtn("edit", "Record edits")}
         </div>
         <div class="card">
           ${entries ? `<ul class="timeline">${entries}</ul>`
@@ -1766,6 +2217,15 @@ const HANDLERS = {
             hint: "Leave blank to name the bike from its year, brand and model." }
         ], { label: bike ? bike.label : "" }));
 
+        // Editing an existing record is itself logged, so offer a reason.
+        if (bike) {
+          body.append(Form.section("Why this edit", [
+            { key: "editNote", label: "Reason / what you noticed", type: "textarea", wide: true,
+              placeholder: "e.g. Spotted the bar tape was recorded wrong — it's always been red.",
+              hint: "Optional. Any change you make below is recorded in the changelog as a dated “Record edit”." }
+          ], {}));
+        }
+
         SPEC_GROUPS.forEach(group =>
           body.append(Form.section(group.label, group.fields, specs, group.hint)));
 
@@ -1784,12 +2244,50 @@ const HANDLERS = {
       randomize: Random.fillBikeForm,
       onSubmit: (body) => {
         const values = Form.values(body);
+        // Pull the non-spec fields out before the rest becomes `specs`.
         const label = values.label || "";
+        const note = values.editNote || "";
         delete values.label;
+        delete values.editNote;
+
         const data = { label, specs: values, other: DynRows.parseKV(body) };
-        if (bike) Actions.updateBike(clientId, bike.id, data);
+        if (bike) Actions.updateBike(clientId, bike.id, data, note);
         else Actions.addBike(clientId, data);
       }
+    });
+  },
+
+  /**
+   * Re-tag a bike's place in the shop workflow.
+   *
+   * Marking work completed is the one move that gets in the way first: if
+   * nothing has been logged since the bike came in, the changelog would say
+   * the job was finished without ever saying what the job was. The warning
+   * offers the missing entry rather than just refusing, and saving it carries
+   * the original click through to "completed".
+   */
+  "bike:status": (d) => {
+    const bike = Domain.bike(App.db, d.client, d.bike);
+    const complete = () => Actions.setBikeStatus(d.client, d.bike, "completed");
+
+    if (d.status !== "completed" || !bike || Domain.status(bike).id === "completed"
+        || Domain.hasWorkSinceArrival(bike)) {
+      Actions.setBikeStatus(d.client, d.bike, d.status);
+      return;
+    }
+
+    Modal.ask({
+      title: "No work logged yet",
+      message:
+        `Nothing has been recorded against “${Domain.bikeTitle(bike)}” since it came in, so `
+        + `marking it completed would leave no record of what was actually done.\n\n`
+        + `Add the work now and the bike is marked completed once you save it.`,
+      actions: [
+        { label: "Mark completed anyway", run: complete },
+        { label: "Add work", class: "btn-primary",
+          run: () => HANDLERS["event:add"]({ client: d.client, bike: d.bike, kind: "work" },
+                                           null, { onSaved: complete }) }
+      ]
     });
   },
 
@@ -1805,10 +2303,13 @@ const HANDLERS = {
   /**
    * Add work / add owner change. Both use one form; `kind` only changes
    * wording and which badge the entry gets.
+   *
+   * `opts.onSaved` runs after a successful save — used when the form was
+   * opened part-way through another action that still wants to finish.
    */
-  "event:add": (d) => {
+  "event:add": (d, _el, opts = {}) => {
     const bike = Domain.bike(App.db, d.client, d.bike);
-    const kind = ENTRY_KINDS[d.kind] ? d.kind : "work";
+    const kind = (ENTRY_KINDS[d.kind] || {}).manual ? d.kind : "work";
     const meta = ENTRY_KINDS[kind];
 
     Modal.open({
@@ -1853,6 +2354,7 @@ const HANDLERS = {
           cost: values.cost,
           changes: DynRows.parseChanges(body, bike)
         });
+        if (opts.onSaved) opts.onSaved();
       }
     });
   },
@@ -1951,6 +2453,7 @@ function SAMPLE_DATA() {
 
   const bike = Domain.newBike({
     label: "Blue gravel bike",
+    status: "in_shop", statusDate: Util.today(),
     specs: {
       brand: "Salsa", model: "Warbird", year: "2022", bikeType: "Gravel",
       frameMaterial: "Carbon", frameSize: "54", serial: "WB22-884120", color: "Deep blue",
@@ -2005,6 +2508,7 @@ function SAMPLE_DATA() {
   const second = Domain.newClient({ name: "Marco Reyes", phone: "555-0197", company: "Northside Couriers" });
   second.bikes.push(Domain.newBike({
     label: "Courier singlespeed",
+    status: "scheduled", statusDate: Util.today(),
     specs: { brand: "Surly", model: "Steamroller", frameMaterial: "Steel", frameSize: "56",
              bikeType: "Commuter", drivetrain: "Singlespeed", brakeType: "Rim — caliper" }
   }));
