@@ -3,14 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bike Shop — Client &amp; Bike Registry</title>
+<title>Bike Shop — Workshop Registry</title>
 <style>
 /* ==========================================================================
    STYLES
    Organised as: tokens -> base -> layout -> components -> utilities
    ========================================================================== */
 
-   
 /* --- tokens -------------------------------------------------------------- */
 :root {
   --bg:        #f4f5f7;
@@ -89,12 +88,12 @@ a  { color: var(--accent); }
   position: sticky; top: 0; z-index: 10;
 }
 .app-header .bar {
-  max-width: 1100px; margin: 0 auto; padding: 14px 20px 0;
+  max-width: 1180px; margin: 0 auto; padding: 14px 20px 0;
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 .logo { font-size: 22px; }
 .tabs {
-  max-width: 1100px; margin: 0 auto; padding: 10px 20px 0;
+  max-width: 1180px; margin: 0 auto; padding: 10px 20px 0;
   display: flex; gap: 4px; flex-wrap: wrap;
 }
 .tab {
@@ -105,7 +104,11 @@ a  { color: var(--accent); }
 }
 .tab:hover { color: var(--text); background: var(--surface-2); }
 .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
-main { max-width: 1100px; margin: 0 auto; padding: 22px 20px 80px; }
+.tab .count {
+  display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px;
+  background: var(--st-in-bg); color: var(--st-in); font-size: 11px; font-weight: 700;
+}
+main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .stack > * + * { margin-top: 16px; }
 .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -239,6 +242,70 @@ main { max-width: 1100px; margin: 0 auto; padding: 22px 20px 80px; }
 .stat .n { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .stat .l { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
 
+/* --- work tab ------------------------------------------------------------ */
+/* Rail on the left is the "who is on the stand" list; the workspace on the
+   right is where a mechanic actually spends the afternoon. */
+.work-layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .work-layout { grid-template-columns: 1fr; } }
+
+.rail { display: flex; flex-direction: column; gap: 8px; }
+.rail h4 { margin: 6px 2px 0; }
+.rail-item {
+  width: 100%; text-align: left; font: inherit; cursor: pointer;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-left-width: 3px; border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.rail-item:hover { border-color: var(--accent); }
+.rail-item[data-status="in_shop"]   { border-left-color: var(--st-in); }
+.rail-item[data-status="completed"] { border-left-color: var(--st-done); }
+.rail-item[data-status="scheduled"] { border-left-color: var(--st-sched); }
+.rail-item[aria-current="true"] { background: var(--surface-2); border-color: var(--accent); }
+.rail-item .t { font-weight: 600; display: block; }
+.rail-item .s { font-size: 12px; color: var(--text-dim); display: block; }
+
+.progress { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 8px 0 6px; }
+.progress > span { display: block; height: 100%; background: var(--accent); transition: width .15s ease; }
+.progress.full > span { background: var(--work); }
+
+.job-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 14px; }
+.job-card + .job-card { margin-top: 14px; }
+.job-card.is-done { background: var(--surface-2); }
+.job-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.job-request {
+  margin-top: 10px; padding: 9px 11px; border-radius: 6px;
+  background: var(--owner-bg); color: var(--owner); font-size: 13px; white-space: pre-wrap;
+}
+
+.steps { list-style: none; margin: 12px 0 0; padding: 0; }
+.step { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); }
+.step input[type="checkbox"] { width: 18px; height: 18px; margin-top: 3px; cursor: pointer; accent-color: var(--accent); }
+.step-title { font-weight: 600; }
+.step.done .step-title { color: var(--text-dim); text-decoration: line-through; }
+.step-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.step-note { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+.step-fields { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 8px; margin-top: 8px; align-items: center; }
+@media (max-width: 620px) { .step-fields { grid-template-columns: 1fr; } }
+.step-fields input {
+  font: inherit; font-size: 14px; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; width: 100%;
+}
+.step-fields input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.step-parts { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
+.step-parts li { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; }
+
+/* --- settings: work item templates --------------------------------------- */
+.wi-steps { list-style: none; margin: 10px 0 0; padding: 0; font-size: 14px; }
+.wi-steps li { display: flex; gap: 8px; align-items: baseline; padding: 5px 0; border-top: 1px dashed var(--border); }
+.wi-steps .n { color: var(--text-dim); font-variant-numeric: tabular-nums; min-width: 22px; }
+.pick-list { display: flex; flex-direction: column; gap: 8px; }
+.pick {
+  display: flex; gap: 10px; align-items: flex-start;
+  border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; cursor: pointer;
+}
+.pick:hover { border-color: var(--accent); }
+.pick input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--accent); }
+
 /* --- forms & modal ------------------------------------------------------- */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,.5);
@@ -269,11 +336,22 @@ legend { padding: 0 0 8px; }
 }
 .field input:focus, .field textarea:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .field textarea { min-height: 76px; resize: vertical; }
+.field.inline { flex-direction: row; align-items: center; gap: 8px; }
+.field.inline input { width: auto; }
 .hint { font-size: 12px; color: var(--text-dim); }
 
 .dyn-row { display: grid; gap: 8px; align-items: end; margin-bottom: 8px; }
 .dyn-row.kv     { grid-template-columns: 1fr 1.4fr auto; }
 .dyn-row.change { grid-template-columns: 1.1fr 1.3fr .6fr auto; }
+/* Template steps are a small block rather than a single line — six controls
+   in a row is unreadable, and the order of steps matters, so they carry
+   their own move buttons. */
+.dyn-row.step-editor {
+  display: block; border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px; background: var(--surface-2);
+}
+.dyn-row.step-editor .sub { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 8px; }
+.dyn-row.step-editor .top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
 @media (max-width: 620px) {
   .dyn-row.kv, .dyn-row.change { grid-template-columns: 1fr; }
 }
@@ -305,29 +383,43 @@ legend { padding: 0 0 8px; }
 <script>
 "use strict";
 /* ==========================================================================
-   Bike Shop Registry — single-file client & bike tracker
+   Bike Shop Registry — single-file client, bike and workshop tracker
    --------------------------------------------------------------------------
    ARCHITECTURE (top to bottom, each layer only depends on the ones above it):
 
-     1. CONFIG & SCHEMA   Declarative description of every bike spec field.
-                          Add a field here and forms, detail views and the
-                          changelog pick it up automatically.
+     1. CONFIG & SCHEMA   Declarative description of bike spec fields, workflow
+                          statuses and the default work-item templates.
      2. UTIL              Pure helpers (ids, escaping, formatting, DOM build).
      3. STORE             localStorage persistence + in-memory database.
      4. DOMAIN            Entity factories, lookups and derived values.
-                          Pure-ish functions over the db; no DOM.
-     5. ACTIONS           The only functions that mutate the db. Each one
-                          saves and re-renders. UI never mutates directly.
+     5. ACTIONS           The only functions that mutate the db.
      6. COMPONENTS        Reusable render helpers (modal, forms, dynamic rows).
      7. VIEWS             Pure render functions: state -> HTML string / DOM.
-     8. CONTROLLER        Router state + a single delegated click handler
-                          mapping `data-action` attributes to handlers.
+     8. CONTROLLER        Router state + delegated click/input handlers.
      9. BOOTSTRAP         Wire it all up.
+
+   THE WORKFLOW THIS APP IS SHAPED AROUND
+     1. A call comes in. The client is created, and a *stub* bike is created
+        with whatever the client can tell you — it does not exist in the shop
+        yet, so nothing is required.
+     2. Work is scheduled against that bike: one or more work items (templates
+        defined in Settings) plus a note in the client's own words.
+     3. The bike turns up. Whoever is on the counter finds it in Bikes (or in
+        the Work tab's "Due in" rail) and checks it in with one click.
+     4. A mechanic opens the Work tab, picks the bike, and works down the
+        steps of each work item — ticking them off, logging minutes, writing
+        notes and recording part changes as they go. Every keystroke is saved,
+        so leaving the tab and coming back later loses nothing.
+     5. Completing a work item writes one "Shop work" changelog entry on the
+        bike, applies its part changes to the live specification, and charges
+        the item price + completed step prices + parts.
 
    CONVENTIONS
      - Views return HTML strings and MUST pass user text through `esc()`.
      - Interactive elements declare `data-action="name"` plus any
-       `data-client`, `data-bike`, `data-event` ids; see HANDLERS.
+       `data-client`, `data-bike`, `data-job`, `data-step` ids; see HANDLERS.
+     - Live-editing controls declare `data-input="name"`; see INPUTS. These
+       save without re-rendering, so typing is never interrupted.
      - Modals are built with real DOM nodes (they hold dynamic sub-rows).
    ========================================================================== */
 
@@ -336,8 +428,8 @@ legend { padding: 0 0 8px; }
    ========================================================================== */
 
 const CONFIG = {
-  storageKey: "bikeshop.db.v1",
-  routeKey:   "bikeshop.route.v1",
+  storageKey: "bikeshop.db.v3",
+  routeKey:   "bikeshop.route.v3",
   currency:   "USD",   // single place to change money formatting
   locale:     undefined // undefined = browser default
 };
@@ -415,9 +507,6 @@ const SPEC_FIELDS = (() => {
 /**
  * Where a bike is in the shop workflow.
  *
- * Listed in workflow order — the order the segmented control on the bike page
- * shows them, and the order `next` walks:
- *
  *   out of shop → scheduled for work → in shop → work completed → out of shop
  *
  * `rank` is a separate, deliberately different ordering: it is how bikes are
@@ -429,7 +518,7 @@ const BIKE_STATUSES = [
     action: "Schedule for work",    next: "in_shop",   badge: "badge-sched",
     groupHint: "Expected in — the client plans to bring these bikes to us." },
   { id: "in_shop",   rank: 0, label: "In shop",           short: "In shop",
-    action: "Mark in shop",         next: "completed", badge: "badge-in",
+    action: "Check in",             next: "completed", badge: "badge-in",
     groupHint: "With us now, work outstanding." },
   { id: "completed", rank: 1, label: "Work completed",    short: "Completed",
     action: "Mark work completed",  next: "out",       badge: "badge-done",
@@ -460,14 +549,11 @@ const CLIENT_FIELDS = [
 
 /**
  * Changelog entry kinds.
- *   work   the shop did it
- *   owner  someone else did it
- *   edit   nobody touched the bike — the *record* changed. Written
- *          automatically when "Edit details" alters stored data, so a
- *          correction or a newly-noticed detail is still dated evidence.
- *   status the bike moved through the shop workflow. Written automatically
- *          whenever its status is re-tagged, so "when did this arrive?" and
- *          "how long did it sit finished?" are answerable later.
+ *   work   the shop did it — written when a work item is completed, and by
+ *          the manual "Add work" form for anything outside the step flow.
+ *   owner  someone else did it.
+ *   edit   nobody touched the bike — the *record* changed.
+ *   status the bike moved through the shop workflow.
  *
  * `manual: true` marks the kinds a user can add directly from the changelog.
  */
@@ -483,6 +569,126 @@ const ENTRY_KINDS = {
   status:{ label: "Status",       badge: "badge-status", verb: "Change status",
            byLabel: "Changed by",  byPlaceholder: "" }
 };
+
+/**
+ * Where a scheduled work item is up to. Jobs live on the bike, not on the
+ * template, and are snapshots — editing a template later never rewrites work
+ * that has already been scheduled or done.
+ */
+const JOB_STATES = {
+  scheduled: { label: "Scheduled", badge: "badge-sched" },
+  active:    { label: "In progress", badge: "badge-in" },
+  done:      { label: "Completed", badge: "badge-done" }
+};
+
+/**
+ * Templates the shop starts with. The owner edits these in Settings; each one
+ * is a priced, ordered checklist a mechanic works down.
+ *
+ * step: { title, note, minutes, price, optional, specKey }
+ *   note     guidance shown under the step while it is being worked
+ *   minutes  estimate, so the board can say how long a job should take
+ *   price    extra labour charged for that step on top of the item price
+ *   optional required steps are the ones the completion check counts
+ *   specKey  the spec field this step usually replaces — pre-selects the
+ *            part-change row so the mechanic does not go hunting
+ */
+const DEFAULT_WORK_ITEMS = [
+  {
+    name: "Basic tune-up", price: 120,
+    description: "The standard bench service. Safety, shifting, braking and wheels — no parts beyond consumables.",
+    steps: [
+      { title: "Intake check and test ride", note: "Ride it before you touch it. Note anything the client did not mention.", minutes: 10 },
+      { title: "Wash and degrease drivetrain", minutes: 15 },
+      { title: "Measure chain wear", note: "Replace at 0.75%. Check cassette teeth while it is off.", minutes: 5, specKey: "chain" },
+      { title: "Index gears, front and rear", note: "Check hanger alignment first — most bad shifting is a bent hanger.", minutes: 15, specKey: "rearDer" },
+      { title: "Adjust brakes, check pad wear", minutes: 15, specKey: "rotors" },
+      { title: "True both wheels", note: "Tension check as well as lateral true.", minutes: 20, specKey: "wheelset" },
+      { title: "Check bearing play — hubs, headset, BB", minutes: 10, specKey: "bottomBracket" },
+      { title: "Torque check — stem, bars, seatpost, cranks", minutes: 10 },
+      { title: "Inflate tyres, inspect casing and sidewalls", minutes: 5, specKey: "tires" },
+      { title: "Tubeless sealant top-up", note: "Only if the bike is set up tubeless.", minutes: 10, price: 15, optional: true, specKey: "tubeless" },
+      { title: "Final test ride and sign-off", minutes: 10 }
+    ]
+  },
+  {
+    name: "Full service", price: 265,
+    description: "Strip, clean and rebuild. Everything in the tune-up plus bearings out, cables replaced and brakes bled.",
+    steps: [
+      { title: "Intake check and test ride", note: "Agree the scope with the client before stripping anything.", minutes: 10 },
+      { title: "Strip drivetrain and wash frame", minutes: 25 },
+      { title: "Replace inner and outer cables", minutes: 30, price: 25, specKey: "shifters" },
+      { title: "Bleed both brakes", minutes: 30, price: 30, specKey: "calipers" },
+      { title: "Service headset bearings", minutes: 20, specKey: "headset" },
+      { title: "Service or replace bottom bracket", minutes: 20, specKey: "bottomBracket" },
+      { title: "Service hub bearings", minutes: 30, optional: true, specKey: "wheelset" },
+      { title: "Replace chain", minutes: 10, specKey: "chain" },
+      { title: "Rebuild drivetrain and index", minutes: 25, specKey: "rearDer" },
+      { title: "True and tension both wheels", minutes: 25, specKey: "wheelset" },
+      { title: "Re-wrap bar tape", minutes: 15, price: 20, optional: true, specKey: "barTape" },
+      { title: "Full torque check", minutes: 10 },
+      { title: "Final test ride and sign-off", minutes: 15 }
+    ]
+  },
+  {
+    name: "Drivetrain replacement", price: 85,
+    description: "Chain, cassette and rings measured and swapped as needed. Parts charged on top.",
+    steps: [
+      { title: "Measure chain, cassette and chainring wear", note: "Record the numbers in the step notes — the client will ask.", minutes: 10, specKey: "chain" },
+      { title: "Remove and degrease drivetrain", minutes: 15 },
+      { title: "Fit new chain", minutes: 15, specKey: "chain" },
+      { title: "Fit new cassette", minutes: 10, specKey: "cassette" },
+      { title: "Fit new chainrings", minutes: 20, optional: true, specKey: "chainrings" },
+      { title: "Index and test under load", minutes: 15, specKey: "rearDer" }
+    ]
+  },
+  {
+    name: "Brake bleed — pair", price: 70,
+    description: "Both brakes bled, pads and rotors inspected.",
+    steps: [
+      { title: "Inspect pads and rotors", note: "Rotors under 1.5mm get replaced, not faced.", minutes: 10, specKey: "rotors" },
+      { title: "Bleed front brake", minutes: 20, specKey: "calipers" },
+      { title: "Bleed rear brake", minutes: 20, specKey: "calipers" },
+      { title: "Replace pads", minutes: 10, price: 10, optional: true, specKey: "rotors" },
+      { title: "Bed in and test", minutes: 10 }
+    ]
+  },
+  {
+    name: "Wheel true and tension", price: 45,
+    description: "One wheel, on the stand: lateral true, radial true and even tension.",
+    steps: [
+      { title: "Check tension and find loose spokes", minutes: 10, specKey: "wheelset" },
+      { title: "Lateral and radial true", minutes: 20 },
+      { title: "Even out tension and stress-relieve", minutes: 15 },
+      { title: "Replace broken spokes", minutes: 15, price: 12, optional: true }
+    ]
+  },
+  {
+    name: "Tubeless setup — pair", price: 60,
+    description: "Tape, valves, sealant and a proper seat on both wheels.",
+    steps: [
+      { title: "Strip tyres and old tape", minutes: 15 },
+      { title: "Re-tape both rims", minutes: 20 },
+      { title: "Fit valves", minutes: 5 },
+      { title: "Seat tyres and add sealant", minutes: 20, specKey: "tubeless" },
+      { title: "Leave to settle, re-check pressure", note: "At least 30 minutes before it goes back to the client.", minutes: 5, specKey: "tires" }
+    ]
+  },
+  {
+    name: "New bike build", price: 150,
+    description: "Boxed bike out of the carton and onto the road, safety-checked.",
+    steps: [
+      { title: "Unbox and check for shipping damage", note: "Photograph anything suspect before you touch it.", minutes: 15 },
+      { title: "Fit bars, stem, seatpost and saddle", minutes: 25 },
+      { title: "Fit wheels, check hub and rotor alignment", minutes: 15 },
+      { title: "Fit pedals and accessories", minutes: 10, specKey: "pedals" },
+      { title: "Torque everything to spec", minutes: 20 },
+      { title: "Index gears and set brakes", minutes: 20 },
+      { title: "Basic fit for the client", minutes: 20, optional: true },
+      { title: "Test ride and hand over", minutes: 15 }
+    ]
+  }
+];
 
 /* ==========================================================================
    2. UTIL
@@ -516,6 +722,14 @@ const Util = {
   parseMoney(text) {
     const n = parseFloat(String(text ?? "").replace(/[^0-9.\-]/g, ""));
     return isNaN(n) ? 0 : n;
+  },
+
+  /** Minutes -> "1h 25m" / "45m" / "" for nothing. */
+  duration(minutes) {
+    const m = Math.max(0, Math.round(Number(minutes) || 0));
+    if (!m) return "";
+    const h = Math.floor(m / 60);
+    return h ? `${h}h${m % 60 ? " " + (m % 60) + "m" : ""}` : `${m}m`;
   },
 
   /** Sort helper: newest date first, ties broken by creation time. */
@@ -556,15 +770,24 @@ const esc = Util.esc; // used constantly in views
    ========================================================================== */
 
 const Store = {
-  /** Shape of a brand-new database. */
-  empty: () => ({ schemaVersion: 2, clients: [], updatedAt: Date.now() }),
+  /**
+   * Shape of a brand-new database. A shop with no work items cannot schedule
+   * anything, so a fresh install starts with the default templates — they are
+   * ordinary records from that point on, editable and deletable in Settings.
+   */
+  empty: () => ({
+    schemaVersion: 3,
+    clients: [],
+    workItems: DEFAULT_WORK_ITEMS.map(item => Domain.newWorkItem(item)),
+    settings: { lastBy: "" },
+    updatedAt: Date.now()
+  }),
 
   load() {
     try {
       const raw = localStorage.getItem(CONFIG.storageKey);
       if (!raw) return Store.empty();
-      const parsed = JSON.parse(raw);
-      return Store.migrate(parsed);
+      return Store.migrate(JSON.parse(raw));
     } catch (err) {
       console.error("Could not read saved data; starting empty.", err);
       return Store.empty();
@@ -575,20 +798,34 @@ const Store = {
   migrate(data) {
     if (!data || typeof data !== "object" || !Array.isArray(data.clients)) return Store.empty();
 
-    // v1 -> v2: bikes gained a workflow status. Anything without a valid one
-    // predates the field (or came from a hand-edited export) and is assumed to
-    // be with its owner. Also runs on import, so old backups still open.
+    if (!Array.isArray(data.workItems)) data.workItems = [];
+    if (!data.settings || typeof data.settings !== "object") data.settings = { lastBy: "" };
+
+    data.workItems.forEach(item => {
+      item.steps = Array.isArray(item.steps) ? item.steps : [];
+      item.steps.forEach(step => { if (!step.id) step.id = Util.uid("s"); });
+    });
+
     data.clients.forEach(client => (client.bikes || []).forEach(bike => {
       if (!BIKE_STATUS.has(bike.status)) bike.status = DEFAULT_STATUS;
       if (!bike.statusDate) bike.statusDate = "";
+      if (!Array.isArray(bike.jobs)) bike.jobs = [];
+      bike.stub = !!bike.stub;
+      bike.jobs.forEach(job => {
+        if (!JOB_STATES[job.status]) job.status = "scheduled";
+        job.steps = Array.isArray(job.steps) ? job.steps : [];
+        job.steps.forEach(step => { if (!Array.isArray(step.changes)) step.changes = []; });
+      });
     }));
 
-    data.schemaVersion = 2;
+    data.schemaVersion = 3;
     return data;
   },
 
   save(db) {
     db.updatedAt = Date.now();
+    clearTimeout(Store._saveTimer);
+    Store._saveTimer = null;
     try {
       localStorage.setItem(CONFIG.storageKey, JSON.stringify(db));
       Store.flashStatus("Saved " + new Date().toLocaleTimeString(CONFIG.locale));
@@ -598,6 +835,22 @@ const Store = {
       Store.flashStatus("⚠️ Could not save — storage full or blocked", true);
       return false;
     }
+  },
+
+  /**
+   * Save shortly after the last keystroke. The work space writes on every
+   * `input` event; serialising the whole database that often is wasteful, and
+   * a mechanic typing a paragraph does not need 200 writes to localStorage.
+   * `flush` on unload and on tab change closes the gap.
+   */
+  saveSoon(db) {
+    Store.flashStatus("Saving…");
+    clearTimeout(Store._saveTimer);
+    Store._saveTimer = setTimeout(() => Store.save(db), 500);
+  },
+
+  flush(db) {
+    if (Store._saveTimer) Store.save(db);
   },
 
   flashStatus(text, sticky) {
@@ -636,16 +889,80 @@ const Domain = {
     bikes: []
   }),
 
+  /**
+   * `stub: true` marks a bike the shop has never seen — created off the back
+   * of a phone call so work can be scheduled against it. It stops being a
+   * stub the moment someone saves its details.
+   */
   newBike: (data = {}) => ({
     id: Util.uid("b"),
     label: data.label || "",           // nickname, e.g. "Blue gravel bike"
     specs: data.specs || {},           // flat map keyed by SPEC_FIELDS key
     other: data.other || [],           // [{ id, label, value }] free-form extras
     events: [],                        // changelog, newest sorted at render time
+    jobs: data.jobs || [],             // scheduled / in-progress / completed work
+    stub: !!data.stub,
     status: BIKE_STATUS.has(data.status) ? data.status : DEFAULT_STATUS,
     statusDate: data.statusDate || "", // when it entered that status
     createdAt: Date.now()
   }),
+
+  /** A work-item template. Steps are ordered and carry their own ids. */
+  newWorkItem: (data = {}) => ({
+    id: Util.uid("w"),
+    name: data.name || "Untitled work item",
+    price: Util.parseMoney(data.price),
+    description: data.description || "",
+    steps: (data.steps || []).map(Domain.newStep),
+    createdAt: Date.now()
+  }),
+
+  newStep: (data = {}) => ({
+    id: Util.uid("s"),
+    title: data.title || "",
+    note: data.note || "",
+    minutes: Math.max(0, Math.round(Number(data.minutes) || 0)),
+    price: Util.parseMoney(data.price),
+    optional: !!data.optional,
+    specKey: SPEC_FIELDS.has(data.specKey) ? data.specKey : ""
+  }),
+
+  /**
+   * A job is a *snapshot* of a work item taken when it was scheduled: name,
+   * price and the full step list are copied in. Editing the template later
+   * changes what gets scheduled next, never what is already on the bench.
+   */
+  newJob(workItem, data = {}) {
+    return {
+      id: Util.uid("j"),
+      workItemId: workItem.id,
+      name: workItem.name,
+      price: Number(workItem.price) || 0,
+      description: workItem.description || "",
+      request: data.request || "",        // the client's own words
+      status: "scheduled",
+      scheduledDate: data.scheduledDate || Util.today(),
+      createdAt: Date.now(),
+      startedAt: 0,
+      completedAt: 0,
+      completedDate: "",
+      by: "",
+      steps: workItem.steps.map(step => ({
+        id: Util.uid("js"),
+        title: step.title,
+        note: step.note || "",
+        estMinutes: Number(step.minutes) || 0,
+        price: Number(step.price) || 0,
+        optional: !!step.optional,
+        specKey: step.specKey || "",
+        done: false,
+        doneAt: 0,
+        minutes: "",                      // what the mechanic actually logged
+        notes: "",
+        changes: []                       // part changes, applied on completion
+      }))
+    };
+  },
 
   /**
    * A changelog entry.
@@ -671,6 +988,14 @@ const Domain = {
     return client ? client.bikes.find(b => b.id === bikeId) || null : null;
   },
 
+  job(bike, jobId) {
+    return bike ? (bike.jobs || []).find(j => j.id === jobId) || null : null;
+  },
+
+  step: (job, stepId) => (job ? job.steps.find(s => s.id === stepId) || null : null),
+
+  workItem: (db, id) => db.workItems.find(w => w.id === id) || null,
+
   /** Every bike in the shop, each paired with its owner. */
   allBikes: (db) => db.clients.flatMap(c => c.bikes.map(b => ({ client: c, bike: b }))),
 
@@ -684,29 +1009,6 @@ const Domain = {
 
   /** True while the bike is anywhere other than back with its owner. */
   isActive: (bike) => Domain.status(bike).id !== DEFAULT_STATUS,
-
-  /**
-   * Has any shop work been logged since the bike most recently arrived?
-   *
-   * This is the test behind the "work completed" warning. A finished job that
-   * left no trace in the changelog is nearly always a forgotten entry, but
-   * work from an earlier visit must not count as cover for this one — so only
-   * entries recorded after the last "In shop" tagging are considered. A bike
-   * whose arrival was never tagged has no such cutoff, and every work entry
-   * counts.
-   */
-  hasWorkSinceArrival(bike) {
-    const events = (bike && bike.events) || [];
-    const arrivedLabel = BIKE_STATUS.get("in_shop").label;
-
-    // events is in the order things were recorded, so a plain index is "when".
-    let arrival = -1;
-    events.forEach((e, i) => {
-      if (e.kind === "status" && (e.changes || []).some(c => c.to === arrivedLabel)) arrival = i;
-    });
-
-    return events.some((e, i) => e.kind === "work" && i > arrival);
-  },
 
   /** Bikes grouped by status in list order, empty groups included. */
   byStatus(entries) {
@@ -732,11 +1034,108 @@ const Domain = {
       .flatMap(({ client, bike }) => bike.events.map(e => ({ client, bike, event: e })))
       .sort((a, b) => Util.byDateDesc(a.event, b.event)),
 
+  /* --- jobs --- */
+
+  /** Work still to do on this bike, in the order it was scheduled. */
+  openJobs: (bike) => (bike.jobs || []).filter(j => j.status !== "done"),
+
+  doneJobs: (bike) => (bike.jobs || []).filter(j => j.status === "done"),
+
+  /** Every bike with work outstanding, whether or not it has arrived yet. */
+  bikesWithOpenWork: (db) =>
+    Domain.allBikes(db).filter(({ bike }) => Domain.openJobs(bike).length),
+
+  /**
+   * Everything a job card needs to describe itself: how far down the list the
+   * mechanic is, how long it has taken, and what it will cost.
+   *
+   * The charge is the item price, plus the price of each *completed* priced
+   * step (an optional step nobody did is not billed), plus every part cost
+   * recorded against the steps.
+   */
+  jobStats(job) {
+    const steps = job.steps || [];
+    const done = steps.filter(s => s.done);
+    const parts = steps.flatMap(s => s.changes || []);
+
+    const partsCost = parts.reduce((sum, c) => sum + (Number(c.cost) || 0), 0);
+    const stepCharges = done.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+
+    return {
+      total: steps.length,
+      done: done.length,
+      openRequired: steps.filter(s => !s.done && !s.optional).length,
+      percent: steps.length ? Math.round((done.length / steps.length) * 100) : 0,
+      estMinutes: steps.reduce((sum, s) => sum + (Number(s.estMinutes) || 0), 0),
+      loggedMinutes: steps.reduce((sum, s) => sum + (Number(s.minutes) || 0), 0),
+      parts: parts.length,
+      partsCost,
+      stepCharges,
+      charge: (Number(job.price) || 0) + stepCharges + partsCost
+    };
+  },
+
+  /** The same numbers rolled up across every open job on a bike. */
+  bikeWorkStats(bike) {
+    const jobs = Domain.openJobs(bike);
+    return jobs.reduce((acc, job) => {
+      const s = Domain.jobStats(job);
+      acc.jobs += 1;
+      acc.total += s.total;
+      acc.done += s.done;
+      acc.loggedMinutes += s.loggedMinutes;
+      acc.estMinutes += s.estMinutes;
+      acc.percent = acc.total ? Math.round((acc.done / acc.total) * 100) : 0;
+      return acc;
+    }, { jobs: 0, total: 0, done: 0, loggedMinutes: 0, estMinutes: 0, percent: 0 });
+  },
+
+  /**
+   * The description written into the changelog when a work item is completed:
+   * what was actually done, with each mechanic's note and time against it.
+   * Pre-filled into the completion form, where it can be edited before saving.
+   */
+  jobSummary(job) {
+    const stats = Domain.jobStats(job);
+    const lines = [`${stats.done}/${stats.total} steps`
+      + (stats.loggedMinutes ? ` · ${Util.duration(stats.loggedMinutes)} logged` : "")];
+
+    job.steps.filter(s => s.done).forEach(s => {
+      const time = Number(s.minutes) ? ` (${Util.duration(s.minutes)})` : "";
+      lines.push(`• ${s.title}${time}${s.notes ? " — " + s.notes : ""}`);
+    });
+
+    const skipped = job.steps.filter(s => !s.done);
+    if (skipped.length) {
+      lines.push("Not done: " + skipped.map(s => s.title + (s.optional ? " (optional)" : "")).join(", "));
+    }
+    return lines.join("\n");
+  },
+
+  /**
+   * Part changes from every step, ready to be written to the changelog.
+   * `from` is re-anchored to what the bike says *now* rather than what it said
+   * when the row was typed — the mechanic may have swapped the same part twice
+   * during the job, and only the live value makes an honest before → after.
+   */
+  jobChanges(bike, job) {
+    return job.steps.flatMap(step => (step.changes || []).map(change => {
+      const next = Object.assign({}, change);
+      if (next.target === "spec") {
+        next.from = (bike.specs || {})[next.key] || "";
+      } else if (next.target === "other") {
+        const row = (bike.other || []).find(o => o.id === next.key);
+        next.from = row ? row.value : "";
+      }
+      return next;
+    }));
+  },
+
   /* --- derived values --- */
   bikeTitle(bike) {
     const s = bike.specs || {};
     const built = [s.year, s.brand, s.model].filter(Boolean).join(" ");
-    return bike.label || built || "Untitled bike";
+    return bike.label || built || (bike.stub ? "Bike — details to follow" : "Untitled bike");
   },
 
   bikeSubtitle(bike) {
@@ -758,9 +1157,6 @@ const Domain = {
    * Compare a bike against the values coming back from the edit form and
    * describe the difference in the same change-record shape the changelog
    * already uses: { target, key, label, from, to, cost }.
-   *
-   * Only genuine differences are returned, so re-saving an untouched form
-   * writes nothing.
    */
   diffBike(bike, next) {
     const changes = [];
@@ -831,6 +1227,7 @@ const Domain = {
   bikeSearchText(bike) {
     return [Domain.bikeTitle(bike), bike.label, Domain.status(bike).label,
             ...Object.values(bike.specs || {}),
+            ...(bike.jobs || []).map(j => j.name + " " + j.request),
             ...(bike.other || []).map(o => o.label + " " + o.value)
            ].join(" ").toLowerCase();
   },
@@ -840,19 +1237,25 @@ const Domain = {
             ...client.bikes.map(Domain.bikeSearchText)].join(" ").toLowerCase();
   },
 
-  /** Shop-wide summary numbers for the Overview tab. */
+  /** Shop-wide summary numbers for the Activity tab. */
   stats(db) {
     const bikes = Domain.allBikes(db);
     const events = bikes.flatMap(({ bike }) => bike.events);
+    const jobs = bikes.flatMap(({ bike }) => bike.jobs || []);
     const byStatus = {};
     BIKE_STATUSES.forEach(s => { byStatus[s.id] = 0; });
     bikes.forEach(({ bike }) => { byStatus[Domain.status(bike).id]++; });
 
+    const openJobs = jobs.filter(j => j.status !== "done");
     return {
       clients: db.clients.length,
       bikes: bikes.length,
       entries: events.length,
       workEntries: events.filter(e => e.kind === "work").length,
+      workItems: db.workItems.length,
+      openJobs: openJobs.length,
+      openSteps: openJobs.reduce((sum, j) => sum + Domain.jobStats(j).total - Domain.jobStats(j).done, 0),
+      bookedValue: openJobs.reduce((sum, j) => sum + Domain.jobStats(j).charge, 0),
       revenue: events.reduce((sum, e) => sum + (Number(e.cost) || 0), 0),
       byStatus
     };
@@ -871,6 +1274,28 @@ const Actions = {
     App.render();
   },
 
+  /**
+   * A mutation with no visible consequence beyond the control the user is
+   * already looking at — a minutes box, a notes field. Saving is debounced and
+   * nothing re-renders, so typing is never interrupted mid-word.
+   */
+  commitQuiet(mutator) {
+    mutator(App.db);
+    Store.saveSoon(App.db);
+  },
+
+  /**
+   * A mutation the user is looking straight at — ticking a step. The screen
+   * has to change, but throwing the caret out of the checklist someone is
+   * tabbing down would be its own small insult, so the render puts the focus
+   * and the scroll position back where they were.
+   */
+  commitLocal(mutator) {
+    mutator(App.db);
+    Store.save(App.db);
+    App.renderKeepingPlace();
+  },
+
   addClient(data) {
     const client = Domain.newClient(data);
     Actions.commit(db => db.clients.push(client));
@@ -886,29 +1311,27 @@ const Actions = {
     App.navigate({ tab: "clients", clientId: null, bikeId: null });
   },
 
-  addBike(clientId, data) {
+  addBike(clientId, data, opts = {}) {
     const bike = Domain.newBike(data);
     Actions.commit(db => Domain.client(db, clientId).bikes.push(bike));
     App.navigate({ tab: "clients", clientId, bikeId: bike.id });
+    if (opts.then) opts.then(bike);
   },
 
   /**
    * Direct edit of the bike record. No work was performed — but the stored
-   * facts changed, and when that happened is worth knowing ("when did I first
-   * note the creaky bottom bracket?"), so any real difference is written to
-   * the changelog as an `edit` entry.
+   * facts changed, and when that happened is worth knowing, so any real
+   * difference is written to the changelog as an `edit` entry.
    *
-   * `note` is the optional reason typed into the form.
+   * Saving details is also what turns a stub into a real bike record.
    */
   updateBike(clientId, bikeId, data, note) {
     Actions.commit(db => {
       const bike = Domain.bike(db, clientId, bikeId);
       const changes = Domain.diffBike(bike, data);
 
-      Object.assign(bike, { label: data.label, specs: data.specs, other: data.other });
+      Object.assign(bike, { label: data.label, specs: data.specs, other: data.other, stub: false });
 
-      // An untouched form writes nothing; a note on its own is still logged,
-      // since "looked it over, nothing changed" is a real observation.
       if (changes.length || note) {
         bike.events.push(Domain.newEvent({
           kind: "edit",
@@ -926,9 +1349,7 @@ const Actions = {
    * Move a bike through the workflow.
    *
    * The status is current state, so it lives on the bike; but *when* it moved
-   * is history, so every transition also writes a changelog entry. Re-tagging
-   * a bike to the status it already has is a no-op rather than a duplicate
-   * line in the log.
+   * is history, so every transition also writes a changelog entry.
    */
   setBikeStatus(clientId, bikeId, statusId, note) {
     if (!BIKE_STATUS.has(statusId)) return;
@@ -965,16 +1386,182 @@ const Actions = {
     App.navigate({ tab: "clients", clientId, bikeId: null });
   },
 
+  /* --- work items (templates) --- */
+
+  addWorkItem(data) {
+    Actions.commit(db => db.workItems.push(Domain.newWorkItem(data)));
+  },
+
   /**
-   * Record a changelog entry and apply its part changes to the live spec.
-   * This is the one path where history and current state move together.
+   * Edit a template in place. Jobs already on bikes hold their own copy of the
+   * steps, so nothing in progress shifts under a mechanic's hands.
    */
-  addEvent(clientId, bikeId, data) {
-    const event = Domain.newEvent(data);
+  updateWorkItem(itemId, data) {
+    Actions.commit(db => {
+      const item = Domain.workItem(db, itemId);
+      if (!item) return;
+      Object.assign(item, {
+        name: data.name,
+        price: Util.parseMoney(data.price),
+        description: data.description,
+        steps: (data.steps || []).map(Domain.newStep)
+      });
+    });
+  },
+
+  duplicateWorkItem(itemId) {
+    Actions.commit(db => {
+      const item = Domain.workItem(db, itemId);
+      if (!item) return;
+      const copy = Domain.newWorkItem(Object.assign({}, item, { name: item.name + " (copy)" }));
+      db.workItems.splice(db.workItems.indexOf(item) + 1, 0, copy);
+    });
+  },
+
+  deleteWorkItem(itemId) {
+    Actions.commit(db => { db.workItems = db.workItems.filter(w => w.id !== itemId); });
+  },
+
+  restoreDefaultWorkItems() {
+    Actions.commit(db => {
+      DEFAULT_WORK_ITEMS.forEach(item => db.workItems.push(Domain.newWorkItem(item)));
+    });
+  },
+
+  /* --- jobs (scheduled work) --- */
+
+  /**
+   * Put one or more work items on a bike.
+   *
+   * A bike nobody has seen yet moves to "scheduled" as a side effect — that is
+   * what scheduling work *means*, and it is the state the front counter looks
+   * for when someone walks in. A bike already in the shop stays in the shop:
+   * this is the mid-job "while it was up on the stand…" path.
+   */
+  scheduleWork(clientId, bikeId, itemIds, opts = {}) {
     Actions.commit(db => {
       const bike = Domain.bike(db, clientId, bikeId);
-      event.changes.forEach(change => Actions._applyChange(bike, change));
-      bike.events.push(event);
+      if (!bike) return;
+
+      itemIds.forEach(id => {
+        const item = Domain.workItem(db, id);
+        if (item) bike.jobs.push(Domain.newJob(item, {
+          request: opts.request || "",
+          scheduledDate: opts.date || Util.today()
+        }));
+      });
+
+      const names = itemIds.map(id => (Domain.workItem(db, id) || {}).name).filter(Boolean);
+      const status = Domain.status(bike);
+
+      if (status.id === "out" || status.id === "completed") {
+        const to = BIKE_STATUS.get("scheduled");
+        bike.status = to.id;
+        bike.statusDate = Util.today();
+        bike.events.push(Domain.newEvent({
+          kind: "status", date: bike.statusDate, title: to.label,
+          description: [names.join(", "), opts.request].filter(Boolean).join("\n"),
+          changes: [{ target: "note", key: "status", label: "Status",
+                      from: status.label, to: to.label, cost: 0 }]
+        }));
+      }
+    });
+  },
+
+  deleteJob(clientId, bikeId, jobId) {
+    Actions.commit(db => {
+      const bike = Domain.bike(db, clientId, bikeId);
+      if (bike) bike.jobs = bike.jobs.filter(j => j.id !== jobId);
+    });
+  },
+
+  /**
+   * Tick a step off, or un-tick it.
+   *
+   * The first tick is also what starts the clock on a job — nobody wants to
+   * press "begin" before they are allowed to pick up a spanner.
+   */
+  setStepDone(clientId, bikeId, jobId, stepId, done) {
+    Actions.commitLocal(db => {
+      const job = Domain.job(Domain.bike(db, clientId, bikeId), jobId);
+      const step = Domain.step(job, stepId);
+      if (!step || job.status === "done") return;
+
+      step.done = done;
+      step.doneAt = done ? Date.now() : 0;
+
+      if (done && job.status === "scheduled") {
+        job.status = "active";
+        job.startedAt = Date.now();
+      }
+    });
+  },
+
+  /** Live field edits inside the work space: minutes and per-step notes. */
+  setStepField(clientId, bikeId, jobId, stepId, field, value) {
+    Actions.commitQuiet(db => {
+      const job = Domain.job(Domain.bike(db, clientId, bikeId), jobId);
+      const step = Domain.step(job, stepId);
+      if (!step || job.status === "done") return;
+      step[field] = field === "minutes"
+        ? (value === "" ? "" : Math.max(0, Number(value) || 0))
+        : value;
+      if (job.status === "scheduled" && value !== "") {
+        job.status = "active";
+        job.startedAt = job.startedAt || Date.now();
+      }
+    });
+  },
+
+  addStepChanges(clientId, bikeId, jobId, stepId, changes) {
+    Actions.commit(db => {
+      const job = Domain.job(Domain.bike(db, clientId, bikeId), jobId);
+      const step = Domain.step(job, stepId);
+      if (!step) return;
+      changes.forEach(change => step.changes.push(Object.assign({ id: Util.uid("ch") }, change)));
+    });
+  },
+
+  removeStepChange(clientId, bikeId, jobId, stepId, changeId) {
+    Actions.commit(db => {
+      const step = Domain.step(Domain.job(Domain.bike(db, clientId, bikeId), jobId), stepId);
+      if (step) step.changes = step.changes.filter(c => c.id !== changeId);
+    });
+  },
+
+  /**
+   * Finish a work item.
+   *
+   * This is the one path where history and current state move together: the
+   * job's part changes are applied to the bike's live specification and the
+   * whole item lands in the changelog as a single dated "Shop work" entry.
+   * The job itself stays on the bike as the record of how it was done.
+   */
+  completeJob(clientId, bikeId, jobId, values) {
+    Actions.commit(db => {
+      const bike = Domain.bike(db, clientId, bikeId);
+      const job = Domain.job(bike, jobId);
+      if (!job || job.status === "done") return;
+
+      const changes = Domain.jobChanges(bike, job);
+      changes.forEach(change => Actions._applyChange(bike, change));
+
+      bike.events.push(Domain.newEvent({
+        kind: "work",
+        date: values.date || Util.today(),
+        by: values.by || "",
+        title: job.name,
+        description: values.description || "",
+        cost: values.cost,
+        changes
+      }));
+
+      job.status = "done";
+      job.completedAt = Date.now();
+      job.completedDate = values.date || Util.today();
+      job.by = values.by || "";
+      job.charged = Util.parseMoney(values.cost);
+      db.settings.lastBy = values.by || db.settings.lastBy;
     });
   },
 
@@ -991,6 +1578,20 @@ const Actions = {
   },
 
   /**
+   * Record a changelog entry directly and apply its part changes. Used by the
+   * manual "Add work" / "Add owner change" forms for anything that happened
+   * outside the step flow.
+   */
+  addEvent(clientId, bikeId, data) {
+    const event = Domain.newEvent(data);
+    Actions.commit(db => {
+      const bike = Domain.bike(db, clientId, bikeId);
+      event.changes.forEach(change => Actions._applyChange(bike, change));
+      bike.events.push(event);
+    });
+  },
+
+  /**
    * Remove a changelog entry. The bike's current spec is left as-is: history
    * is a record of what happened, and un-applying it would be a guess.
    */
@@ -1004,7 +1605,7 @@ const Actions = {
   replaceDatabase(data) {
     App.db = Store.migrate(data);
     Store.save(App.db);
-    App.navigate({ tab: "clients", clientId: null, bikeId: null });
+    App.navigate({ tab: "clients", clientId: null, bikeId: null, workBikeId: null, workClientId: null });
   }
 };
 
@@ -1021,7 +1622,7 @@ const Modal = {
    *   onSubmit(body)  -> return false to keep the modal open
    *   randomize(body) -> optional; adds the 🎲 test-data button to the footer
    */
-  open({ title, build, submitLabel = "Save", onSubmit, randomize }) {
+  open({ title, build, submitLabel = "Save", onSubmit, randomize, width }) {
     Modal.close();
 
     const body = Util.el("div", { class: "body" });
@@ -1029,6 +1630,7 @@ const Modal = {
 
     const form = Util.el("form", {
       class: "modal", role: "dialog", "aria-modal": "true", "aria-label": title,
+      style: width ? `width:min(${width}px,100%)` : null,
       onsubmit: (ev) => {
         ev.preventDefault();
         if (onSubmit(body) !== false) Modal.close();
@@ -1111,7 +1713,8 @@ const Form = {
     let input;
 
     if (field.type === "textarea") {
-      input = Util.el("textarea", { id, name: field.key, text: value, rows: field.rows || 3 });
+      input = Util.el("textarea", { id, name: field.key, text: value, rows: field.rows || 3,
+                                    placeholder: field.placeholder });
     } else {
       input = Util.el("input", {
         id, name: field.key, value: value ?? "",
@@ -1152,12 +1755,24 @@ const Form = {
       out[input.name] = input.value.trim();
     });
     return out;
+  },
+
+  /** A <select> over every spec field, grouped exactly as the forms are. */
+  specSelect(attrs, selected) {
+    return Util.el("select", attrs, [
+      Util.el("option", { value: "", text: "— none —" }),
+      ...SPEC_GROUPS.map(group => Util.el("optgroup", { label: group.label },
+        group.fields.map(f => Util.el("option", {
+          value: f.key, text: f.label, selected: f.key === selected
+        }))))
+    ]);
   }
 };
 
 /**
- * Repeatable rows (free-form "other" entries and part-change entries).
- * Each row is a .dyn-row; `parse` reads them back out of the DOM.
+ * Repeatable rows: free-form "other" entries, part-change entries, and the
+ * step editor behind a work-item template. Each row is a .dyn-row; `parse`
+ * reads them back out of the DOM.
  */
 const DynRows = {
   container(className) {
@@ -1169,15 +1784,15 @@ const DynRows = {
       type: "button", class: "btn btn-sm", text: label,
       onclick: () => {
         container.append(factory());
-        const inputs = container.lastElementChild.querySelectorAll("input, select");
+        const inputs = container.lastElementChild.querySelectorAll("input, select, textarea");
         if (inputs.length) inputs[0].focus();
       }
     });
   },
 
-  removeButton() {
+  removeButton(label = "Remove") {
     return Util.el("button", {
-      type: "button", class: "btn btn-sm btn-danger", text: "Remove",
+      type: "button", class: "btn btn-sm btn-danger", text: label,
       title: "Remove this row",
       onclick: (ev) => ev.target.closest(".dyn-row").remove()
     });
@@ -1206,53 +1821,89 @@ const DynRows = {
     })).filter(entry => entry.label || entry.value);
   },
 
-  /* --- part-change rows (used by the add-work / owner-change form) --- */
+  /* --- part-change rows --- */
 
-  /** Everything a change can point at: spec fields, existing extras, or a note. */
+  /**
+   * Everything a change can point at, as one flat alphabetical list: spec
+   * fields first-class alongside the bike's own "Other" rows.
+   *
+   * No "Core —" / "Extras —" prefixes. Which group a field lives in is a fact
+   * about this app's forms, not about the bike, and prefixing every option
+   * with it breaks the only search anyone actually performs: type "cass", get
+   * Cassette. Where an "Other" row happens to share a spec field's name it is
+   * numbered rather than silently shadowing it.
+   */
   changeTargets(bike) {
     const options = [];
-    SPEC_GROUPS.forEach(group => {
-      group.fields.forEach(f => options.push({
-        value: "spec:" + f.key,
-        label: group.label + " — " + f.label,
-        current: (bike.specs || {})[f.key] || ""
-      }));
-    });
+    SPEC_GROUPS.forEach(group => group.fields.forEach(f => options.push({
+      value: "spec:" + f.key,
+      label: f.label,
+      current: (bike.specs || {})[f.key] || ""
+    })));
     (bike.other || []).forEach(o => options.push({
       value: "other:" + o.id,
-      label: "Other — " + (o.label || "untitled"),
+      label: o.label || "Untitled entry",
       current: o.value || ""
     }));
-    options.push({ value: "note:", label: "Something else (log only)", current: "" });
-    return options;
+
+    const taken = new Set();
+    options.forEach(opt => {
+      let label = opt.label;
+      for (let n = 2; taken.has(label.toLowerCase()); n++) label = `${opt.label} (${n})`;
+      opt.label = label;
+      taken.add(label.toLowerCase());
+    });
+
+    return options.sort((a, b) => a.label.localeCompare(b.label));
   },
 
-  changeRow(bike) {
+  /** The target a typed part name refers to, or null for free text. */
+  findTarget(targets, text) {
+    const needle = String(text || "").trim().toLowerCase();
+    return needle ? targets.find(t => t.label.toLowerCase() === needle) || null : null;
+  },
+
+  /**
+   * One part-change row.
+   *
+   * The part is a text box over a datalist rather than a <select>: typing
+   * filters the list as you go, and anything that is not a known part is kept
+   * anyway as a log-only note under whatever the mechanic called it — which is
+   * what the old "Something else" option existed to do, without the option.
+   *
+   * `preselect` is a spec key, used to point a step's row at its own part.
+   */
+  changeRow(bike, preselect) {
     const targets = DynRows.changeTargets(bike);
+    const listId = Util.uid("parts");
 
-    const select = Util.el("select", { "data-change": "target" }, [
-      Util.el("option", { value: "", text: "Choose a part…" }),
-      ...targets.map(t => Util.el("option", { value: t.value, text: t.label }))
-    ]);
-
-    const noteLabel = Util.el("input", {
-      "data-change": "note-label", placeholder: "What changed?", style: "display:none"
+    const input = Util.el("input", {
+      "data-change": "target", list: listId, autocomplete: "off",
+      placeholder: "Type to search…"
     });
+    const options = Util.el("datalist", { id: listId },
+      targets.map(t => Util.el("option", { value: t.label })));
+
     const toInput = Util.el("input", { "data-change": "to", placeholder: "New value" });
     const costInput = Util.el("input", { "data-change": "cost", placeholder: "0.00", inputmode: "decimal" });
     const currentHint = Util.el("div", { class: "hint", text: " " });
 
-    select.addEventListener("change", () => {
-      const target = targets.find(t => t.value === select.value);
-      const isNote = select.value.startsWith("note:");
-      noteLabel.style.display = isNote ? "" : "none";
-      currentHint.textContent = !target || isNote ? " "
-        : (target.current ? "Currently: " + target.current : "Currently: (empty)");
-    });
+    const sync = () => {
+      const match = DynRows.findTarget(targets, input.value);
+      currentHint.textContent = !input.value.trim() ? " "
+        : match ? (match.current ? "Currently: " + match.current : "Currently: (empty)")
+                : "Not on the record — will be logged as a note.";
+    };
+    input.addEventListener("input", sync);
+
+    if (preselect && SPEC_FIELDS.has(preselect)) {
+      const match = targets.find(t => t.value === "spec:" + preselect);
+      if (match) { input.value = match.label; sync(); }
+    }
 
     return Util.el("div", { class: "dyn-row change" }, [
       Util.el("div", { class: "field" }, [
-        Util.el("label", { text: "Part" }), select, currentHint, noteLabel
+        Util.el("label", { text: "Part" }), input, options, currentHint
       ]),
       Util.el("div", { class: "field" }, [
         Util.el("label", { text: "New value" }), toInput
@@ -1268,26 +1919,96 @@ const DynRows = {
   parseChanges(container, bike) {
     const targets = DynRows.changeTargets(bike);
     return Array.from(container.querySelectorAll(".dyn-row.change")).map(row => {
-      const value = row.querySelector('[data-change="target"]').value;
-      if (!value) return null;
+      const text = row.querySelector('[data-change="target"]').value.trim();
+      if (!text) return null;
 
-      const [target, key] = [value.slice(0, value.indexOf(":")), value.slice(value.indexOf(":") + 1)];
       const to = row.querySelector('[data-change="to"]').value.trim();
       const cost = Util.parseMoney(row.querySelector('[data-change="cost"]').value);
-      const noteLabel = row.querySelector('[data-change="note-label"]').value.trim();
-      const match = targets.find(t => t.value === value);
+      const match = DynRows.findTarget(targets, text);
 
-      if (target === "note") {
-        if (!noteLabel && !to) return null;
-        return { target: "note", key: "", label: noteLabel || "Note", from: "", to, cost };
-      }
+      // Unrecognised text is still worth keeping — recorded against the log
+      // only, so a typo can never quietly write itself into the specification.
+      // With nothing to say about it, though, it was half-typed and abandoned.
+      if (!match) return (to || cost) ? { target: "note", key: "", label: text, from: "", to, cost } : null;
+
+      const cut = match.value.indexOf(":");
       return {
-        target, key,
-        label: match ? match.label.replace(/^.*— /, "") : key,
-        from: match ? match.current : "",
+        target: match.value.slice(0, cut),
+        key: match.value.slice(cut + 1),
+        label: match.label,
+        from: match.current,
         to, cost
       };
     }).filter(Boolean);
+  },
+
+  /* --- work-item step editor --- */
+
+  /**
+   * One step of a template. Six controls in a single line is unreadable, so a
+   * step is a small block: title on top, then the numbers and flags. Order is
+   * part of the meaning of a checklist, hence the move buttons.
+   */
+  stepRow(step = {}) {
+    const optionalId = "opt_" + (step.id || Util.uid("s"));
+    const move = (dir) => (ev) => {
+      const row = ev.target.closest(".dyn-row");
+      const sibling = dir < 0 ? row.previousElementSibling : row.nextElementSibling;
+      if (sibling) dir < 0 ? sibling.before(row) : sibling.after(row);
+    };
+
+    return Util.el("div", { class: "dyn-row step-editor" }, [
+      Util.el("div", { class: "top" }, [
+        Util.el("div", { class: "field" }, [
+          Util.el("label", { text: "Step" }),
+          Util.el("input", { "data-step": "title", value: step.title || "",
+                             placeholder: "e.g. Index gears, front and rear" })
+        ]),
+        Util.el("div", { class: "row" }, [
+          Util.el("button", { type: "button", class: "btn btn-sm", text: "↑", title: "Move up", onclick: move(-1) }),
+          Util.el("button", { type: "button", class: "btn btn-sm", text: "↓", title: "Move down", onclick: move(1) }),
+          DynRows.removeButton("✕")
+        ])
+      ]),
+      Util.el("div", { class: "field", style: "margin-top:8px" }, [
+        Util.el("label", { text: "Guidance for the mechanic (optional)" }),
+        Util.el("input", { "data-step": "note", value: step.note || "",
+                           placeholder: "e.g. Check hanger alignment first" })
+      ]),
+      Util.el("div", { class: "sub" }, [
+        Util.el("div", { class: "field" }, [
+          Util.el("label", { text: "Est. minutes" }),
+          Util.el("input", { "data-step": "minutes", type: "number", min: "0", step: "5",
+                             value: step.minutes || "" })
+        ]),
+        Util.el("div", { class: "field" }, [
+          Util.el("label", { text: "Extra labour" }),
+          Util.el("input", { "data-step": "price", inputmode: "decimal", placeholder: "0.00",
+                             value: step.price || "" })
+        ]),
+        Util.el("div", { class: "field" }, [
+          Util.el("label", { text: "Usually replaces" }),
+          Form.specSelect({ "data-step": "specKey" }, step.specKey || "")
+        ]),
+        Util.el("div", { class: "field inline", style: "align-self:end;padding-bottom:8px" }, [
+          Util.el("input", { "data-step": "optional", type: "checkbox", checked: !!step.optional,
+                             id: optionalId }),
+          Util.el("label", { for: optionalId, text: "Optional", style: "font-size:13px",
+                             title: "Optional steps are not counted when a work item is completed" })
+        ])
+      ])
+    ]);
+  },
+
+  parseSteps(container) {
+    return Array.from(container.querySelectorAll(".dyn-row.step-editor")).map(row => ({
+      title: row.querySelector('[data-step="title"]').value.trim(),
+      note: row.querySelector('[data-step="note"]').value.trim(),
+      minutes: row.querySelector('[data-step="minutes"]').value,
+      price: row.querySelector('[data-step="price"]').value,
+      specKey: row.querySelector('[data-step="specKey"]').value,
+      optional: row.querySelector('[data-step="optional"]').checked
+    })).filter(step => step.title);
   }
 };
 
@@ -1326,6 +2047,7 @@ const Random = {
     last:  ["Whitfield","Reyes","Nair","Brennan","Doyle","Kaminski","Okafor","Lindqvist","Chen","Hargreaves",
             "Moreau","Santos","Vogel","Tanaka","Halvorsen","Delgado","Osei","Novak","Fischer","Aaltonen"]
   },
+  MECHANICS: ["Ellis","Sam","Priya","Marek","Jo"],
   COMPANIES: ["Northside Couriers","Ridgeline Racing","Harbour Cycling Club","Velo Collective",
               "Summit Tri Team","Bike Bus Co-op","Copperfield Cabs"],
   STREETS: ["Alder","Birch","Canal","Dunmore","Elmwood","Foundry","Granary","Harbour","Ivy","Juniper"],
@@ -1338,6 +2060,27 @@ const Random = {
     "Happy for us to use our judgement on consumables.",
     "New to cycling — explain the work in plain terms.",
     "Has an account with the shop; invoice monthly."
+  ],
+
+  /** What a client says on the phone — the note attached to scheduled work. */
+  REQUESTS: [
+    "Says the gears skip under load going uphill. Wants it back before the weekend.",
+    "Rear brake feels spongy. Also mentioned a click from the pedals.",
+    "Hasn't been serviced in two years. Do whatever it needs, call if over $200.",
+    "Winter is coming — wants it made safe and reliable, not fast.",
+    "Bought secondhand, wants it checked over before riding it.",
+    "Creak somewhere around the bottom bracket, worse when out of the saddle.",
+    "Front wheel has a wobble after hitting a pothole.",
+    "Getting it ready for a tour next month. Lower gearing if possible.",
+    "Chain came off twice on the commute. Wants it sorted properly this time.",
+    "Just needs the tyres swapped, but have a quick look at everything else."
+  ],
+
+  STEP_NOTES: [
+    "All good.", "Within tolerance.", "Worn but usable — flagged to the client.",
+    "Replaced, old part kept in the parts bin.", "Took longer than expected, threads were seized.",
+    "Cleaned and re-greased.", "Client called and approved the extra work.",
+    "Measured 0.6% — leaving it for now.", "Torqued to spec, marked with paint pen."
   ],
 
   /** Coherent bike families. Each supplies its own plausible core spec. */
@@ -1516,7 +2259,7 @@ const Random = {
 
     // Most bikes are with their owners; a minority are somewhere in the
     // workflow, so generated data exercises every group in the lists.
-    const status = Random.chance(0.72) ? "out" : Random.pick(["scheduled", "in_shop", "in_shop", "completed"]);
+    const status = Random.chance(0.7) ? "out" : Random.pick(["scheduled", "in_shop", "in_shop", "completed"]);
 
     return {
       label: Random.chance(0.45)
@@ -1552,7 +2295,7 @@ const Random = {
       date: Random.dateWithin(730),
       by: kind === "owner"
         ? Random.pick(["Owner","Owner","Another shop","Club mechanic"])
-        : Random.pick(["Ellis","Sam","Priya","Marek","Jo"]),
+        : Random.pick(Random.MECHANICS),
       title: job.title,
       description: job.desc,
       cost: kind === "owner"
@@ -1562,8 +2305,48 @@ const Random = {
     };
   },
 
+  /**
+   * Scheduled work for a bike that is with us or due in, part-worked if the
+   * bike is already in the shop — so the Work tab has something to show.
+   */
+  addJobs(bike, workItems) {
+    if (!workItems.length) return;
+    const inShop = bike.status === "in_shop";
+
+    Random.sample(workItems, Random.int(1, 2)).forEach(item => {
+      const job = Domain.newJob(item, {
+        request: Random.chance(0.75) ? Random.pick(Random.REQUESTS) : "",
+        scheduledDate: bike.statusDate || Util.today()
+      });
+
+      if (inShop && Random.chance(0.8)) {
+        // Work down the list in order — a mechanic does not skip ahead.
+        const upTo = Random.int(1, job.steps.length - 1);
+        job.steps.slice(0, upTo).forEach(step => {
+          step.done = true;
+          step.doneAt = Date.now();
+          step.minutes = Math.max(5, Math.round((step.estMinutes || 10) * (0.6 + Math.random())/ 5) * 5);
+          if (Random.chance(0.35)) step.notes = Random.pick(Random.STEP_NOTES);
+          if (step.specKey && Random.chance(0.3)) {
+            step.changes.push({
+              id: Util.uid("ch"), target: "spec", key: step.specKey,
+              label: SPEC_FIELDS.get(step.specKey).label,
+              from: (bike.specs || {})[step.specKey] || "",
+              to: Random.pick(Random.POOLS[step.specKey] || ["Replaced"]),
+              cost: Random.int(2, 20) * 5
+            });
+          }
+        });
+        job.status = "active";
+        job.startedAt = Date.now();
+      }
+
+      bike.jobs.push(job);
+    });
+  },
+
   /** A whole client with bikes and applied history — used by bulk generation. */
-  fullClient() {
+  fullClient(workItems = []) {
     const client = Domain.newClient(Random.clientData());
 
     for (let i = Random.int(1, 3); i > 0; i--) {
@@ -1583,6 +2366,7 @@ const Random = {
         bike.events.push(event);
       });
 
+      if (bike.status === "scheduled" || bike.status === "in_shop") Random.addJobs(bike, workItems);
       client.bikes.push(bike);
     }
     return client;
@@ -1621,15 +2405,23 @@ const Random = {
     if (!rows) return;
     rows.innerHTML = "";
     data.changes.forEach(change => {
-      const row = DynRows.changeRow(bike);
+      // Built the same way a mechanic builds it: the part is named, not picked.
+      const row = DynRows.changeRow(bike, change.key);
       rows.append(row);
-      const select = row.querySelector('[data-change="target"]');
-      select.value = "spec:" + change.key;
-      select.dispatchEvent(new Event("change"));   // refresh the "Currently:" hint
       row.querySelector('[data-change="to"]').value = change.to;
       row.querySelector('[data-change="cost"]').value = change.cost || "";
     });
     rows.append(DynRows.changeRow(bike));          // leave one blank row ready
+  },
+
+  /** The 🎲 on the work-item form borrows one of the shipped templates. */
+  fillWorkItemForm(body) {
+    const item = Random.pick(DEFAULT_WORK_ITEMS);
+    ["name", "price", "description"].forEach(key => Random._set(body, key, item[key]));
+    const rows = body.querySelector('[data-rows="step-editor"]');
+    if (!rows) return;
+    rows.innerHTML = "";
+    item.steps.forEach(step => rows.append(DynRows.stepRow(step)));
   }
 };
 
@@ -1639,17 +2431,22 @@ const Random = {
 
 const TABS = [
   { id: "clients",  label: "Clients" },
-  { id: "bikes",    label: "All bikes" },
+  { id: "bikes",    label: "Bikes" },
+  { id: "work",     label: "Work" },
   { id: "activity", label: "Activity" },
+  { id: "settings", label: "Settings" },
   { id: "data",     label: "Data" }
 ];
 
 const View = {
 
-  tabs(route) {
+  /** The Work tab carries a count: how many bikes are on the bench right now. */
+  tabs(route, db) {
+    const inShop = Domain.allBikes(db).filter(({ bike }) => Domain.status(bike).id === "in_shop").length;
     return TABS.map(t => `
       <button class="tab" role="tab" aria-selected="${t.id === route.tab}"
-              data-action="tab" data-tab="${t.id}">${esc(t.label)}</button>`).join("");
+              data-action="tab" data-tab="${t.id}">${esc(t.label)}${
+        t.id === "work" && inShop ? `<span class="count">${inShop}</span>` : ""}</button>`).join("");
   },
 
   /* --- shared fragments ------------------------------------------------- */
@@ -1670,9 +2467,40 @@ const View = {
   },
 
   /**
+   * The single button that matters for a bike right now, wherever it appears
+   * in a list. A bike due in wants checking in; a bike on the bench wants
+   * opening in the work space. One click, no menu, no detail page first.
+   */
+  quickAction(client, bike) {
+    const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"`;
+    switch (Domain.status(bike).id) {
+      case "scheduled":
+        return `<button class="btn btn-sm btn-primary" data-action="bike:checkin" ${ids}
+                        title="Mark this bike as arrived and put it on the work board">→ Check in</button>`;
+      case "in_shop":
+        return `<button class="btn btn-sm btn-primary" data-action="work:open" ${ids}>Open work</button>`;
+      case "completed":
+        return `<button class="btn btn-sm" data-action="bike:status" data-status="out" ${ids}>Mark picked up</button>`;
+      default:
+        return `<button class="btn btn-sm" data-action="work:schedule" ${ids}>Schedule work</button>`;
+    }
+  },
+
+  /** "2 items · 7/18 steps" — the one-line state of a bike's open work. */
+  workLine(bike) {
+    const s = Domain.bikeWorkStats(bike);
+    if (!s.jobs) return "";
+    return `${s.jobs} work item${s.jobs === 1 ? "" : "s"} · ${s.done}/${s.total} steps`
+      + (s.loggedMinutes ? ` · ${esc(Util.duration(s.loggedMinutes))} logged` : "");
+  },
+
+  progressBar(percent) {
+    return `<div class="progress${percent >= 100 ? " full" : ""}"><span style="width:${percent}%"></span></div>`;
+  },
+
+  /**
    * Tagging control for the bike page: where it is now, the one-click next
-   * step in the workflow, and a segmented control for jumping anywhere else
-   * (a bike that never got tagged as arrived can still be marked completed).
+   * step in the workflow, and a segmented control for jumping anywhere else.
    */
   statusBar(client, bike) {
     const current = Domain.status(bike);
@@ -1734,6 +2562,16 @@ const View = {
     </li>`;
   },
 
+  breadcrumb(items) {
+    return `<nav class="breadcrumb">` + items.map((item, i) => {
+      const sep = i ? `<span aria-hidden="true">›</span>` : "";
+      const node = item.action
+        ? `<button data-action="${esc(item.action)}"${item.client ? ` data-client="${esc(item.client)}"` : ""}>${esc(item.label)}</button>`
+        : `<span>${esc(item.label)}</span>`;
+      return sep + node;
+    }).join("") + `</nav>`;
+  },
+
   /* --- tab: clients ----------------------------------------------------- */
 
   clientList(db, filter) {
@@ -1771,7 +2609,8 @@ const View = {
           <h2>Clients</h2>
           <div class="row">
             <input class="search" type="search" placeholder="Search clients, bikes, parts…"
-                   value="${esc(filter || "")}" data-action="search" data-scope="clients">
+                   value="${esc(filter || "")}" data-input="search" data-scope="searchClients"
+                   data-focus-key="search-clients">
             <button class="btn btn-primary" data-action="client:add">+ Add client</button>
           </div>
         </div>
@@ -1791,26 +2630,28 @@ const View = {
       .map(f => `<div class="spec-item"><dt>${esc(f.label)}</dt><dd>${esc(client[f.key])}</dd></div>`)
       .join("");
 
-    // Same ordering as the All bikes tab: whatever the shop is holding first.
+    // Same ordering as the Bikes tab: whatever the shop is holding first.
     const bikes = client.bikes.slice()
       .sort((a, b) => Domain.status(a).rank - Domain.status(b).rank ||
                       Domain.bikeTitle(a).localeCompare(Domain.bikeTitle(b)))
       .map(b => {
+      const work = View.workLine(b);
       const last = Domain.lastEvent(b);
       return `
-      <article class="card clickable" data-action="bike:open" data-status="${esc(Domain.status(b).id)}"
-               data-client="${esc(client.id)}" data-bike="${esc(b.id)}">
+      <article class="card clickable" data-status="${esc(Domain.status(b).id)}"
+               data-action="bike:open" data-client="${esc(client.id)}" data-bike="${esc(b.id)}">
         <div class="card-title">
           <h3>${esc(Domain.bikeTitle(b))}</h3>
           ${View.statusBadge(b, true)}
         </div>
-        <p class="small muted">${esc(Domain.bikeSubtitle(b) || "—")}</p>
+        <p class="small muted">${esc(Domain.bikeSubtitle(b) || "—")}${
+          b.stub ? ` · <span class="badge">details pending</span>` : ""}</p>
         <p style="margin-top:10px">${View.specChips(b)}</p>
         <p class="small muted" style="margin-top:10px">
-          ${b.events.length} entr${b.events.length === 1 ? "y" : "ies"} ·
-          ${last ? `last ${esc(Util.formatDate(last.date))} — ${esc(last.title || ENTRY_KINDS[last.kind].label)}`
-                 : "nothing recorded yet"}
+          ${work || (last ? `last ${esc(Util.formatDate(last.date))} — ${esc(last.title || ENTRY_KINDS[last.kind].label)}`
+                          : "nothing recorded yet")}
         </p>
+        <div class="row" style="margin-top:10px">${View.quickAction(client, b)}</div>
       </article>`;
     }).join("");
 
@@ -1843,12 +2684,48 @@ const View = {
 
         <div class="row between">
           <h3>Bikes</h3>
-          <button class="btn btn-primary" data-action="bike:add" data-client="${esc(client.id)}">+ Add bike</button>
+          <div class="row">
+            <button class="btn btn-primary" data-action="bike:stub" data-client="${esc(client.id)}"
+                    title="For a bike we have not seen yet — schedule work against it now, fill in the details when it arrives">+ New bike</button>
+            <button class="btn" data-action="bike:add" data-client="${esc(client.id)}">+ Add with full details</button>
+          </div>
         </div>
         ${client.bikes.length
           ? `<div class="grid">${bikes}</div>`
-          : View.empty("🚲", "No bikes yet", "Add a bike to record its build and service history.",
-              `<button class="btn btn-primary" data-action="bike:add" data-client="${esc(client.id)}">+ Add bike</button>`)}
+          : View.empty("🚲", "No bikes yet",
+              "“New bike” takes a name and nothing else — enough to book work in over the phone.",
+              `<button class="btn btn-primary" data-action="bike:stub" data-client="${esc(client.id)}">+ New bike</button>`)}
+      </div>`;
+  },
+
+  /** Compact summary of one job, as it appears on the bike's record page. */
+  jobSummaryRow(client, bike, job) {
+    const stats = Domain.jobStats(job);
+    const state = JOB_STATES[job.status];
+    return `
+      <div class="job-card${job.status === "done" ? " is-done" : ""}">
+        <div class="job-head">
+          <span class="badge ${state.badge}">${esc(state.label)}</span>
+          <strong>${esc(job.name)}</strong>
+          <span class="small muted">${stats.done}/${stats.total} steps${
+            stats.loggedMinutes ? " · " + esc(Util.duration(stats.loggedMinutes)) : ""}</span>
+          <span class="spacer"></span>
+          <span class="money small">${esc(Util.money(job.status === "done" ? (job.charged || stats.charge) : stats.charge))}</span>
+        </div>
+        ${View.progressBar(stats.percent)}
+        ${job.request ? `<div class="job-request">${esc(job.request)}</div>` : ""}
+        <div class="row" style="margin-top:10px">
+          <span class="small muted">${job.status === "done"
+            ? `Completed ${esc(Util.formatDate(job.completedDate))}${job.by ? " by " + esc(job.by) : ""}`
+            : `Scheduled ${esc(Util.formatDate(job.scheduledDate))}`}</span>
+          <span class="spacer"></span>
+          ${job.status === "done" ? "" : `
+            <button class="btn btn-sm btn-primary" data-action="work:open"
+                    data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">Open in Work</button>`}
+          <button class="btn btn-sm btn-danger" data-action="job:delete"
+                  data-client="${esc(client.id)}" data-bike="${esc(bike.id)}" data-job="${esc(job.id)}"
+                  title="Remove this work item from the bike">✕</button>
+        </div>
       </div>`;
   },
 
@@ -1872,6 +2749,9 @@ const View = {
     const events = bike.events.slice().sort(Util.byDateDesc)
       .map(e => View.entry(client.id, bike.id, e)).join("");
 
+    const open = Domain.openJobs(bike);
+    const done = Domain.doneJobs(bike).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+
     return `
       <div class="stack">
         ${View.breadcrumb([
@@ -1891,12 +2771,36 @@ const View = {
               <button class="btn btn-danger" data-action="bike:delete" data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">Delete</button>
             </div>
           </div>
+          ${bike.stub ? `<p class="small" style="margin-top:10px">
+            <span class="badge badge-sched">Details pending</span>
+            <span class="muted"> — created from a phone call. “Edit details” once the bike is in front of you.</span></p>` : ""}
           <p style="margin-top:12px">${View.specChips(bike)}</p>
           <div class="row" style="margin-top:12px">
             <span class="chip">Log entries: <strong>${bike.events.length}</strong></span>
             <span class="chip">Recorded spend: <strong>${esc(Util.money(Domain.bikeSpend(bike)))}</strong></span>
+            ${open.length ? `<span class="chip">Open work: <strong>${open.length}</strong></span>` : ""}
           </div>
           ${View.statusBar(client, bike)}
+        </div>
+
+        <div class="card">
+          <div class="row between">
+            <h3>Work</h3>
+            <div class="row">
+              ${View.quickAction(client, bike)}
+              <button class="btn btn-primary" data-action="work:schedule"
+                      data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">+ Schedule work</button>
+            </div>
+          </div>
+          <div style="margin-top:12px">
+            ${open.map(j => View.jobSummaryRow(client, bike, j)).join("")
+              || `<p class="small muted">No work outstanding.</p>`}
+          </div>
+          ${done.length ? `
+            <h4 style="margin-top:18px">Completed</h4>
+            <div style="margin-top:8px">${done.slice(0, 5).map(j => View.jobSummaryRow(client, bike, j)).join("")}</div>
+            ${done.length > 5 ? `<p class="small muted" style="margin-top:8px">+${done.length - 5} earlier — see the changelog below.</p>` : ""}
+          ` : ""}
         </div>
 
         <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
@@ -1912,8 +2816,9 @@ const View = {
           <div class="row between">
             <h3>Changelog</h3>
             <div class="row">
-              <button class="btn btn-primary" data-action="event:add" data-kind="work"
-                      data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">+ Add work</button>
+              <button class="btn" data-action="event:add" data-kind="work"
+                      data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
+                      title="For work done outside the step-by-step flow">+ Add work</button>
               <button class="btn" data-action="event:add" data-kind="owner"
                       data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">+ Add owner change</button>
             </div>
@@ -1921,23 +2826,13 @@ const View = {
           <div style="margin-top:14px">
             ${events ? `<ul class="timeline">${events}</ul>`
                      : View.empty("🧰", "Nothing logged yet",
-                        "Record work you performed or a change the owner made elsewhere. Corrections made through “Edit details” are logged here too.")}
+                        "Completing a work item in the Work tab writes an entry here. Owner changes and record corrections land here too.")}
           </div>
         </div>
       </div>`;
   },
 
-  breadcrumb(items) {
-    return `<nav class="breadcrumb">` + items.map((item, i) => {
-      const sep = i ? `<span aria-hidden="true">›</span>` : "";
-      const node = item.action
-        ? `<button data-action="${esc(item.action)}"${item.client ? ` data-client="${esc(item.client)}"` : ""}>${esc(item.label)}</button>`
-        : `<span>${esc(item.label)}</span>`;
-      return sep + node;
-    }).join("") + `</nav>`;
-  },
-
-  /* --- tab: all bikes --------------------------------------------------- */
+  /* --- tab: bikes ------------------------------------------------------- */
 
   bikesTab(db, filter) {
     const needle = (filter || "").toLowerCase();
@@ -1945,20 +2840,25 @@ const View = {
       .filter(({ client, bike }) =>
         !needle || (Domain.bikeSearchText(bike) + " " + client.name.toLowerCase()).includes(needle));
 
-    const card = ({ client, bike }) => `
-      <article class="card clickable" data-action="bike:open" data-status="${esc(Domain.status(bike).id)}"
-               data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">
+    const card = ({ client, bike }) => {
+      const work = View.workLine(bike);
+      return `
+      <article class="card clickable" data-status="${esc(Domain.status(bike).id)}"
+               data-action="bike:open" data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">
         <div class="card-title">
           <h3>${esc(Domain.bikeTitle(bike))}</h3>
           ${View.statusBadge(bike, true)}
         </div>
-        <p class="small muted">${esc(client.name)}${Domain.bikeSubtitle(bike) ? " · " + esc(Domain.bikeSubtitle(bike)) : ""}</p>
+        <p class="small muted">${esc(client.name)}${Domain.bikeSubtitle(bike) ? " · " + esc(Domain.bikeSubtitle(bike)) : ""}${
+          bike.stub ? " · details pending" : ""}</p>
         <p style="margin-top:10px">${View.specChips(bike)}</p>
         <p class="small muted" style="margin-top:10px">
-          ${bike.events.length} log entr${bike.events.length === 1 ? "y" : "ies"}${
+          ${work || `${bike.events.length} log entr${bike.events.length === 1 ? "y" : "ies"}`}${
             bike.statusDate ? ` · ${esc(Domain.status(bike).short.toLowerCase())} since ${esc(Util.formatDate(bike.statusDate))}` : ""}
         </p>
+        <div class="row" style="margin-top:10px">${View.quickAction(client, bike)}</div>
       </article>`;
+    };
 
     // Grouped by status in workflow-urgency order — in shop, completed,
     // scheduled, then everything resting with its owner.
@@ -1985,12 +2885,333 @@ const View = {
     return `
       <div class="stack">
         <div class="row between">
-          <h2>All bikes</h2>
+          <h2>Bikes</h2>
           <input class="search" type="search" placeholder="Search by bike, part, owner or status…"
-                 value="${esc(filter || "")}" data-action="search" data-scope="bikes">
+                 value="${esc(filter || "")}" data-input="search" data-scope="searchBikes"
+                 data-focus-key="search-bikes">
         </div>
         ${matches.length ? `<div class="row">${summary}</div>` : ""}
         ${groups || View.empty("🔍", "No bikes to show", "Bikes appear here once they are added to a client.")}
+      </div>`;
+  },
+
+  /* --- tab: work -------------------------------------------------------- */
+
+  /**
+   * The Work tab is two panes: a rail of everything the shop is holding, and
+   * the work space for whichever bike is selected. Selection lives in the
+   * route, so switching to Clients and back returns the mechanic to the bike
+   * they were on — and every keystroke was already saved, so nothing is lost.
+   */
+  workTab(db, route, filter) {
+    const needle = (filter || "").toLowerCase();
+    const match = ({ client, bike }) =>
+      !needle || (Domain.bikeSearchText(bike) + " " + client.name.toLowerCase()).includes(needle);
+
+    const all = Domain.allBikes(db).filter(match);
+    const inShop = all.filter(({ bike }) => Domain.status(bike).id === "in_shop");
+    const dueIn = all.filter(({ bike }) => Domain.status(bike).id === "scheduled");
+    const ready = all.filter(({ bike }) => Domain.status(bike).id === "completed");
+
+    const selected = route.workBikeId
+      ? Domain.bike(db, route.workClientId, route.workBikeId) : null;
+    const selectedClient = selected ? Domain.client(db, route.workClientId) : null;
+
+    const railItem = ({ client, bike }) => {
+      const stats = Domain.bikeWorkStats(bike);
+      const current = bike.id === route.workBikeId;
+      return `
+        <button class="rail-item" data-status="${esc(Domain.status(bike).id)}"
+                aria-current="${current}" data-action="work:open"
+                data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">
+          <span class="t">${esc(Domain.bikeTitle(bike))}</span>
+          <span class="s">${esc(client.name)}</span>
+          ${stats.jobs ? View.progressBar(stats.percent) : ""}
+          <span class="s">${stats.jobs
+            ? `${stats.done}/${stats.total} steps · ${stats.jobs} item${stats.jobs === 1 ? "" : "s"}`
+            : "No work scheduled"}</span>
+        </button>`;
+    };
+
+    const railGroup = (label, items, hint) => items.length ? `
+      <h4>${esc(label)} <span class="badge">${items.length}</span></h4>
+      ${hint ? `<p class="hint" style="margin:0 2px">${esc(hint)}</p>` : ""}
+      ${items.sort((a, b) => Domain.bikeTitle(a.bike).localeCompare(Domain.bikeTitle(b.bike)))
+             .map(railItem).join("")}` : "";
+
+    const rail = railGroup("On the bench", inShop)
+      + railGroup("Due in", dueIn, "Check in from the bike's card when it arrives.")
+      + railGroup("Ready for collection", ready);
+
+    return `
+      <div class="stack">
+        <div class="row between">
+          <h2>Work</h2>
+          <input class="search" type="search" placeholder="Filter by bike, owner or requested work…"
+                 value="${esc(filter || "")}" data-input="search" data-scope="searchWork"
+                 data-focus-key="search-work">
+        </div>
+        <div class="work-layout">
+          <aside class="rail">
+            ${rail || `<p class="small muted">Nothing in the shop.</p>`}
+          </aside>
+          <section>
+            ${selected && selectedClient
+              ? View.workspace(db, selectedClient, selected)
+              : View.empty("🔧", inShop.length ? "Pick a bike" : "Nothing on the bench",
+                  inShop.length
+                    ? "Choose a bike from the list to open its work items. Everything you tick or type is saved as you go."
+                    : "Bikes appear here once they are checked in. Schedule work from a client or bike page first.")}
+          </section>
+        </div>
+      </div>`;
+  },
+
+  /** One step of a job in progress: the row a mechanic actually works in. */
+  workStep(client, bike, job, step) {
+    const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"`
+      + ` data-job="${esc(job.id)}" data-step="${esc(step.id)}"`;
+    const locked = job.status === "done";
+
+    const parts = (step.changes || []).map(ch => `
+      <li>
+        <span class="diff-label">${esc(Domain.changeLabel(ch))}:</span>
+        ${ch.from ? `<span class="diff-from">${esc(ch.from)}</span><span class="diff-arrow">→</span>` : ""}
+        <span class="diff-to">${esc(ch.to || "—")}</span>
+        ${ch.cost ? `<span class="muted money">· ${esc(Util.money(ch.cost))}</span>` : ""}
+        ${locked ? "" : `<button class="btn btn-sm btn-danger" data-action="step:part-remove"
+                                 ${ids} data-change="${esc(ch.id)}" title="Remove this part change">✕</button>`}
+      </li>`).join("");
+
+    const meta = [
+      step.estMinutes ? "~" + Util.duration(step.estMinutes) : "",
+      step.price ? "+" + Util.money(step.price) : ""
+    ].filter(Boolean).join(" · ");
+
+    return `
+      <li class="step${step.done ? " done" : ""}">
+        <div>
+          <input type="checkbox" ${step.done ? "checked" : ""} ${locked ? "disabled" : ""}
+                 data-action="step:toggle" ${ids} data-focus-key="step-${esc(step.id)}-chk"
+                 aria-label="Mark “${esc(step.title)}” done">
+        </div>
+        <div>
+          <div class="step-head">
+            <span class="step-title">${esc(step.title)}</span>
+            ${step.optional ? `<span class="badge">Optional</span>` : ""}
+            ${meta ? `<span class="small muted">${esc(meta)}</span>` : ""}
+          </div>
+          ${step.note ? `<p class="step-note">${esc(step.note)}</p>` : ""}
+          ${locked ? `
+            <p class="small" style="margin-top:6px">
+              ${step.minutes ? `<span class="chip">${esc(Util.duration(step.minutes))}</span> ` : ""}
+              ${step.notes ? esc(step.notes) : ""}
+            </p>`
+          : `
+            <div class="step-fields">
+              <input type="number" min="0" step="5" placeholder="min" value="${esc(step.minutes)}"
+                     data-input="step:field" data-field="minutes" ${ids}
+                     data-focus-key="step-${esc(step.id)}-min" aria-label="Minutes spent">
+              <input type="text" placeholder="Notes — what you found, what you did"
+                     value="${esc(step.notes)}" data-input="step:field" data-field="notes" ${ids}
+                     data-focus-key="step-${esc(step.id)}-notes" aria-label="Step notes">
+              <button class="btn btn-sm" data-action="step:parts" ${ids}>+ Parts</button>
+            </div>`}
+          ${parts ? `<ul class="step-parts">${parts}</ul>` : ""}
+        </div>
+      </li>`;
+  },
+
+  /** One work item on the bench, with its whole checklist. */
+  workJob(client, bike, job) {
+    const stats = Domain.jobStats(job);
+    const state = JOB_STATES[job.status];
+    const done = job.status === "done";
+
+    const breakdown = [
+      `${esc(Util.money(job.price))} item`,
+      stats.stepCharges ? `${esc(Util.money(stats.stepCharges))} steps` : "",
+      stats.partsCost ? `${esc(Util.money(stats.partsCost))} parts` : ""
+    ].filter(Boolean).join(" + ");
+
+    return `
+      <div class="job-card${done ? " is-done" : ""}" data-job="${esc(job.id)}">
+        <div class="job-head">
+          <span class="badge ${state.badge}">${esc(state.label)}</span>
+          <h3>${esc(job.name)}</h3>
+          <span class="spacer"></span>
+          <span class="small muted">${stats.done}/${stats.total} steps${
+            stats.estMinutes ? ` · est ${esc(Util.duration(stats.estMinutes))}` : ""}${
+            stats.loggedMinutes ? ` · ${esc(Util.duration(stats.loggedMinutes))} logged` : ""}</span>
+        </div>
+        ${View.progressBar(stats.percent)}
+        ${job.description ? `<p class="small muted">${esc(job.description)}</p>` : ""}
+        ${job.request ? `<div class="job-request"><strong>Client asked:</strong> ${esc(job.request)}</div>` : ""}
+
+        <ul class="steps">
+          ${job.steps.map(step => View.workStep(client, bike, job, step)).join("")}
+        </ul>
+
+        <div class="row between" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+          <div>
+            <div class="money"><strong>${esc(Util.money(done ? (job.charged || stats.charge) : stats.charge))}</strong></div>
+            <div class="hint">${breakdown}</div>
+          </div>
+          <div class="row">
+            ${done
+              ? `<span class="small muted">Completed ${esc(Util.formatDate(job.completedDate))}${
+                   job.by ? " by " + esc(job.by) : ""}</span>
+                 <button class="btn btn-sm btn-danger" data-action="job:delete"
+                         data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
+                         data-job="${esc(job.id)}">Remove from board</button>`
+              : `${stats.openRequired
+                    ? `<span class="small muted">${stats.openRequired} required step${
+                        stats.openRequired === 1 ? "" : "s"} left</span>` : ""}
+                 <button class="btn btn-sm btn-danger" data-action="job:delete"
+                         data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
+                         data-job="${esc(job.id)}">Cancel</button>
+                 <button class="btn btn-primary" data-action="job:complete"
+                         data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
+                         data-job="${esc(job.id)}">Complete work item</button>`}
+          </div>
+        </div>
+      </div>`;
+  },
+
+  /** The right-hand pane: one bike, everything outstanding on it. */
+  workspace(db, client, bike) {
+    const open = Domain.openJobs(bike);
+    const done = Domain.doneJobs(bike).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+    const stats = Domain.bikeWorkStats(bike);
+    const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"`;
+
+    return `
+      <div class="stack">
+        <div class="card" data-status="${esc(Domain.status(bike).id)}">
+          <div class="row between">
+            <div>
+              <h2>${esc(Domain.bikeTitle(bike))}</h2>
+              <p class="small muted">${esc(client.name)}${
+                client.phone ? " · " + esc(client.phone) : ""}${
+                Domain.bikeSubtitle(bike) ? " · " + esc(Domain.bikeSubtitle(bike)) : ""}</p>
+            </div>
+            ${View.statusBadge(bike)}
+          </div>
+          ${bike.stub ? `<p class="small" style="margin-top:10px">
+            <span class="badge badge-sched">Details pending</span>
+            <span class="muted"> — the bike is here now, so its build can be recorded.</span>
+            <button class="btn btn-sm" data-action="bike:edit" ${ids}>Add details</button></p>` : ""}
+          <div class="row" style="margin-top:12px">
+            <span class="chip">Open items: <strong>${open.length}</strong></span>
+            <span class="chip">Steps: <strong>${stats.done}/${stats.total}</strong></span>
+            <span class="chip">Logged: <strong>${esc(Util.duration(stats.loggedMinutes) || "—")}</strong></span>
+            <span class="spacer"></span>
+            <button class="btn btn-sm" data-action="bike:open" ${ids}>Open bike record</button>
+            <button class="btn btn-sm" data-action="work:schedule" ${ids}
+                    title="Something else needs doing while it is on the stand">+ Add work item</button>
+            ${Domain.status(bike).id === "scheduled"
+              ? `<button class="btn btn-sm btn-primary" data-action="bike:checkin" ${ids}
+                         title="It is here — put it on the bench">→ Check in</button>`
+              : ""}
+            ${open.length || Domain.status(bike).id !== "in_shop" ? "" : `
+              <button class="btn btn-sm btn-primary" data-action="bike:status"
+                      data-status="completed" ${ids}>Mark work completed</button>`}
+          </div>
+        </div>
+
+        ${open.length
+          ? open.map(job => View.workJob(client, bike, job)).join("")
+          : View.empty("✅", "No open work items",
+              "Everything scheduled for this bike is done. Add another work item, or mark the bike ready for collection.",
+              `<button class="btn btn-primary" data-action="work:schedule" ${ids}>+ Add work item</button>`)}
+
+        ${done.length ? `
+          <details>
+            <summary class="small muted" style="cursor:pointer;padding:6px 0">
+              Completed on this bike (${done.length})
+            </summary>
+            <div style="margin-top:10px">${done.map(job => View.workJob(client, bike, job)).join("")}</div>
+          </details>` : ""}
+      </div>`;
+  },
+
+  /* --- tab: settings ---------------------------------------------------- */
+
+  settingsTab(db) {
+    const items = db.workItems.map(item => {
+      const minutes = item.steps.reduce((sum, s) => sum + (Number(s.minutes) || 0), 0);
+      const steps = item.steps.map((s, i) => `
+        <li>
+          <span class="n">${i + 1}</span>
+          <span>${esc(s.title)}${s.optional ? ` <span class="badge">Optional</span>` : ""}
+            ${s.note ? `<br><span class="hint">${esc(s.note)}</span>` : ""}</span>
+          <span class="spacer"></span>
+          <span class="small muted nowrap">${[
+            s.minutes ? "~" + Util.duration(s.minutes) : "",
+            s.price ? "+" + esc(Util.money(s.price)) : "",
+            s.specKey && SPEC_FIELDS.has(s.specKey) ? esc(SPEC_FIELDS.get(s.specKey).label) : ""
+          ].filter(Boolean).join(" · ")}</span>
+        </li>`).join("");
+
+      return `
+        <div class="card">
+          <div class="row between">
+            <div>
+              <h3>${esc(item.name)}</h3>
+              <p class="small muted">${esc(item.description || "")}</p>
+            </div>
+            <div class="row">
+              <span class="chip">${esc(Util.money(item.price))}</span>
+              <span class="chip">${item.steps.length} step${item.steps.length === 1 ? "" : "s"}</span>
+              ${minutes ? `<span class="chip">~${esc(Util.duration(minutes))}</span>` : ""}
+            </div>
+          </div>
+          ${steps ? `<ul class="wi-steps">${steps}</ul>`
+                  : `<p class="small muted" style="margin-top:10px">No steps yet — edit it to add some.</p>`}
+          <div class="row" style="margin-top:12px">
+            <button class="btn btn-sm" data-action="item:edit" data-item="${esc(item.id)}">Edit</button>
+            <button class="btn btn-sm" data-action="item:duplicate" data-item="${esc(item.id)}">Duplicate</button>
+            <span class="spacer"></span>
+            <button class="btn btn-sm btn-danger" data-action="item:delete" data-item="${esc(item.id)}">Delete</button>
+          </div>
+        </div>`;
+    }).join("");
+
+    return `
+      <div class="stack">
+        <div class="row between">
+          <h2>Settings</h2>
+          <button class="btn btn-primary" data-action="item:add">+ New work item</button>
+        </div>
+
+        <div class="card">
+          <h3>Work items</h3>
+          <p class="small muted" style="margin-top:6px">
+            A work item is a priced job with an ordered list of steps — what gets scheduled when a client
+            calls, and what a mechanic works down in the Work tab. Steps can carry guidance, a time
+            estimate, extra labour, and the part they usually replace.
+          </p>
+          <p class="hint" style="margin-top:8px">
+            Editing an item changes what is scheduled from now on. Work already scheduled or in progress
+            keeps the steps it was created with, so nothing shifts under a mechanic mid-job.
+          </p>
+        </div>
+
+        ${items || View.empty("🧾", "No work items yet",
+          "Create the jobs your shop sells — a tune-up, a service, a wheel true — and they become schedulable.",
+          `<button class="btn btn-primary" data-action="item:add">+ New work item</button>
+           <button class="btn" data-action="item:restore">Restore the default set</button>`)}
+
+        ${db.workItems.length ? `
+          <div class="card">
+            <h4>Defaults</h4>
+            <p class="small muted" style="margin-top:6px">
+              Adds the seven templates this app ships with, alongside whatever you already have.
+            </p>
+            <div class="row" style="margin-top:10px">
+              <button class="btn" data-action="item:restore">+ Add the default work items</button>
+            </div>
+          </div>` : ""}
       </div>`;
   },
 
@@ -2010,19 +3231,23 @@ const View = {
                data-action="activity:filter" data-filter="${id}">${esc(label)}</button>`;
 
     // The working board: everything the shop is currently responsible for,
-    // in the same order as the All bikes tab.
+    // with how far down its work list each bike is.
     const board = Domain.byStatus(Domain.allBikes(db).filter(({ bike }) => Domain.isActive(bike)))
       .filter(group => group.items.length)
       .map(({ status, items }) => items
         .sort((a, b) => Domain.bikeTitle(a.bike).localeCompare(Domain.bikeTitle(b.bike)))
-        .map(({ client, bike }) => `
+        .map(({ client, bike }) => {
+          const work = View.workLine(bike);
+          return `
           <div class="spec-item" data-action="bike:open"
                data-client="${esc(client.id)}" data-bike="${esc(bike.id)}" style="cursor:pointer">
             <dt><span class="badge ${status.badge}">${esc(status.short)}</span>
-                <strong style="color:var(--accent)">${esc(Domain.bikeTitle(bike))}</strong></dt>
+                <strong style="color:var(--accent)">${esc(Domain.bikeTitle(bike))}</strong>
+                ${work ? `<span class="small muted"> — ${esc(work)}</span>` : ""}</dt>
             <dd class="muted">${esc(client.name)}${
               bike.statusDate ? ` · since ${esc(Util.formatDate(bike.statusDate))}` : ""}</dd>
-          </div>`).join("")).join("");
+          </div>`;
+        }).join("")).join("");
 
     return `
       <div class="stack">
@@ -2033,8 +3258,10 @@ const View = {
           <div class="stat"><div class="n">${stats.byStatus.in_shop}</div><div class="l">In shop</div></div>
           <div class="stat"><div class="n">${stats.byStatus.completed}</div><div class="l">Awaiting pickup</div></div>
           <div class="stat"><div class="n">${stats.byStatus.scheduled}</div><div class="l">Scheduled</div></div>
+          <div class="stat"><div class="n">${stats.openJobs}</div><div class="l">Open work items</div></div>
+          <div class="stat"><div class="n">${stats.openSteps}</div><div class="l">Steps outstanding</div></div>
+          <div class="stat"><div class="n money">${esc(Util.money(stats.bookedValue))}</div><div class="l">On the books</div></div>
           <div class="stat"><div class="n">${stats.workEntries}</div><div class="l">Jobs done</div></div>
-          <div class="stat"><div class="n">${stats.entries}</div><div class="l">Log entries</div></div>
           <div class="stat"><div class="n money">${esc(Util.money(stats.revenue))}</div><div class="l">Recorded spend</div></div>
         </div>
         ${board ? `
@@ -2073,6 +3300,8 @@ const View = {
           <div class="row">
             <span class="chip">Clients: <strong>${stats.clients}</strong></span>
             <span class="chip">Bikes: <strong>${stats.bikes}</strong></span>
+            <span class="chip">Work items: <strong>${stats.workItems}</strong></span>
+            <span class="chip">Open jobs: <strong>${stats.openJobs}</strong></span>
             <span class="chip">Entries: <strong>${stats.entries}</strong></span>
             <span class="chip">Size: <strong>${(bytes / 1024).toFixed(1)} KB</strong></span>
             <span class="chip">Last saved: <strong>${db.updatedAt ? esc(new Date(db.updatedAt).toLocaleString(CONFIG.locale)) : "—"}</strong></span>
@@ -2081,7 +3310,7 @@ const View = {
 
         <div class="card stack">
           <h3>Backup &amp; restore</h3>
-          <p class="small muted">Export writes a JSON file containing every client, bike and changelog entry.</p>
+          <p class="small muted">Export writes a JSON file containing every client, bike, work item and changelog entry.</p>
           <div class="row">
             <button class="btn btn-primary" data-action="data:export">⬇ Export JSON</button>
             <button class="btn" data-action="data:import">⬆ Import JSON…</button>
@@ -2101,7 +3330,10 @@ const View = {
             <button class="btn" data-action="data:generate" data-count="25">+ 25 random clients</button>
             <button class="btn" data-action="data:sample">Load curated sample</button>
           </div>
-          <p class="hint">Each generated client gets 1–3 bikes with a full build spec and up to 6 changelog entries.</p>
+          <p class="hint">
+            Each generated client gets 1–3 bikes with a full build spec and up to 6 changelog entries.
+            Bikes in the shop get scheduled work items, part-worked, so the Work tab has something in it.
+          </p>
         </div>
 
         <div class="card stack">
@@ -2109,6 +3341,7 @@ const View = {
           <div class="row">
             <button class="btn btn-danger" data-action="data:reset">Delete everything</button>
           </div>
+          <p class="hint">Clients, bikes, history and work items. The default work items come back.</p>
         </div>
       </div>`;
   }
@@ -2121,9 +3354,14 @@ const View = {
 const App = {
   db: null,
 
-  /** All transient UI state lives here; never persisted except the route. */
-  route: { tab: "clients", clientId: null, bikeId: null },
-  ui: { searchClients: "", searchBikes: "", activityFilter: "all" },
+  /**
+   * The route carries two independent selections: where you are browsing
+   * (clientId / bikeId) and which bike is open on the work bench
+   * (workClientId / workBikeId). They are separate on purpose — looking up a
+   * client's phone number must not close the job you are half way through.
+   */
+  route: { tab: "clients", clientId: null, bikeId: null, workClientId: null, workBikeId: null },
+  ui: { searchClients: "", searchBikes: "", searchWork: "", activityFilter: "all" },
 
   navigate(patch) {
     Object.assign(App.route, patch);
@@ -2133,7 +3371,7 @@ const App = {
 
   render() {
     const view = document.getElementById("view");
-    document.getElementById("tabs").innerHTML = View.tabs(App.route);
+    document.getElementById("tabs").innerHTML = View.tabs(App.route, App.db);
 
     // Resolve the route defensively: entities can be deleted underneath it.
     const client = App.route.clientId ? Domain.client(App.db, App.route.clientId) : null;
@@ -2142,7 +3380,9 @@ const App = {
     let html;
     switch (App.route.tab) {
       case "bikes":    html = View.bikesTab(App.db, App.ui.searchBikes); break;
+      case "work":     html = View.workTab(App.db, App.route, App.ui.searchWork); break;
       case "activity": html = View.activityTab(App.db, App.ui.activityFilter); break;
+      case "settings": html = View.settingsTab(App.db); break;
       case "data":     html = View.dataTab(App.db); break;
       default:
         if (client && bike)  html = View.bikeDetail(App.db, client, bike);
@@ -2150,11 +3390,37 @@ const App = {
         else                 html = View.clientList(App.db, App.ui.searchClients);
     }
     view.innerHTML = html;
+  },
+
+  /**
+   * Re-render without throwing the user out of what they were doing.
+   *
+   * Views are HTML strings, so every render replaces the DOM wholesale — fine
+   * for a page of cards, hostile to someone typing in a search box or ticking
+   * their way down a checklist. Controls that can survive a render carry a
+   * `data-focus-key`; this finds the same one afterwards and puts the caret
+   * and the scroll position back.
+   */
+  renderKeepingPlace() {
+    const active = document.activeElement;
+    const key = active && active.getAttribute ? active.getAttribute("data-focus-key") : null;
+    const start = active && "selectionStart" in active ? active.selectionStart : null;
+    const end = active && "selectionEnd" in active ? active.selectionEnd : null;
+    const scroll = window.scrollY;
+
+    App.render();
+    window.scrollTo(0, scroll);
+
+    if (!key) return;
+    const next = document.querySelector(`[data-focus-key="${key.replace(/"/g, '\\"')}"]`);
+    if (!next) return;
+    next.focus();
+    try { if (start !== null) next.setSelectionRange(start, end); } catch { /* not a text field */ }
   }
 };
 
 /**
- * Delegated handlers, keyed by the `data-action` attribute.
+ * Delegated click handlers, keyed by the `data-action` attribute.
  * Each receives (dataset, element).
  */
 const HANDLERS = {
@@ -2165,6 +3431,9 @@ const HANDLERS = {
   "client:open": (d) => App.navigate({ tab: "clients", clientId: d.client, bikeId: null }),
   "bike:open":   (d) => App.navigate({ tab: "clients", clientId: d.client, bikeId: d.bike }),
   "activity:filter": (d) => { App.ui.activityFilter = d.filter; App.render(); },
+
+  /** Open a bike on the bench. The only way into the work space. */
+  "work:open": (d) => App.navigate({ tab: "work", workClientId: d.client, workBikeId: d.bike }),
 
   /* --- clients --- */
   "client:add": () => Modal.open({
@@ -2200,6 +3469,51 @@ const HANDLERS = {
   },
 
   /* --- bikes --- */
+
+  /**
+   * The phone-call path: a bike nobody has seen yet.
+   *
+   * Nothing here is required. The point is to have something to hang work on
+   * while the client is still on the line — the build spec can wait until the
+   * bike is on the stand. Scheduling follows immediately by default, because
+   * that is the reason anyone creates one of these.
+   */
+  "bike:stub": (d) => Modal.open({
+    title: "New bike",
+    submitLabel: "Create",
+    width: 560,
+    build: (body) => {
+      body.append(Form.section("What the client told you", [
+        { key: "label", label: "Working name", wide: true,
+          placeholder: "e.g. Blue Trek commuter",
+          hint: "However the shop will recognise it. Everything else can be filled in when it arrives." },
+        { key: "brand", label: "Brand / Make", suggest: SPEC_FIELDS.get("brand").suggest },
+        { key: "bikeType", label: "Type", suggest: SPEC_FIELDS.get("bikeType").suggest }
+      ], {}));
+      body.append(Util.el("fieldset", {}, [
+        Util.el("div", { class: "field inline" }, [
+          Util.el("input", { type: "checkbox", id: "then_schedule", checked: true }),
+          Util.el("label", { for: "then_schedule", text: "Schedule work for it next" })
+        ])
+      ]));
+    },
+    onSubmit: (body) => {
+      const values = Form.values(body);
+      const schedule = body.querySelector("#then_schedule").checked;
+      Actions.addBike(d.client, {
+        label: values.label,
+        stub: true,
+        specs: { brand: values.brand || "", bikeType: values.bikeType || "" }
+      }, {
+        // Deferred: this form closes itself once onSubmit returns, which would
+        // take the scheduling dialog down with it.
+        then: (bike) => {
+          if (schedule) setTimeout(() => HANDLERS["work:schedule"]({ client: d.client, bike: bike.id }), 0);
+        }
+      });
+    }
+  }),
+
   "bike:add": (d) => HANDLERS._bikeForm(d.client, null),
   "bike:edit": (d) => HANDLERS._bikeForm(d.client, d.bike),
 
@@ -2259,35 +3573,45 @@ const HANDLERS = {
   },
 
   /**
+   * The counter's one click: the bike is here.
+   *
+   * It goes straight onto the work board, and the mechanic's view of it opens,
+   * because in practice whoever takes the bike in is often the one who starts
+   * looking at it.
+   */
+  "bike:checkin": (d) => {
+    Actions.setBikeStatus(d.client, d.bike, "in_shop");
+    App.navigate({ tab: "work", workClientId: d.client, workBikeId: d.bike });
+  },
+
+  /**
    * Re-tag a bike's place in the shop workflow.
    *
-   * Marking work completed is the one move that gets in the way first: if
-   * nothing has been logged since the bike came in, the changelog would say
-   * the job was finished without ever saying what the job was. The warning
-   * offers the missing entry rather than just refusing, and saving it carries
-   * the original click through to "completed".
+   * Marking work completed is the move that gets in the way first: if work
+   * items are still open, saying the job is finished is nearly always somebody
+   * forgetting to close them out. The warning offers the work space rather
+   * than just refusing.
    */
   "bike:status": (d) => {
     const bike = Domain.bike(App.db, d.client, d.bike);
-    const complete = () => Actions.setBikeStatus(d.client, d.bike, "completed");
+    const open = bike ? Domain.openJobs(bike) : [];
 
-    if (d.status !== "completed" || !bike || Domain.status(bike).id === "completed"
-        || Domain.hasWorkSinceArrival(bike)) {
+    if (d.status !== "completed" || !open.length) {
       Actions.setBikeStatus(d.client, d.bike, d.status);
       return;
     }
 
     Modal.ask({
-      title: "No work logged yet",
+      title: "Work still open",
       message:
-        `Nothing has been recorded against “${Domain.bikeTitle(bike)}” since it came in, so `
-        + `marking it completed would leave no record of what was actually done.\n\n`
-        + `Add the work now and the bike is marked completed once you save it.`,
+        `“${Domain.bikeTitle(bike)}” still has ${open.length} work item${open.length === 1 ? "" : "s"} `
+        + `outstanding: ${open.map(j => j.name).join(", ")}.\n\n`
+        + `Completing a work item is what writes it to the bike's history and charges for it — `
+        + `marking the bike done now leaves that record unwritten.`,
       actions: [
-        { label: "Mark completed anyway", run: complete },
-        { label: "Add work", class: "btn-primary",
-          run: () => HANDLERS["event:add"]({ client: d.client, bike: d.bike, kind: "work" },
-                                           null, { onSaved: complete }) }
+        { label: "Mark completed anyway", run: () => Actions.setBikeStatus(d.client, d.bike, "completed") },
+        { label: "Open the work space", class: "btn-primary",
+          run: () => App.navigate({ tab: "work", workClientId: d.client, workBikeId: d.bike }) }
       ]
     });
   },
@@ -2299,14 +3623,278 @@ const HANDLERS = {
     }
   },
 
+  /* --- scheduling work --- */
+
+  /**
+   * Put work items on a bike. Used from three places with the same dialog:
+   * booking a phone call in, adding to a bike that has just arrived, and the
+   * mid-job "while it was up on the stand" case from the work space.
+   */
+  "work:schedule": (d) => {
+    const bike = Domain.bike(App.db, d.client, d.bike);
+    if (!bike) return;
+
+    if (!App.db.workItems.length) {
+      Modal.ask({
+        title: "No work items yet",
+        message: "Work is scheduled by picking a work item — a priced job with a list of steps.\n\n"
+               + "Create some in Settings first; the app ships with a default set you can start from.",
+        actions: [{ label: "Open Settings", class: "btn-primary", run: () => App.navigate({ tab: "settings" }) }]
+      });
+      return;
+    }
+
+    const inShop = Domain.status(bike).id === "in_shop";
+
+    Modal.open({
+      title: `Schedule work — ${Domain.bikeTitle(bike)}`,
+      submitLabel: "Schedule",
+      build: (body) => {
+        const list = Util.el("div", { class: "pick-list" }, App.db.workItems.map(item => {
+          const minutes = item.steps.reduce((sum, s) => sum + (Number(s.minutes) || 0), 0);
+          return Util.el("label", { class: "pick" }, [
+            Util.el("input", { type: "checkbox", "data-pick": item.id }),
+            Util.el("div", {}, [
+              Util.el("div", { class: "row", style: "gap:8px" }, [
+                Util.el("strong", { text: item.name }),
+                Util.el("span", { class: "chip", text: Util.money(item.price) }),
+                Util.el("span", { class: "chip", text: item.steps.length + " steps" }),
+                minutes ? Util.el("span", { class: "chip", text: "~" + Util.duration(minutes) }) : null
+              ]),
+              item.description ? Util.el("div", { class: "hint", text: item.description }) : null
+            ])
+          ]);
+        }));
+
+        body.append(Util.el("fieldset", {}, [
+          Util.el("legend", {}, [
+            Util.el("h4", { text: "Work items" }),
+            Util.el("div", { class: "hint", text: "Each one becomes its own checklist on the bike, and its own changelog entry when it is finished." })
+          ]),
+          list
+        ]));
+
+        body.append(Form.section("The request", [
+          { key: "request", label: "What the client asked for", type: "textarea", wide: true,
+            placeholder: "In their words — “gears skip under load going uphill, needs it by Friday”.",
+            hint: "Shown to whoever picks the bike up in the Work tab." },
+          { key: "date", label: inShop ? "Date added" : "Expected in", type: "date" }
+        ], { date: Util.today() }));
+      },
+      onSubmit: (body) => {
+        const ids = Array.from(body.querySelectorAll("[data-pick]:checked")).map(i => i.dataset.pick);
+        if (!ids.length) return false;
+        const values = Form.values(body);
+        Actions.scheduleWork(d.client, d.bike, ids, { request: values.request, date: values.date });
+      }
+    });
+  },
+
+  "job:delete": (d) => {
+    const bike = Domain.bike(App.db, d.client, d.bike);
+    const job = Domain.job(bike, d.job);
+    if (!job) return;
+    const msg = job.status === "done"
+      ? `Remove “${job.name}” from this bike's board?\n\nThe changelog entry it wrote stays where it is.`
+      : `Cancel “${job.name}”?\n\nAny notes, times and part changes recorded against its steps are lost.`;
+    if (confirm(msg)) Actions.deleteJob(d.client, d.bike, d.job);
+  },
+
+  /* --- working through a job --- */
+
+  /**
+   * Tick a step.
+   *
+   * The browser has already flipped `checked` by the time this runs, and the
+   * delegated listener's `preventDefault` then flips it back — so `el.checked`
+   * is the state the user asked for, and the re-render draws it from the
+   * database. What is on screen is always what is stored.
+   */
+  "step:toggle": (d, el) => Actions.setStepDone(d.client, d.bike, d.job, d.step, el.checked),
+
+  /** Record what was actually swapped during a step. */
+  "step:parts": (d) => {
+    const bike = Domain.bike(App.db, d.client, d.bike);
+    const job = Domain.job(bike, d.job);
+    const step = Domain.step(job, d.step);
+    if (!step) return;
+
+    Modal.open({
+      title: `Parts — ${step.title}`,
+      submitLabel: "Add to step",
+      build: (body) => {
+        const rows = DynRows.container("change");
+        // A step that names the part it usually replaces points the first row
+        // at it: the mechanic confirms rather than hunts.
+        rows.append(DynRows.changeRow(bike, step.specKey));
+        body.append(Util.el("fieldset", {}, [
+          Util.el("legend", {}, [
+            Util.el("h4", { text: "Part changes" }),
+            Util.el("div", { class: "hint", text: "Applied to the bike's specification when this work item is completed, and recorded as a before → after in the changelog." })
+          ]),
+          rows,
+          DynRows.addButton("+ Add another", rows, () => DynRows.changeRow(bike, ""))
+        ]));
+      },
+      onSubmit: (body) => {
+        const changes = DynRows.parseChanges(body, bike);
+        if (!changes.length) return false;
+        Actions.addStepChanges(d.client, d.bike, d.job, d.step, changes);
+      }
+    });
+  },
+
+  "step:part-remove": (d) => Actions.removeStepChange(d.client, d.bike, d.job, d.step, d.change),
+
+  /**
+   * Finish a work item: the moment the job becomes history.
+   *
+   * Required steps that are still open stop this once — an optional step
+   * nobody did is normal, a required one is usually an oversight.
+   */
+  "job:complete": (d) => {
+    const bike = Domain.bike(App.db, d.client, d.bike);
+    const job = Domain.job(bike, d.job);
+    if (!job || job.status === "done") return;
+    const stats = Domain.jobStats(job);
+
+    const form = () => HANDLERS._completeForm(d, bike, job, stats);
+
+    if (stats.openRequired) {
+      Modal.ask({
+        title: "Required steps not ticked",
+        message: `${stats.openRequired} required step${stats.openRequired === 1 ? " is" : "s are"} still open on `
+               + `“${job.name}”:\n\n`
+               + job.steps.filter(s => !s.done && !s.optional).map(s => "• " + s.title).join("\n"),
+        actions: [
+          { label: "Complete anyway", run: form },
+          { label: "Back to the steps", class: "btn-primary", run: () => {} }
+        ]
+      });
+      return;
+    }
+    form();
+  },
+
+  /** The completion form: who, when, what it says, and what it costs. */
+  _completeForm(d, bike, job, stats) {
+    Modal.open({
+      title: `Complete — ${job.name}`,
+      submitLabel: "Complete and log it",
+      build: (body) => {
+        body.append(Form.section("Sign-off", [
+          { key: "by", label: "Completed by", placeholder: "Mechanic name" },
+          { key: "date", label: "Date", type: "date" },
+          { key: "cost", label: "Total charged",
+            hint: `${Util.money(job.price)} item`
+                + (stats.stepCharges ? ` + ${Util.money(stats.stepCharges)} steps` : "")
+                + (stats.partsCost ? ` + ${Util.money(stats.partsCost)} parts` : "")
+                + ` = ${Util.money(stats.charge)}` }
+        ], { by: App.db.settings.lastBy || "", date: Util.today(), cost: String(stats.charge) }));
+
+        body.append(Form.section("What went in the log", [
+          { key: "description", label: "Entry", type: "textarea", wide: true, rows: 8,
+            hint: "Built from the steps you ticked, their times and their notes. Edit freely — this is what the client's history will say." }
+        ], { description: Domain.jobSummary(job) }));
+
+        if (stats.parts) {
+          const changes = Domain.jobChanges(bike, job);
+          body.append(Util.el("fieldset", {}, [
+            Util.el("legend", {}, [
+              Util.el("h4", { text: "Parts applied to the bike" }),
+              Util.el("div", { class: "hint", text: "Saving updates the bike's live specification to these values." })
+            ]),
+            Util.el("ul", { class: "diff-list" }, changes.map(ch => Util.el("li", {
+              text: `${Domain.changeLabel(ch)}: ${ch.from || "(empty)"} → ${ch.to || "—"}`
+                  + (ch.cost ? ` · ${Util.money(ch.cost)}` : "")
+            })))
+          ]));
+        }
+      },
+      onSubmit: (body) => {
+        const values = Form.values(body);
+        Actions.completeJob(d.client, d.bike, d.job, values);
+
+        // With nothing left open, the bike itself is done — offer the move
+        // rather than making someone remember to go and find it.
+        const bikeNow = Domain.bike(App.db, d.client, d.bike);
+        if (bikeNow && !Domain.openJobs(bikeNow).length && Domain.status(bikeNow).id === "in_shop") {
+          setTimeout(() => Modal.ask({
+            title: "All work finished",
+            message: `Nothing is outstanding on “${Domain.bikeTitle(bikeNow)}”.\n\n`
+                   + `Mark it completed so the front counter knows it is ready for collection?`,
+            actions: [{ label: "Mark work completed", class: "btn-primary",
+                        run: () => Actions.setBikeStatus(d.client, d.bike, "completed") }]
+          }), 0);
+        }
+      }
+    });
+  },
+
+  /* --- work items (Settings) --- */
+
+  "item:add": () => HANDLERS._itemForm(null),
+  "item:edit": (d) => HANDLERS._itemForm(d.item),
+  "item:duplicate": (d) => Actions.duplicateWorkItem(d.item),
+  "item:restore": () => Actions.restoreDefaultWorkItems(),
+
+  "item:delete": (d) => {
+    const item = Domain.workItem(App.db, d.item);
+    if (!item) return;
+    if (confirm(`Delete the work item “${item.name}”?\n\nWork already scheduled or completed keeps its own copy of the steps and is not affected.`)) {
+      Actions.deleteWorkItem(d.item);
+    }
+  },
+
+  /** Shared new/edit template form. Steps are dynamic rows in order. */
+  _itemForm(itemId) {
+    const item = itemId ? Domain.workItem(App.db, itemId) : null;
+
+    Modal.open({
+      title: item ? "Edit work item" : "New work item",
+      submitLabel: item ? "Save changes" : "Create work item",
+      width: 820,
+      build: (body) => {
+        body.append(Form.section("The job", [
+          { key: "name", label: "Name", required: true, wide: true, placeholder: "e.g. Basic tune-up" },
+          { key: "price", label: "Price", placeholder: "0.00",
+            hint: "The base charge. Step labour and parts are added on top." },
+          { key: "description", label: "What it covers", type: "textarea", wide: true,
+            placeholder: "One or two lines, shown when scheduling and on the bench." }
+        ], item || {}));
+
+        const rows = DynRows.container("step-editor");
+        ((item && item.steps) || []).forEach(step => rows.append(DynRows.stepRow(step)));
+        if (!item) rows.append(DynRows.stepRow());
+
+        body.append(Util.el("fieldset", {}, [
+          Util.el("legend", {}, [
+            Util.el("h4", { text: "Steps" }),
+            Util.el("div", { class: "hint", text: "In the order they are done. Guidance shows under the step on the bench; “usually replaces” pre-selects the part when a mechanic records a swap." })
+          ]),
+          rows,
+          DynRows.addButton("+ Add step", rows, () => DynRows.stepRow())
+        ]));
+      },
+      randomize: Random.fillWorkItemForm,
+      onSubmit: (body) => {
+        const values = Form.values(body);
+        if (!values.name) return false;
+        const data = Object.assign({}, values, { steps: DynRows.parseSteps(body) });
+        if (item) Actions.updateWorkItem(item.id, data);
+        else Actions.addWorkItem(data);
+      }
+    });
+  },
+
   /* --- changelog --- */
 
   /**
-   * Add work / add owner change. Both use one form; `kind` only changes
-   * wording and which badge the entry gets.
+   * Add work / add owner change by hand.
    *
-   * `opts.onSaved` runs after a successful save — used when the form was
-   * opened part-way through another action that still wants to finish.
+   * The step flow covers scheduled work; this is the escape hatch for
+   * everything else — a five-minute favour at the counter, a warranty claim,
+   * something a mechanic did before the job was ever booked in.
    */
   "event:add": (d, _el, opts = {}) => {
     const bike = Domain.bike(App.db, d.client, d.bike);
@@ -2323,7 +3911,7 @@ const HANDLERS = {
           { key: "title", label: "Summary", required: true, wide: true, placeholder: meta.titlePlaceholder },
           { key: "description", label: "Details", type: "textarea", wide: true,
             placeholder: "Notes for future reference: what was found, what was done, what to watch." }
-        ], { date: Util.today() }));
+        ], { date: Util.today(), by: kind === "work" ? (App.db.settings.lastBy || "") : "" }));
 
         // Part changes — each one updates the bike's current spec on save.
         const rows = DynRows.container("change");
@@ -2377,7 +3965,7 @@ const HANDLERS = {
   "data:generate": (d) => {
     const count = Math.min(parseInt(d.count, 10) || 5, 200);
     Actions.commit(db => {
-      for (let i = 0; i < count; i++) db.clients.push(Random.fullClient());
+      for (let i = 0; i < count; i++) db.clients.push(Random.fullClient(db.workItems));
     });
     Store.flashStatus(`Generated ${count} random client(s)`);
   },
@@ -2388,10 +3976,29 @@ const HANDLERS = {
   },
 
   "data:reset": () => {
-    if (!confirm("Delete every client, bike and changelog entry?\n\nThis cannot be undone. Export a backup first if you might want it back.")) return;
+    if (!confirm("Delete every client, bike, work item and changelog entry?\n\nThis cannot be undone. Export a backup first if you might want it back.")) return;
     if (!confirm("Really delete everything?")) return;
     Actions.replaceDatabase(Store.empty());
   }
+};
+
+/**
+ * Live-editing handlers, keyed by `data-input`. These fire on every keystroke,
+ * so they save quietly and re-render only when the screen must actually change.
+ */
+const INPUTS = {
+  /** Filter boxes: the list behind them has to change, so this re-renders. */
+  "search": (d, el) => {
+    App.ui[d.scope] = el.value;
+    App.renderKeepingPlace();
+  },
+
+  /**
+   * Minutes and notes inside a step. Nothing else on screen depends on them,
+   * so there is deliberately no re-render here — the mechanic keeps typing and
+   * the value is already in the database.
+   */
+  "step:field": (d, el) => Actions.setStepField(d.client, d.bike, d.job, d.step, d.field, el.value)
 };
 
 /* ==========================================================================
@@ -2408,17 +4015,22 @@ document.addEventListener("click", (ev) => {
   handler(target.dataset, target);
 });
 
-/** Search boxes: keep the caret by updating state without a full re-render. */
+/** Single input listener: search boxes and the live fields in the work space. */
 document.addEventListener("input", (ev) => {
-  const input = ev.target.closest('[data-action="search"]');
-  if (!input) return;
-  const caret = input.selectionStart;
-  if (input.dataset.scope === "clients") App.ui.searchClients = input.value;
-  else App.ui.searchBikes = input.value;
-  App.render();
-  // The re-render replaced the input, so restore focus and caret position.
-  const next = document.querySelector(`[data-action="search"][data-scope="${input.dataset.scope}"]`);
-  if (next) { next.focus(); next.setSelectionRange(caret, caret); }
+  const target = ev.target.closest("[data-input]");
+  if (!target || target.closest(".modal")) return;
+  const handler = INPUTS[target.dataset.input];
+  if (handler) handler(target.dataset, target);
+});
+
+/**
+ * A debounced save is still pending when a tab is closed or hidden. Flush it
+ * — losing the last sentence a mechanic typed would undermine the whole point
+ * of the work space.
+ */
+window.addEventListener("pagehide", () => Store.flush(App.db));
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") Store.flush(App.db);
 });
 
 /** File picker for JSON import. */
@@ -2443,10 +4055,17 @@ document.addEventListener("change", (ev) => {
   reader.readAsText(file);
 });
 
-/** Demo content so the app can be evaluated without typing everything in. */
+/**
+ * Demo content so the app can be evaluated without typing everything in.
+ * It deliberately covers the whole shape of the workflow: a bike on the bench
+ * with a half-finished tune-up, a stub booked in over the phone, and a bike
+ * with nothing outstanding.
+ */
 function SAMPLE_DATA() {
   const db = Store.empty();
+  const itemNamed = (name) => db.workItems.find(w => w.name === name);
 
+  /* --- Dana: gravel bike on the bench, mid tune-up --- */
   const client = Domain.newClient({
     name: "Dana Whitfield", phone: "555-0142", email: "dana.w@example.com",
     notes: "Rides most weekends. Prefers a call before any work over $150."
@@ -2472,29 +4091,44 @@ function SAMPLE_DATA() {
 
   bike.events.push(
     Domain.newEvent({
-      kind: "work", date: "2025-03-14", by: "Ellis", title: "Spring service",
+      kind: "work", date: "2026-03-14", by: "Ellis", title: "Spring service",
       description: "Full strip and clean, bled both brakes, trued rear wheel. Chain at 0.6% — replaced.",
       cost: "145", changes: [
         { target: "spec", key: "chain", label: "Chain", from: "Shimano HG601", to: "Shimano HG601 (new)", cost: 32 }
       ]
     }),
     Domain.newEvent({
-      kind: "owner", date: "2025-06-02", by: "Owner", title: "Fitted own saddle",
+      kind: "owner", date: "2026-06-02", by: "Owner", title: "Fitted own saddle",
       description: "Swapped to a saddle brought back from a bike fit elsewhere.",
       cost: "0", changes: [
         { target: "spec", key: "saddle", label: "Saddle", from: "Fizik Argo Tempo", to: "Specialized Power Expert", cost: 0 }
       ]
-    }),
-    Domain.newEvent({
-      kind: "work", date: "2025-09-21", by: "Ellis", title: "Tyre upgrade + cassette",
-      description: "Customer wanted lower gearing for a tour. Fitted wider tyres, checked clearance — fine at 45mm.",
-      cost: "268", changes: [
-        { target: "spec", key: "tires", label: "Tyres", from: "Panaracer GravelKing SK 700x43", to: "René Herse Fleecer Ridge 700x45", cost: 128 },
-        { target: "spec", key: "cassette", label: "Cassette", from: "11-34", to: "11-40", cost: 74 },
-        { target: "note", key: "", label: "Rear derailleur", from: "", to: "B-screw adjusted for larger cassette", cost: 0 }
-      ]
     })
   );
+
+  // A tune-up part-way down the list: four steps ticked, one with a part on it.
+  const tuneUp = Domain.newJob(itemNamed("Basic tune-up"), {
+    request: "Gears skip under load going uphill, and the rear brake feels soft. Needs it by Friday."
+  });
+  tuneUp.status = "active";
+  tuneUp.startedAt = Date.now();
+  ["Intake check and test ride", "Wash and degrease drivetrain", "Measure chain wear", "Index gears, front and rear"]
+    .forEach((title, i) => {
+      const step = tuneUp.steps.find(s => s.title === title);
+      if (!step) return;
+      step.done = true;
+      step.doneAt = Date.now();
+      step.minutes = [10, 20, 5, 25][i];
+    });
+  const chainStep = tuneUp.steps.find(s => s.title === "Measure chain wear");
+  chainStep.notes = "0.9% — well past it. Cassette teeth hooked too, quoted the client.";
+  chainStep.changes.push({
+    id: Util.uid("ch"), target: "spec", key: "chain", label: "Chain",
+    from: "Shimano HG601 (new)", to: "Shimano HG601", cost: 34
+  });
+  const gearStep = tuneUp.steps.find(s => s.title === "Index gears, front and rear");
+  gearStep.notes = "Hanger was 4mm out. Straightened, indexes cleanly now.";
+  bike.jobs.push(tuneUp);
 
   const commuter = Domain.newBike({
     specs: {
@@ -2506,13 +4140,24 @@ function SAMPLE_DATA() {
 
   client.bikes.push(bike, commuter);
 
+  /* --- Marco: a stub booked in over the phone this morning --- */
   const second = Domain.newClient({ name: "Marco Reyes", phone: "555-0197", company: "Northside Couriers" });
-  second.bikes.push(Domain.newBike({
+
+  const stub = Domain.newBike({
     label: "Courier singlespeed",
+    stub: true,
     status: "scheduled", statusDate: Util.today(),
-    specs: { brand: "Surly", model: "Steamroller", frameMaterial: "Steel", frameSize: "56",
-             bikeType: "Commuter", drivetrain: "Singlespeed", brakeType: "Rim — caliper" }
+    specs: { brand: "Surly", bikeType: "Commuter" }
+  });
+  stub.jobs.push(Domain.newJob(itemNamed("Full service"), {
+    request: "Hasn't been serviced since he bought it. Rides it every day in all weather — do whatever it needs."
   }));
+  stub.events.push(Domain.newEvent({
+    kind: "status", date: Util.today(), title: "Scheduled for work",
+    description: "Full service\nHasn't been serviced since he bought it.",
+    changes: [{ target: "note", key: "status", label: "Status", from: "Out of shop", to: "Scheduled for work", cost: 0 }]
+  }));
+  second.bikes.push(stub);
 
   db.clients.push(client, second);
   return db;
