@@ -169,11 +169,58 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 }
 .chip strong { color: var(--text); font-weight: 600; }
 
-/* status control (bike page) */
+/* status row (bike page): where the bike is, and the one button that moves it on */
 .status-bar {
   display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
   margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
 }
+
+/* Button roles on the bike page. Each kind of action has one look, used for
+   nothing else, so what a button does is clear before anyone reads it. */
+/* Move the stage on — filled, in the colour of the stage it moves the bike TO. */
+.btn-stage { border: 0; font-weight: 600; color: #fff; padding: 8px 16px; }
+.btn-stage[data-to="in_shop"]   { background: var(--st-in); }
+.btn-stage[data-to="completed"] { background: var(--st-done); }
+.btn-stage[data-to="out"]       { background: #4b5563; }
+.btn-stage[data-to="scheduled"] { background: var(--st-sched); }
+.btn-stage:hover { filter: brightness(1.08); }
+@media (prefers-color-scheme: dark) {
+  .btn-stage { color: #0b1220; }
+  .btn-stage[data-to="out"] { background: #98a0aa; }
+}
+/* Go somewhere else — accent outline, always with an arrow. */
+.btn-nav { border: 1.5px solid var(--accent); color: var(--accent); background: transparent; font-weight: 600; }
+.btn-nav:hover { background: var(--st-in-bg); border-color: var(--accent); }
+
+/* ⋯ overflow menu: record upkeep and corrections, kept out of the way. */
+.menu { position: relative; }
+.menu > summary {
+  list-style: none; cursor: pointer; padding: 4px 10px; border-radius: 6px; color: var(--text-dim);
+  border: 1px solid transparent; font-size: 18px; line-height: 1;
+}
+.menu > summary::-webkit-details-marker { display: none; }
+.menu > summary:hover, .menu[open] > summary { background: var(--surface-2); border-color: var(--border); }
+.menu .pop {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 5; min-width: 200px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 4px;
+}
+.menu .pop button {
+  display: block; width: 100%; text-align: left; border: 0; background: none; font: inherit;
+  color: var(--text); padding: 7px 10px; border-radius: 5px; cursor: pointer; font-size: 14px; white-space: nowrap;
+}
+.menu .pop button:hover { background: var(--surface-2); }
+.menu .pop .danger { color: var(--danger); }
+.menu .pop hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+
+/* read-only work rows on the bike page */
+.work-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 12px; align-items: center;
+  padding: 9px 0; border-top: 1px solid var(--border);
+}
+.work-row:first-child { border-top: 0; }
+.work-row .progress { margin: 0; }
+
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .seg button {
   appearance: none; font: inherit; font-size: 13px; cursor: pointer;
@@ -295,6 +342,10 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .step-fields input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .step-parts { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
 .step-parts li { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; }
+/* Substeps sit inside their step's row, one level in, lighter. */
+.steps.substeps { margin-top: 6px; }
+.substeps .step { padding: 7px 0; border-top-style: dashed; }
+.substeps .step-title { font-weight: 500; }
 .job-summary { margin-top: 10px; font-size: 14px; white-space: pre-wrap; }
 
 /* service history: one compact row per visit, expanding in place (bike page) */
@@ -366,6 +417,8 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .wi-steps { list-style: none; margin: 10px 0 0; padding: 0; font-size: 14px; }
 .wi-steps li { display: flex; gap: 8px; align-items: baseline; padding: 5px 0; border-top: 1px dashed var(--border); }
 .wi-steps .n { color: var(--text-dim); font-variant-numeric: tabular-nums; min-width: 22px; }
+.wi-steps li.sub { padding-left: 30px; border-top-style: dotted; font-size: 13px; }
+.wi-steps li.sub .n { min-width: 30px; }
 .pick-list { display: flex; flex-direction: column; gap: 8px; }
 .pick {
   display: flex; gap: 10px; align-items: flex-start;
@@ -420,6 +473,9 @@ legend { padding: 0 0 8px; }
 }
 .dyn-row.step-editor .sub { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 8px; }
 .dyn-row.step-editor .top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.dyn-row.step-editor .substeps-box { margin-top: 10px; padding-left: 12px; border-left: 2px solid var(--border); }
+.dyn-row.step-editor .substeps-box > .substeps { margin-top: 8px; }
+.dyn-row.step-editor.substep { background: var(--surface); }
 @media (max-width: 620px) {
   .dyn-row.kv, .dyn-row.change { grid-template-columns: 1fr; }
 }
@@ -651,106 +707,103 @@ const JOB_STATES = {
  * Templates the shop starts with. The owner edits these in Settings; each one
  * is a priced, ordered checklist a mechanic works down.
  *
- * step: { title, note, price, optional, specKey }
+ * step: { title, note, price, optional, specKey, substeps }
  *   note     guidance shown under the step while it is being worked
  *   price    extra labour charged for that step on top of the item price
  *   optional required steps are the ones the completion check counts
  *   specKey  the spec field this step usually replaces — pre-selects the
  *            part-change row so the mechanic does not go hunting
+ *   substeps the same shape as a step (minus substeps of their own). Each is
+ *            ticked, noted and given parts on its own; ticking the last one
+ *            ticks the step it belongs to.
  */
 const DEFAULT_WORK_ITEMS = [
   {
-    name: "Basic tune-up", price: 120,
-    description: "The standard bench service. Safety, shifting, braking and wheels — no parts beyond consumables.",
+    name: "Tune up", price: 120,
+    description: "The standard inspection and bench service: every system on the bike checked, adjusted and signed off, finished with a light wash and a test ride.",
     steps: [
-      { title: "Intake check and test ride", note: "Ride it before you touch it. Note anything the client did not mention." },
-      { title: "Wash and degrease drivetrain" },
-      { title: "Measure chain wear", note: "Replace at 0.75%. Check cassette teeth while it is off.", specKey: "chain" },
-      { title: "Index gears, front and rear", note: "Check hanger alignment first — most bad shifting is a bent hanger.", specKey: "rearDer" },
-      { title: "Adjust brakes, check pad wear", specKey: "rotors" },
-      { title: "True both wheels", note: "Tension check as well as lateral true.", specKey: "wheelset" },
-      { title: "Check bearing play — hubs, headset, BB", specKey: "bottomBracket" },
-      { title: "Torque check — stem, bars, seatpost, cranks" },
-      { title: "Inflate tyres, inspect casing and sidewalls", specKey: "tires" },
-      { title: "Tubeless sealant top-up", note: "Only if the bike is set up tubeless.", price: 15, optional: true, specKey: "tubeless" },
-      { title: "Final test ride and sign-off" }
-    ]
-  },
-  {
-    name: "Full service", price: 265,
-    description: "Strip, clean and rebuild. Everything in the tune-up plus bearings out, cables replaced and brakes bled.",
-    steps: [
-      { title: "Intake check and test ride", note: "Agree the scope with the client before stripping anything." },
-      { title: "Strip drivetrain and wash frame" },
-      { title: "Replace inner and outer cables", price: 25, specKey: "shifters" },
-      { title: "Bleed both brakes", price: 30, specKey: "calipers" },
-      { title: "Service headset bearings", specKey: "headset" },
-      { title: "Service or replace bottom bracket", specKey: "bottomBracket" },
-      { title: "Service hub bearings", optional: true, specKey: "wheelset" },
-      { title: "Replace chain", specKey: "chain" },
-      { title: "Rebuild drivetrain and index", specKey: "rearDer" },
-      { title: "True and tension both wheels", specKey: "wheelset" },
-      { title: "Re-wrap bar tape", price: 20, optional: true, specKey: "barTape" },
-      { title: "Full torque check" },
-      { title: "Final test ride and sign-off" }
-    ]
-  },
-  {
-    name: "Drivetrain replacement", price: 85,
-    description: "Chain, cassette and rings measured and swapped as needed. Parts charged on top.",
-    steps: [
-      { title: "Measure chain, cassette and chainring wear", note: "Record the numbers in the step notes — the client will ask.", specKey: "chain" },
-      { title: "Remove and degrease drivetrain" },
-      { title: "Fit new chain", specKey: "chain" },
-      { title: "Fit new cassette", specKey: "cassette" },
-      { title: "Fit new chainrings", optional: true, specKey: "chainrings" },
-      { title: "Index and test under load", specKey: "rearDer" }
-    ]
-  },
-  {
-    name: "Brake bleed — pair", price: 70,
-    description: "Both brakes bled, pads and rotors inspected.",
-    steps: [
-      { title: "Inspect pads and rotors", note: "Rotors under 1.5mm get replaced, not faced.", specKey: "rotors" },
-      { title: "Bleed front brake", specKey: "calipers" },
-      { title: "Bleed rear brake", specKey: "calipers" },
-      { title: "Replace pads", price: 10, optional: true, specKey: "rotors" },
-      { title: "Bed in and test" }
-    ]
-  },
-  {
-    name: "Wheel true and tension", price: 45,
-    description: "One wheel, on the stand: lateral true, radial true and even tension.",
-    steps: [
-      { title: "Check tension and find loose spokes", specKey: "wheelset" },
-      { title: "Lateral and radial true" },
-      { title: "Even out tension and stress-relieve" },
-      { title: "Replace broken spokes", price: 12, optional: true }
-    ]
-  },
-  {
-    name: "Tubeless setup — pair", price: 60,
-    description: "Tape, valves, sealant and a proper seat on both wheels.",
-    steps: [
-      { title: "Strip tyres and old tape" },
-      { title: "Re-tape both rims" },
-      { title: "Fit valves" },
-      { title: "Seat tyres and add sealant", specKey: "tubeless" },
-      { title: "Leave to settle, re-check pressure", note: "At least 30 minutes before it goes back to the client.", specKey: "tires" }
-    ]
-  },
-  {
-    name: "New bike build", price: 150,
-    description: "Boxed bike out of the carton and onto the road, safety-checked.",
-    steps: [
-      { title: "Unbox and check for shipping damage", note: "Photograph anything suspect before you touch it." },
-      { title: "Fit bars, stem, seatpost and saddle" },
-      { title: "Fit wheels, check hub and rotor alignment" },
-      { title: "Fit pedals and accessories", specKey: "pedals" },
-      { title: "Torque everything to spec" },
-      { title: "Index gears and set brakes" },
-      { title: "Basic fit for the client", optional: true },
-      { title: "Test ride and hand over" }
+      { title: "Frame / Fork", specKey: "fork", substeps: [
+        { title: "Condition", specKey: "fork" }
+      ] },
+      { title: "Bottom Bracket and Crankset", specKey: "crankset", substeps: [
+        { title: "Cranks condition", specKey: "crankset" },
+        { title: "Chainring condition", specKey: "chainrings" },
+        { title: "BB condition", specKey: "bottomBracket" },
+        { title: "Rotation/Stability", specKey: "bottomBracket" }
+      ] },
+      { title: "Pedals", specKey: "pedals", substeps: [
+        { title: "Condition", specKey: "pedals" },
+        { title: "Rotation", specKey: "pedals" }
+      ] },
+      { title: "Cassette/Freehub", specKey: "cassette", substeps: [
+        { title: "Condition", specKey: "cassette" },
+        { title: "Rotation/Stability", specKey: "wheelset" }
+      ] },
+      { title: "Chain", specKey: "chain", substeps: [
+        { title: "Condition", specKey: "chain" },
+        { title: "Wear", note: "Replace if >50% or poor condition.", specKey: "chain" },
+        { title: "Lubrication" }
+      ] },
+      { title: "Shifters/Brake Levers", specKey: "shifters", substeps: [
+        { title: "Lever Condition", specKey: "shifters" },
+        { title: "Housing/Cable Condition", note: "Recommend replacement every 3,000–5,000 miles.", specKey: "shifters" },
+        { title: "Function" }
+      ] },
+      { title: "Front Derailleur", specKey: "frontDer", substeps: [
+        { title: "Condition", specKey: "frontDer" },
+        { title: "Function" }
+      ] },
+      { title: "Rear Derailleur", specKey: "rearDer", substeps: [
+        { title: "Condition", specKey: "rearDer" },
+        { title: "Derailleur hanger check" },
+        { title: "Assess function/Alignment" }
+      ] },
+      { title: "Front Brakes", specKey: "calipers", substeps: [
+        { title: "Condition calipers", specKey: "calipers" },
+        { title: "Brake Pads", specKey: "rotors" },
+        { title: "Rotors", specKey: "rotors" },
+        { title: "Function" }
+      ] },
+      { title: "Rear Brakes", specKey: "calipers", substeps: [
+        { title: "Condition calipers", specKey: "calipers" },
+        { title: "Brake Pads", specKey: "rotors" },
+        { title: "Rotors", specKey: "rotors" },
+        { title: "Function" }
+      ] },
+      { title: "Handlebars/Stem", specKey: "handlebar", substeps: [
+        { title: "Bar Condition", specKey: "handlebar" },
+        { title: "Position", specKey: "stem" },
+        { title: "Bar tape condition", note: "Recommend yearly replacement.", specKey: "barTape" }
+      ] },
+      { title: "Headset", specKey: "headset", substeps: [
+        { title: "Condition", specKey: "headset" },
+        { title: "Rotation/Stability", specKey: "headset" }
+      ] },
+      { title: "Seat/Seatpost", specKey: "seatpost", substeps: [
+        { title: "Condition", specKey: "saddle" },
+        { title: "Position and Insertion point", specKey: "seatpost" }
+      ] },
+      { title: "Front Wheel", specKey: "wheelset", substeps: [
+        { title: "Condition", specKey: "wheelset" },
+        { title: "Rotation/Stability", specKey: "wheelset" },
+        { title: "Wheel true", specKey: "wheelset" },
+        { title: "Tire wear", specKey: "tires" },
+        { title: "Tire inflation", specKey: "tires" }
+      ] },
+      { title: "Rear Wheel", specKey: "wheelset", substeps: [
+        { title: "Condition", specKey: "wheelset" },
+        { title: "Rotation/Stability", specKey: "wheelset" },
+        { title: "Wheel true", specKey: "wheelset" },
+        { title: "Tire wear", specKey: "tires" },
+        { title: "Tire inflation", specKey: "tires" }
+      ] },
+      { title: "Accessories", specKey: "accessories" },
+      { title: "Torque Check" },
+      { title: "Battery Check", note: "Electronic groupsets, e-bikes and lights.", optional: true },
+      { title: "Firmware Update", note: "Electronic groupsets and e-bikes only.", optional: true },
+      { title: "Product Recall Check" },
+      { title: "Light Wash/Degrease" },
+      { title: "Test Ride" }
     ]
   }
 ];
@@ -841,7 +894,7 @@ const Store = {
    * ordinary records from that point on, editable and deletable in Settings.
    */
   empty: () => ({
-    schemaVersion: 4,
+    schemaVersion: 5,
     clients: [],
     workItems: DEFAULT_WORK_ITEMS.map(item => Domain.newWorkItem(item)),
     settings: { lastBy: "" },
@@ -869,8 +922,11 @@ const Store = {
     data.workItems.forEach(item => {
       item.steps = Array.isArray(item.steps) ? item.steps : [];
       item.steps.forEach(step => {
-        if (!step.id) step.id = Util.uid("s");
-        delete step.minutes;              // per-step time was retired
+        step.substeps = Array.isArray(step.substeps) ? step.substeps : [];
+        [step, ...step.substeps].forEach(s => {
+          if (!s.id) s.id = Util.uid("s");
+          delete s.minutes;               // per-step time was retired
+        });
       });
     });
 
@@ -886,14 +942,18 @@ const Store = {
         job.summary = job.summary || "";
         job.steps = Array.isArray(job.steps) ? job.steps : [];
         job.steps.forEach(step => {
-          if (!Array.isArray(step.changes)) step.changes = [];
-          delete step.minutes;            // per-step time was retired
-          delete step.estMinutes;
+          step.substeps = Array.isArray(step.substeps) ? step.substeps : [];
+          [step, ...step.substeps].forEach(s => {
+            if (!s.id) s.id = Util.uid("js");
+            if (!Array.isArray(s.changes)) s.changes = [];
+            delete s.minutes;             // per-step time was retired
+            delete s.estMinutes;
+          });
         });
       });
     }));
 
-    data.schemaVersion = 4;
+    data.schemaVersion = 5;
     return data;
   },
 
@@ -997,11 +1057,16 @@ const Domain = {
     name: data.name || "Untitled work item",
     price: Util.parseMoney(data.price),
     description: data.description || "",
-    steps: (data.steps || []).map(Domain.newStep),
+    steps: (data.steps || []).map(step => Domain.newStep(step)),
     createdAt: Date.now()
   }),
 
-  newStep: (data = {}) => ({
+  /** A template step: everything a substep has, plus its own substeps. */
+  newStep: (data = {}) => Object.assign(Domain.newSubstep(data), {
+    substeps: (data.substeps || []).map(sub => Domain.newSubstep(sub))
+  }),
+
+  newSubstep: (data = {}) => ({
     id: Util.uid("s"),
     title: data.title || "",
     note: data.note || "",
@@ -1016,6 +1081,18 @@ const Domain = {
    * changes what gets scheduled next, never what is already on the bench.
    */
   newJob(workItem, data = {}) {
+    const snapshot = (step) => ({
+      id: Util.uid("js"),
+      title: step.title,
+      note: step.note || "",
+      price: Number(step.price) || 0,
+      optional: !!step.optional,
+      specKey: step.specKey || "",
+      done: false,
+      doneAt: 0,
+      notes: "",
+      changes: []                         // part changes, applied on completion
+    });
     return {
       id: Util.uid("j"),
       workItemId: workItem.id,
@@ -1032,17 +1109,8 @@ const Domain = {
       by: "",
       timeSpent: 0,                       // minutes, optionally entered on completion
       summary: "",                        // optional closing notes, entered on completion
-      steps: workItem.steps.map(step => ({
-        id: Util.uid("js"),
-        title: step.title,
-        note: step.note || "",
-        price: Number(step.price) || 0,
-        optional: !!step.optional,
-        specKey: step.specKey || "",
-        done: false,
-        doneAt: 0,
-        notes: "",
-        changes: []                       // part changes, applied on completion
+      steps: workItem.steps.map(step => Object.assign(snapshot(step), {
+        substeps: (step.substeps || []).map(snapshot)
       }))
     };
   },
@@ -1075,7 +1143,34 @@ const Domain = {
     return bike ? (bike.jobs || []).find(j => j.id === jobId) || null : null;
   },
 
-  step: (job, stepId) => (job ? job.steps.find(s => s.id === stepId) || null : null),
+  /** A step or a substep, by id — the two are addressed the same way. */
+  step: (job, stepId) => (job ? Domain.allSteps(job).find(s => s.id === stepId) || null : null),
+
+  /** The step a substep belongs to; null for a top-level step. */
+  parentStep: (job, stepId) =>
+    (job ? job.steps.find(s => (s.substeps || []).some(sub => sub.id === stepId)) || null : null),
+
+  /** Every step and substep in checklist order, each with its parent (or null). */
+  flatSteps: (job) => (job.steps || []).flatMap(step =>
+    [{ step, parent: null }, ...(step.substeps || []).map(sub => ({ step: sub, parent: step }))]),
+
+  allSteps: (job) => Domain.flatSteps(job).map(entry => entry.step),
+
+  /** "Chain › Wear" for a substep, the plain title for a step. */
+  stepLabel: ({ step, parent }) => (parent ? `${parent.title} › ${step.title}` : step.title),
+
+  /**
+   * What was left undone, as few lines as possible: a step nobody started is
+   * one line, not one per substep.
+   */
+  skippedSteps(job) {
+    return (job.steps || []).flatMap(step => {
+      const subs = step.substeps || [];
+      if (!step.done && !subs.some(s => s.done)) return [{ label: step.title, optional: step.optional }];
+      return subs.filter(s => !s.done)
+        .map(s => ({ label: `${step.title} › ${s.title}`, optional: s.optional }));
+    });
+  },
 
   workItem: (db, id) => db.workItems.find(w => w.id === id) || null,
 
@@ -1179,7 +1274,7 @@ const Domain = {
    * recorded against the steps.
    */
   jobStats(job) {
-    const steps = job.steps || [];
+    const steps = Domain.allSteps(job);
     const done = steps.filter(s => s.done);
     const parts = steps.flatMap(s => s.changes || []);
 
@@ -1220,13 +1315,16 @@ const Domain = {
     const lines = [`${stats.done}/${stats.total} steps`
       + (job.timeSpent ? ` · ${Util.duration(job.timeSpent)}` : "")];
 
-    job.steps.filter(s => s.done).forEach(s => {
-      lines.push(`• ${s.title}${s.notes ? " — " + s.notes : ""}`);
+    job.steps.forEach(s => {
+      const subs = (s.substeps || []).filter(sub => sub.done);
+      if (!s.done && !subs.length) return;
+      lines.push(`• ${s.title}${s.done ? "" : " (partly)"}${s.notes ? " — " + s.notes : ""}`);
+      subs.forEach(sub => lines.push(`   – ${sub.title}${sub.notes ? " — " + sub.notes : ""}`));
     });
 
-    const skipped = job.steps.filter(s => !s.done);
+    const skipped = Domain.skippedSteps(job);
     if (skipped.length) {
-      lines.push("Not done: " + skipped.map(s => s.title + (s.optional ? " (optional)" : "")).join(", "));
+      lines.push("Not done: " + skipped.map(s => s.label + (s.optional ? " (optional)" : "")).join(", "));
     }
     if (job.summary) lines.push("", job.summary);
     return lines.join("\n");
@@ -1239,7 +1337,7 @@ const Domain = {
    * during the job, and only the live value makes an honest before → after.
    */
   jobChanges(bike, job) {
-    return job.steps.flatMap(step => (step.changes || []).map(change => {
+    return Domain.allSteps(job).flatMap(step => (step.changes || []).map(change => {
       const next = Object.assign({}, change);
       if (next.target === "spec") {
         next.from = (bike.specs || {})[next.key] || "";
@@ -1481,8 +1579,15 @@ const Actions = {
 
       bike.status = to.id;
       bike.statusDate = Util.today();
-      // Back with its owner: whatever happens next is a new visit.
-      if (to.id === "out") bike.leftShopAt = Date.now();
+      // Back with its owner: whatever happens next is a new visit. Moving
+      // back out of "out" was a slip, so the visit it closed is reopened.
+      if (to.id === "out") {
+        bike.prevLeftShopAt = bike.leftShopAt || 0;
+        bike.leftShopAt = Date.now();
+      } else if (from.id === "out" && typeof bike.prevLeftShopAt === "number") {
+        bike.leftShopAt = bike.prevLeftShopAt;
+        delete bike.prevLeftShopAt;
+      }
 
       bike.events.push(Domain.newEvent({
         kind: "status",
@@ -1600,6 +1705,10 @@ const Actions = {
    *
    * The first tick is also what starts the clock on a job — nobody wants to
    * press "begin" before they are allowed to pick up a spanner.
+   *
+   * Substeps carry their step with them: ticking the last one ticks the step,
+   * and un-ticking one un-ticks it, since the step is no longer finished.
+   * A step can still be ticked by hand without its substeps.
    */
   setStepDone(clientId, bikeId, jobId, stepId, done) {
     Actions.commitLocal(db => {
@@ -1609,6 +1718,17 @@ const Actions = {
 
       step.done = done;
       step.doneAt = done ? Date.now() : 0;
+
+      const parent = Domain.parentStep(job, stepId);
+      if (parent) {
+        if (done && !parent.done && parent.substeps.every(s => s.done)) {
+          parent.done = true;
+          parent.doneAt = Date.now();
+        } else if (!done && parent.done) {
+          parent.done = false;
+          parent.doneAt = 0;
+        }
+      }
 
       if (done && job.status === "scheduled") {
         job.status = "active";
@@ -2051,21 +2171,37 @@ const DynRows = {
    * One step of a template. Six controls in a single line is unreadable, so a
    * step is a small block: title on top, then the numbers and flags. Order is
    * part of the meaning of a checklist, hence the move buttons.
+   *
+   * A substep is the same block one level in (`isSub`), without substeps of
+   * its own. A step keeps its substeps in a box underneath its own fields.
    */
-  stepRow(step = {}) {
-    const optionalId = "opt_" + (step.id || Util.uid("s"));
+  stepRow(step = {}, isSub = false) {
+    const optionalId = "opt_" + Util.uid("s");
     const move = (dir) => (ev) => {
       const row = ev.target.closest(".dyn-row");
       const sibling = dir < 0 ? row.previousElementSibling : row.nextElementSibling;
       if (sibling) dir < 0 ? sibling.before(row) : sibling.after(row);
     };
 
-    return Util.el("div", { class: "dyn-row step-editor" }, [
+    let substeps = null;
+    if (!isSub) {
+      const rows = Util.el("div", { class: "substeps" });
+      (step.substeps || []).forEach(sub => rows.append(DynRows.stepRow(sub, true)));
+      substeps = Util.el("div", { class: "substeps-box" }, [
+        Util.el("div", { class: "hint", text: "Substeps — each has its own checkbox and parts. Ticking the last one ticks this step." }),
+        rows,
+        Util.el("div", { style: "margin-top:8px" }, [
+          DynRows.addButton("+ Add substep", rows, () => DynRows.stepRow({}, true))
+        ])
+      ]);
+    }
+
+    return Util.el("div", { class: "dyn-row step-editor" + (isSub ? " substep" : "") }, [
       Util.el("div", { class: "top" }, [
         Util.el("div", { class: "field" }, [
-          Util.el("label", { text: "Step" }),
+          Util.el("label", { text: isSub ? "Substep" : "Step" }),
           Util.el("input", { "data-step": "title", value: step.title || "",
-                             placeholder: "e.g. Index gears, front and rear" })
+                             placeholder: isSub ? "e.g. Derailleur hanger check" : "e.g. Rear Derailleur" })
         ]),
         Util.el("div", { class: "row" }, [
           Util.el("button", { type: "button", class: "btn btn-sm", text: "↑", title: "Move up", onclick: move(-1) }),
@@ -2094,18 +2230,30 @@ const DynRows = {
           Util.el("label", { for: optionalId, text: "Optional", style: "font-size:13px",
                              title: "Optional steps are not counted when a work item is completed" })
         ])
-      ])
+      ]),
+      substeps
     ]);
   },
 
+  /** Steps in order, each with its substeps; blank titles are dropped. */
   parseSteps(container) {
-    return Array.from(container.querySelectorAll(".dyn-row.step-editor")).map(row => ({
-      title: row.querySelector('[data-step="title"]').value.trim(),
-      note: row.querySelector('[data-step="note"]').value.trim(),
-      price: row.querySelector('[data-step="price"]').value,
-      specKey: row.querySelector('[data-step="specKey"]').value,
-      optional: row.querySelector('[data-step="optional"]').checked
-    })).filter(step => step.title);
+    // A step row contains its substep rows, so only read controls that belong
+    // to the row itself rather than to one nested inside it.
+    const own = (row, selector) => Array.from(row.querySelectorAll(selector))
+      .find(node => node.closest(".dyn-row") === row);
+    const read = (row) => ({
+      title: own(row, '[data-step="title"]').value.trim(),
+      note: own(row, '[data-step="note"]').value.trim(),
+      price: own(row, '[data-step="price"]').value,
+      specKey: own(row, '[data-step="specKey"]').value,
+      optional: own(row, '[data-step="optional"]').checked
+    });
+
+    return Array.from(container.querySelectorAll(".dyn-row.step-editor:not(.substep)")).map(row =>
+      Object.assign(read(row), {
+        substeps: Array.from(row.querySelectorAll(".dyn-row.substep")).map(read).filter(sub => sub.title)
+      })
+    ).filter(step => step.title);
   }
 };
 
@@ -2210,7 +2358,7 @@ const Print = {
 
   /** Part changes as "Chain: Shimano HG601". `withFrom` adds the old value. */
   parts(job, withFrom) {
-    return job.steps.flatMap(step => step.changes || []).map(ch =>
+    return Domain.allSteps(job).flatMap(step => step.changes || []).map(ch =>
       `${Domain.changeLabel(ch)}: ${withFrom && ch.from ? ch.from + " → " : ""}${ch.to || "removed"}`);
   },
 
@@ -2228,18 +2376,25 @@ const Print = {
   },
 
   longJob(job) {
-    const skipped = job.steps.filter(st => !st.done);
+    const skipped = Domain.skippedSteps(job);
     const meta = [
       Util.formatDate(job.completedDate),
       job.by ? "by " + job.by : "",
       job.timeSpent ? Util.duration(job.timeSpent) : ""
     ].filter(Boolean).join(" · ");
 
-    const steps = job.steps.filter(st => st.done).map(st => {
+    const line = (st) => {
       const parts = (st.changes || []).map(ch =>
         `${Domain.changeLabel(ch)}: ${ch.from ? ch.from + " → " : ""}${ch.to || "removed"}`);
-      return `<li>${esc(st.title)}${st.notes ? ` — <em>${esc(st.notes)}</em>` : ""}${
-        parts.length ? `<div class="ps-parts">${esc(parts.join("; "))}</div>` : ""}</li>`;
+      return `${esc(st.title)}${st.notes ? ` — <em>${esc(st.notes)}</em>` : ""}${
+        parts.length ? `<div class="ps-parts">${esc(parts.join("; "))}</div>` : ""}`;
+    };
+    // A step shows if it or any of its substeps was done; done substeps nest under it.
+    const steps = job.steps.map(st => {
+      const subs = (st.substeps || []).filter(sub => sub.done);
+      if (!st.done && !subs.length) return "";
+      return `<li>${line(st)}${subs.length
+        ? `<ul>${subs.map(sub => `<li>${line(sub)}</li>`).join("")}</ul>` : ""}</li>`;
     }).join("");
 
     return `
@@ -2247,7 +2402,7 @@ const Print = {
         <div class="ps-job-head"><strong>${esc(job.name)}</strong><span>${esc(meta)}</span></div>
         ${job.request ? `<p><span class="ps-label">You asked</span> ${esc(job.request)}</p>` : ""}
         ${steps ? `<ul>${steps}</ul>` : ""}
-        ${skipped.length ? `<p class="ps-dim">Not done: ${esc(skipped.map(st => st.title).join(", "))}</p>` : ""}
+        ${skipped.length ? `<p class="ps-dim">Not done: ${esc(skipped.map(st => st.label).join(", "))}</p>` : ""}
         ${job.summary ? `<p class="ps-pre">${esc(job.summary)}</p>` : ""}
       </article>`;
   }
@@ -2326,30 +2481,48 @@ const View = {
   },
 
   /**
-   * Tagging control for the bike page: where it is now, the one-click next
-   * step in the workflow, and a segmented control for jumping anywhere else.
+   * The bike page's status row: where the bike is now, and the one button
+   * that moves it to the next stage, coloured for the stage it moves it to.
+   * From "out" the next step is booking work in, so that button opens the
+   * scheduling dialog rather than setting a bare status.
    */
   statusBar(client, bike) {
     const current = Domain.status(bike);
     const next = Domain.nextStatus(bike);
-
-    const segment = BIKE_STATUSES.map(s => `
-      <button type="button" aria-pressed="${s.id === current.id}"
-              title="${esc(s.action)}"
-              data-action="bike:status" data-client="${esc(client.id)}"
-              data-bike="${esc(bike.id)}" data-status="${esc(s.id)}">${esc(s.short)}</button>`).join("");
+    const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"`;
+    const action = current.id === "out"
+      ? `data-action="work:schedule"` : `data-action="bike:status" data-status="${esc(next.id)}"`;
 
     return `
       <div class="status-bar">
-        <span class="small muted">Status</span>
         ${View.statusBadge(bike)}
         ${bike.statusDate ? `<span class="small muted">since ${esc(Util.formatDate(bike.statusDate))}</span>` : ""}
         <span class="spacer"></span>
-        <button class="btn btn-sm btn-primary" data-action="bike:status"
-                data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
-                data-status="${esc(next.id)}">${esc(next.action)}</button>
-        <div class="seg" role="group" aria-label="Set status">${segment}</div>
+        <button class="btn btn-stage" data-to="${esc(next.id)}" ${action} ${ids}>${
+          esc(current.id === "out" ? "Schedule work…" : next.action)}</button>
       </div>`;
+  },
+
+  /**
+   * The bike page's ⋯ menu: editing the record, undoing a stage moved by
+   * mistake, and deleting. Everything that is not the day-to-day flow.
+   */
+  bikeMenu(client, bike) {
+    const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"`;
+    const current = Domain.status(bike);
+    // Backing out of "scheduled" would be cancelling a booking, not fixing a slip.
+    const back = current.id === "scheduled" ? null
+      : BIKE_STATUSES.find(s => s.next === current.id);
+    return `
+      <details class="menu">
+        <summary aria-label="More actions" title="More actions">⋯</summary>
+        <div class="pop">
+          <button data-action="bike:edit" ${ids}>Edit details</button>
+          ${back ? `<button data-action="bike:back" data-status="${esc(back.id)}" ${ids}>↩ Move back to ${esc(back.short)}</button>` : ""}
+          <hr>
+          <button class="danger" data-action="bike:delete" ${ids}>Delete bike</button>
+        </div>
+      </details>`;
   },
 
   specChips(bike) {
@@ -2525,33 +2698,13 @@ const View = {
       </div>`;
   },
 
-  /** Compact summary of one job, as it appears on the bike's record page. */
-  jobSummaryRow(client, bike, job) {
+  /** One open work item on the bike page: read-only, progress at a glance. */
+  jobSummaryRow(job) {
     const stats = Domain.jobStats(job);
-    const state = JOB_STATES[job.status];
     return `
-      <div class="job-card${job.status === "done" ? " is-done" : ""}">
-        <div class="job-head">
-          <span class="badge ${state.badge}">${esc(state.label)}</span>
-          <strong>${esc(job.name)}</strong>
-          <span class="small muted">${stats.done}/${stats.total} steps</span>
-          <span class="spacer"></span>
-          <span class="money small">${esc(Util.money(job.status === "done" ? (job.charged || stats.charge) : stats.charge))}</span>
-        </div>
+      <div class="work-row">
+        <div><strong>${esc(job.name)}</strong> <span class="small muted">${stats.done}/${stats.total} steps</span></div>
         ${View.progressBar(stats.percent)}
-        ${job.request ? `<div class="job-request">${esc(job.request)}</div>` : ""}
-        <div class="row" style="margin-top:10px">
-          <span class="small muted">${job.status === "done"
-            ? `Completed ${esc(Util.formatDate(job.completedDate))}${job.by ? " by " + esc(job.by) : ""}`
-            : `Scheduled ${esc(Util.formatDate(job.scheduledDate))}`}</span>
-          <span class="spacer"></span>
-          ${job.status === "done" ? "" : `
-            <button class="btn btn-sm btn-primary" data-action="work:open"
-                    data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">Open in Work</button>`}
-          <button class="btn btn-sm btn-danger" data-action="job:delete"
-                  data-client="${esc(client.id)}" data-bike="${esc(bike.id)}" data-job="${esc(job.id)}"
-                  title="Remove this work item from the bike">✕</button>
-        </div>
       </div>`;
   },
 
@@ -2589,14 +2742,11 @@ const View = {
               <h2>${esc(Domain.bikeTitle(bike))}</h2>
               <p class="small muted">${esc(Domain.bikeSubtitle(bike) || "")} · owned by ${esc(client.name)}</p>
             </div>
-            <div class="row">
-              <button class="btn" data-action="bike:edit" data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">Edit details</button>
-              <button class="btn btn-danger" data-action="bike:delete" data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">Delete</button>
-            </div>
+            ${View.bikeMenu(client, bike)}
           </div>
           ${bike.stub ? `<p class="small" style="margin-top:10px">
             <span class="badge badge-sched">Details pending</span>
-            <span class="muted"> — created from a phone call. “Edit details” once the bike is in front of you.</span></p>` : ""}
+            <span class="muted"> — created from a phone call. “Edit details” (in the ⋯ menu) once the bike is in front of you.</span></p>` : ""}
           <p style="margin-top:12px">${View.specChips(bike)}</p>
           <div class="row" style="margin-top:12px">
             <span class="chip">Jobs on record: <strong>${Domain.doneJobs(bike).length}</strong></span>
@@ -2611,15 +2761,16 @@ const View = {
             <h3>Work</h3>
             <div class="row">
               ${Domain.readyToPrint(bike)
-                ? `<button class="btn" data-action="print:visit" ${ids}
-                           title="A one-page summary of this visit's work for the client">Print</button>` : ""}
-              ${View.quickAction(client, bike)}
-              <button class="btn btn-primary" data-action="work:schedule" ${ids}>+ Schedule work</button>
+                ? `<button class="btn btn-ghost" data-action="print:visit" ${ids}
+                           title="A one-page summary of this visit's work for the client">🖨 Print summary</button>` : ""}
+              ${open.length || Domain.isActive(bike)
+                ? `<button class="btn btn-nav" data-action="work:open" ${ids}>Open in Work →</button>` : ""}
             </div>
           </div>
-          <div style="margin-top:12px">
-            ${open.map(j => View.jobSummaryRow(client, bike, j)).join("")
-              || `<p class="small muted">No work outstanding.</p>`}
+          <div style="margin-top:8px">
+            ${open.map(View.jobSummaryRow).join("")
+              || `<p class="small muted">${Domain.readyToPrint(bike)
+                    ? "All work for this visit is done." : "No work outstanding."}</p>`}
           </div>
         </div>
 
@@ -2659,7 +2810,7 @@ const View = {
       const open = App.ui.openVisits.has(bike.id + ":" + v.key);
       // How many notes a visit holds, so the one worth opening stands out.
       const notes = v.jobs.reduce((n, j) =>
-        n + (j.summary ? 1 : 0) + j.steps.filter(st => st.notes).length, 0);
+        n + (j.summary ? 1 : 0) + Domain.allSteps(j).filter(st => st.notes).length, 0);
       return `
         <li>
           <button class="visit-row" aria-expanded="${open}" data-action="history:toggle"
@@ -2841,6 +2992,8 @@ const View = {
       </li>`).join("");
 
     const meta = step.price ? "+" + Util.money(step.price) : "";
+    const subs = step.substeps || [];
+    const subsDone = subs.filter(sub => sub.done).length;
 
     return `
       <li class="step${step.done ? " done" : ""}">
@@ -2854,6 +3007,7 @@ const View = {
             <span class="step-title">${esc(step.title)}</span>
             ${step.optional ? `<span class="badge">Optional</span>` : ""}
             ${meta ? `<span class="small muted">${esc(meta)}</span>` : ""}
+            ${subs.length ? `<span class="small muted">${subsDone}/${subs.length}</span>` : ""}
           </div>
           ${step.note ? `<p class="step-note">${esc(step.note)}</p>` : ""}
           ${locked
@@ -2866,6 +3020,8 @@ const View = {
               <button class="btn btn-sm" data-action="step:parts" ${ids}>+ Parts</button>
             </div>`}
           ${parts ? `<ul class="step-parts">${parts}</ul>` : ""}
+          ${subs.length ? `<ul class="steps substeps">${
+            subs.map(sub => View.workStep(client, bike, job, sub)).join("")}</ul>` : ""}
         </div>
       </li>`;
   },
@@ -2988,9 +3144,9 @@ const View = {
 
   settingsTab(db) {
     const items = db.workItems.map(item => {
-      const steps = item.steps.map((s, i) => `
-        <li>
-          <span class="n">${i + 1}</span>
+      const stepLine = (s, n, sub) => `
+        <li${sub ? ` class="sub"` : ""}>
+          <span class="n">${n}</span>
           <span>${esc(s.title)}${s.optional ? ` <span class="badge">Optional</span>` : ""}
             ${s.note ? `<br><span class="hint">${esc(s.note)}</span>` : ""}</span>
           <span class="spacer"></span>
@@ -2998,7 +3154,9 @@ const View = {
             s.price ? "+" + esc(Util.money(s.price)) : "",
             s.specKey && SPEC_FIELDS.has(s.specKey) ? esc(SPEC_FIELDS.get(s.specKey).label) : ""
           ].filter(Boolean).join(" · ")}</span>
-        </li>`).join("");
+        </li>`;
+      const steps = item.steps.map((s, i) => stepLine(s, i + 1, false)
+        + (s.substeps || []).map((sub, j) => stepLine(sub, `${i + 1}.${j + 1}`, true)).join("")).join("");
 
       return `
         <div class="card">
@@ -3052,7 +3210,7 @@ const View = {
           <div class="card">
             <h4>Defaults</h4>
             <p class="small muted" style="margin-top:6px">
-              Adds the seven templates this app ships with, alongside whatever you already have.
+              Adds the Tune up template this app ships with, alongside whatever you already have.
             </p>
             <div class="row" style="margin-top:10px">
               <button class="btn" data-action="item:restore">+ Add the default work items</button>
@@ -3459,6 +3617,9 @@ const HANDLERS = {
     });
   },
 
+  /** From the ⋯ menu: undo a stage that was moved on by mistake. */
+  "bike:back": (d) => Actions.setBikeStatus(d.client, d.bike, d.status),
+
   "bike:delete": (d) => {
     const bike = Domain.bike(App.db, d.client, d.bike);
     if (confirm(`Delete “${Domain.bikeTitle(bike)}” and all of its service history?\n\nThis cannot be undone.`)) {
@@ -3606,7 +3767,8 @@ const HANDLERS = {
         title: "Required steps not ticked",
         message: `${stats.openRequired} required step${stats.openRequired === 1 ? " is" : "s are"} still open on `
                + `“${job.name}”:\n\n`
-               + job.steps.filter(s => !s.done && !s.optional).map(s => "• " + s.title).join("\n"),
+               + Domain.flatSteps(job).filter(({ step }) => !step.done && !step.optional)
+                   .map(entry => "• " + Domain.stepLabel(entry)).join("\n"),
         actions: [
           { label: "Complete anyway", run: form },
           { label: "Back to the steps", class: "btn-primary", run: () => {} }
@@ -3707,7 +3869,7 @@ const HANDLERS = {
       width: 820,
       build: (body) => {
         body.append(Form.section("The job", [
-          { key: "name", label: "Name", required: true, wide: true, placeholder: "e.g. Basic tune-up" },
+          { key: "name", label: "Name", required: true, wide: true, placeholder: "e.g. Tune up" },
           { key: "price", label: "Price", placeholder: "0.00",
             hint: "The base charge. Step labour and parts are added on top." },
           { key: "description", label: "What it covers", type: "textarea", wide: true,
@@ -3825,6 +3987,13 @@ document.addEventListener("click", (ev) => {
   handler(target.dataset, target);
 });
 
+/** An open ⋯ menu closes when you click anywhere outside it. */
+document.addEventListener("click", (ev) => {
+  document.querySelectorAll("details.menu[open]").forEach(menu => {
+    if (!menu.contains(ev.target)) menu.open = false;
+  });
+});
+
 /** Single input listener: search boxes and the live fields in the work space. */
 document.addEventListener("input", (ev) => {
   const target = ev.target.closest("[data-input]");
@@ -3916,27 +4085,34 @@ function SAMPLE_DATA() {
     })
   );
 
-  // A tune-up part-way down the list: four steps ticked, one with a part on it.
-  const tuneUp = Domain.newJob(itemNamed("Basic tune-up"), {
+  // A tune-up part-way down the list: the first few sections ticked, the
+  // chain half done with a part on its wear check.
+  const tuneUp = Domain.newJob(itemNamed("Tune up"), {
     request: "Gears skip under load going uphill, and the rear brake feels soft. Needs it by Friday."
   });
   tuneUp.status = "active";
   tuneUp.startedAt = Date.now();
-  ["Intake check and test ride", "Wash and degrease drivetrain", "Measure chain wear", "Index gears, front and rear"]
-    .forEach(title => {
-      const step = tuneUp.steps.find(s => s.title === title);
-      if (!step) return;
-      step.done = true;
-      step.doneAt = Date.now();
-    });
-  const chainStep = tuneUp.steps.find(s => s.title === "Measure chain wear");
-  chainStep.notes = "0.9% — well past it. Cassette teeth hooked too, quoted the client.";
-  chainStep.changes.push({
+  const find = (title, sub) => {
+    const step = tuneUp.steps.find(s => s.title === title);
+    return sub ? step.substeps.find(s => s.title === sub) : step;
+  };
+  const tick = (step) => { step.done = true; step.doneAt = Date.now(); };
+  ["Frame / Fork", "Bottom Bracket and Crankset", "Pedals", "Cassette/Freehub"].forEach(title => {
+    const step = find(title);
+    step.substeps.forEach(tick);
+    tick(step);
+  });
+  tick(find("Chain", "Condition"));
+  const wear = find("Chain", "Wear");
+  tick(wear);
+  wear.notes = "0.9% — well past it. Cassette teeth hooked too, quoted the client.";
+  wear.changes.push({
     id: Util.uid("ch"), target: "spec", key: "chain", label: "Chain",
     from: "Shimano HG601 (new)", to: "Shimano HG601", cost: 34
   });
-  const gearStep = tuneUp.steps.find(s => s.title === "Index gears, front and rear");
-  gearStep.notes = "Hanger was 4mm out. Straightened, indexes cleanly now.";
+  const hanger = find("Rear Derailleur", "Derailleur hanger check");
+  tick(hanger);
+  hanger.notes = "Hanger was 4mm out. Straightened, indexes cleanly now.";
   bike.jobs.push(tuneUp);
 
   const commuter = Domain.newBike({
@@ -3958,12 +4134,12 @@ function SAMPLE_DATA() {
     status: "scheduled", statusDate: Util.today(),
     specs: { brand: "Surly", bikeType: "Commuter" }
   });
-  stub.jobs.push(Domain.newJob(itemNamed("Full service"), {
+  stub.jobs.push(Domain.newJob(itemNamed("Tune up"), {
     request: "Hasn't been serviced since he bought it. Rides it every day in all weather — do whatever it needs."
   }));
   stub.events.push(Domain.newEvent({
     kind: "status", date: Util.today(), title: "Scheduled for work",
-    description: "Full service\nHasn't been serviced since he bought it.",
+    description: "Tune up\nHasn't been serviced since he bought it.",
     changes: [{ target: "note", key: "status", label: "Status", from: "Out of shop", to: "Scheduled for work", cost: 0 }]
   }));
   second.bikes.push(stub);
