@@ -297,12 +297,21 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .step-parts li { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; }
 .job-summary { margin-top: 10px; font-size: 14px; white-space: pre-wrap; }
 
-/* service history picker (bike page) */
-.history-select {
-  font: inherit; color: var(--text); background: var(--bg);
-  border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px;
-  min-width: 0; max-width: 100%; flex: 1 1 280px;
+/* service history: one compact row per visit, expanding in place (bike page) */
+.visits { list-style: none; margin: 12px 0 0; padding: 0; }
+.visits > li { border-top: 1px solid var(--border); }
+.visit-row {
+  width: 100%; display: flex; gap: 10px; align-items: baseline; text-align: left;
+  appearance: none; border: 0; background: none; font: inherit; color: var(--text);
+  padding: 9px 4px; cursor: pointer;
 }
+.visit-row:hover { background: var(--surface-2); }
+.visit-row .caret { color: var(--text-dim); width: 12px; flex: none; transition: transform .1s; }
+.visit-row[aria-expanded="true"] .caret { transform: rotate(90deg); }
+.visit-row .date { flex: none; min-width: 190px; font-variant-numeric: tabular-nums; color: var(--text-dim); font-size: 14px; }
+.visit-row .work { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 620px) { .visit-row { flex-wrap: wrap; } .visit-row .date { min-width: 0; } }
+.visit-body { padding: 4px 0 16px 22px; }
 
 /* --- print sheet ---------------------------------------------------------- */
 /* On screen: a full-window preview of a paper page. On paper: only the page. */
@@ -2629,9 +2638,11 @@ const View = {
   },
 
   /**
-   * Service history: pick any past visit and see exactly how its work went —
-   * steps, notes, parts, who and how long — and reprint that visit's summary.
-   * For when the bike comes back and someone asks "what did we do last time?".
+   * Service history: every past visit as one compact line — dates and the
+   * work done — so the right one can be spotted at a glance. Clicking a line
+   * expands it in place to show exactly how the work went (steps, notes,
+   * parts, who and how long) and to reprint that visit's summary. For when
+   * the bike comes back and someone asks "what did we do last time?".
    */
   history(client, bike) {
     const visits = Domain.visits(bike);
@@ -2643,25 +2654,38 @@ const View = {
         </div>`;
     }
 
-    const selected = visits.find(v => v.key === App.ui.historyVisit) || visits[0];
-    const options = visits.map(v => `
-      <option value="${esc(v.key)}" ${v === selected ? "selected" : ""}>${
-        esc(Domain.visitDates(v) + " — " + v.jobs.map(j => j.name).join(", "))}</option>`).join("");
+    const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"`;
+    const rows = visits.map(v => {
+      const open = App.ui.openVisits.has(bike.id + ":" + v.key);
+      // How many notes a visit holds, so the one worth opening stands out.
+      const notes = v.jobs.reduce((n, j) =>
+        n + (j.summary ? 1 : 0) + j.steps.filter(st => st.notes).length, 0);
+      return `
+        <li>
+          <button class="visit-row" aria-expanded="${open}" data-action="history:toggle"
+                  ${ids} data-visit="${esc(v.key)}" data-focus-key="visit-${esc(v.key)}">
+            <span class="caret" aria-hidden="true">▸</span>
+            <span class="date">${esc(Domain.visitDates(v))}</span>
+            <span class="work">${esc(v.jobs.map(j => j.name).join(", "))}</span>
+            ${notes ? `<span class="chip">${notes} note${notes === 1 ? "" : "s"}</span>` : ""}
+          </button>
+          ${open ? `
+            <div class="visit-body">
+              <div class="row" style="margin-bottom:10px">
+                <span class="spacer"></span>
+                <button class="btn btn-sm" data-action="print:history" ${ids} data-visit="${esc(v.key)}"
+                        title="Reprint the summary for this visit">Print visit</button>
+              </div>
+              ${v.jobs.map(j => View.workJob(client, bike, j)).join("")}
+            </div>` : ""}
+        </li>`;
+    }).join("");
 
     return `
       <div class="card">
-        <div class="row between">
-          <h3>Service history <span class="badge">${visits.length} visit${visits.length === 1 ? "" : "s"}</span></h3>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <label class="small muted" for="history-pick">Visit</label>
-          <select id="history-pick" class="history-select" data-input="history:select"
-                  data-focus-key="history-pick">${options}</select>
-          <button class="btn" data-action="print:history" data-client="${esc(client.id)}"
-                  data-bike="${esc(bike.id)}" data-visit="${esc(selected.key)}"
-                  title="Reprint the summary for this visit">Print visit</button>
-        </div>
-        <div style="margin-top:14px">${selected.jobs.map(j => View.workJob(client, bike, j)).join("")}</div>
+        <h3>Service history <span class="badge">${visits.length} visit${visits.length === 1 ? "" : "s"}</span></h3>
+        <p class="small muted" style="margin-top:4px">Click a visit to see its steps, notes and parts.</p>
+        <ul class="visits">${rows}</ul>
       </div>`;
   },
 
@@ -3195,7 +3219,7 @@ const App = {
    * client's phone number must not close the job you are half way through.
    */
   route: { tab: "clients", clientId: null, bikeId: null, workClientId: null, workBikeId: null },
-  ui: { searchClients: "", searchBikes: "", searchWork: "", searchLog: "", logFilter: "all", historyVisit: null },
+  ui: { searchClients: "", searchBikes: "", searchWork: "", searchLog: "", logFilter: "all", openVisits: new Set() },
 
   navigate(patch) {
     Object.assign(App.route, patch);
@@ -3713,6 +3737,13 @@ const HANDLERS = {
     });
   },
 
+  /** Expand or collapse one visit in a bike's service history. */
+  "history:toggle": (d) => {
+    const key = d.bike + ":" + d.visit;
+    if (!App.ui.openVisits.delete(key)) App.ui.openVisits.add(key);
+    App.renderKeepingPlace();
+  },
+
   /* --- printing --- */
 
   /** Everything finished this visit, as one sheet for the client. */
@@ -3777,13 +3808,7 @@ const INPUTS = {
    * deliberately no re-render here — the mechanic keeps typing and the value
    * is already in the database.
    */
-  "step:field": (d, el) => Actions.setStepField(d.client, d.bike, d.job, d.step, d.field, el.value),
-
-  /** The service-history picker on the bike page. */
-  "history:select": (_d, el) => {
-    App.ui.historyVisit = el.value;
-    App.renderKeepingPlace();
-  }
+  "step:field": (d, el) => Actions.setStepField(d.client, d.bike, d.job, d.step, d.field, el.value)
 };
 
 /* ==========================================================================
