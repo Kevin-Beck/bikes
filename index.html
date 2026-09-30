@@ -213,7 +213,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .spec-item dt { color: var(--text-dim); }
 .spec-item dd { margin: 0; text-align: right; font-weight: 500; overflow-wrap: anywhere; }
 
-/* changelog timeline */
+/* changelog timeline (Data tab) */
 .timeline { list-style: none; margin: 0; padding: 0; }
 .timeline > li { position: relative; padding: 0 0 18px 22px; border-left: 2px solid var(--border); }
 .timeline > li:last-child { border-left-color: transparent; padding-bottom: 0; }
@@ -230,6 +230,8 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .entry-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .entry-date { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .entry-body { margin-top: 4px; white-space: pre-wrap; }
+
+/* part changes, before → after */
 .diff-list { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
 .diff-list li { padding: 3px 0; }
 .diff-label { color: var(--text-dim); }
@@ -284,7 +286,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .step.done .step-title { color: var(--text-dim); text-decoration: line-through; }
 .step-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .step-note { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
-.step-fields { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 8px; margin-top: 8px; align-items: center; }
+.step-fields { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 8px; align-items: center; }
 @media (max-width: 620px) { .step-fields { grid-template-columns: 1fr; } }
 .step-fields input {
   font: inherit; font-size: 14px; color: var(--text); background: var(--bg);
@@ -293,6 +295,63 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .step-fields input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .step-parts { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
 .step-parts li { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; }
+.job-summary { margin-top: 10px; font-size: 14px; white-space: pre-wrap; }
+
+/* service history picker (bike page) */
+.history-select {
+  font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px;
+  min-width: 0; max-width: 100%; flex: 1 1 280px;
+}
+
+/* --- print sheet ---------------------------------------------------------- */
+/* On screen: a full-window preview of a paper page. On paper: only the page. */
+.print-view { position: fixed; inset: 0; z-index: 200; background: var(--bg); overflow-y: auto; }
+.print-toolbar {
+  position: sticky; top: 0; z-index: 1; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.ps-sheet {
+  width: min(8.5in, calc(100% - 32px)); margin: 24px auto 60px; padding: .6in;
+  background: #fff; color: #1a1a1a; box-shadow: var(--shadow); border-radius: 4px;
+  font: 10.5pt/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.ps-sheet:focus { outline: none; }
+.ps-sheet[data-mode="short"] .ps-long,
+.ps-sheet[data-mode="long"] .ps-short { display: none; }
+.ps-sheet h1 { font-size: 18pt; }
+.ps-sheet h2 {
+  font-size: 9pt; text-transform: uppercase; letter-spacing: .08em; color: #666;
+  margin: 0 0 6px; font-weight: 600;
+}
+.ps-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+           border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; }
+.ps-date { color: #555; }
+.ps-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 14px 0 18px; }
+.ps-strong { font-weight: 600; font-size: 11.5pt; }
+.ps-label { color: #666; font-size: 9pt; text-transform: uppercase; letter-spacing: .04em; }
+.ps-job { padding: 8px 0; border-top: 1px solid #ddd; break-inside: avoid; }
+.ps-job-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.ps-job-head span { color: #555; font-size: 9.5pt; text-align: right; }
+.ps-job p { margin-top: 3px; }
+.ps-job ul { margin: 4px 0 0; padding-left: 18px; }
+.ps-job li { margin: 1px 0; }
+.ps-parts { color: #555; font-size: 9.5pt; }
+.ps-dim { color: #666; font-size: 9.5pt; }
+.ps-pre { white-space: pre-wrap; }
+.ps-notes { margin-top: 14px; padding-top: 10px; border-top: 1px solid #ddd; }
+.ps-notes-body { min-height: 3em; white-space: pre-wrap; }
+.ps-notes-body:empty::before { content: attr(data-placeholder); color: #999; }
+
+@page { margin: 12mm; }
+@media print {
+  body.printing { background: #fff; }
+  body.printing > :not(#print-root) { display: none !important; }
+  .print-view { position: static; overflow: visible; background: #fff; }
+  .print-toolbar { display: none; }
+  .ps-sheet { width: auto; margin: 0; padding: 0; box-shadow: none; border-radius: 0; }
+  .ps-sheet .is-blank { display: none; }
+}
 
 /* --- settings: work item templates --------------------------------------- */
 .wi-steps { list-style: none; margin: 10px 0 0; padding: 0; font-size: 14px; }
@@ -380,6 +439,8 @@ legend { padding: 0 0 8px; }
 
 <div id="modal-root"></div>
 
+<div id="print-root"></div>
+
 <script>
 "use strict";
 /* ==========================================================================
@@ -407,12 +468,15 @@ legend { padding: 0 0 8px; }
      3. The bike turns up. Whoever is on the counter finds it in Bikes (or in
         the Work tab's "Due in" rail) and checks it in with one click.
      4. A mechanic opens the Work tab, picks the bike, and works down the
-        steps of each work item — ticking them off, logging minutes, writing
-        notes and recording part changes as they go. Every keystroke is saved,
-        so leaving the tab and coming back later loses nothing.
-     5. Completing a work item writes one "Shop work" changelog entry on the
-        bike, applies its part changes to the live specification, and charges
-        the item price + completed step prices + parts.
+        steps of each work item — ticking them off, writing notes and
+        recording part changes as they go. Every keystroke is saved, so
+        leaving the tab and coming back later loses nothing.
+     5. Completing a work item records who did it, when, and (optionally) how
+        long it took, applies its part changes to the live specification, and
+        charges the item price + completed step prices + parts. It then stays
+        on the bike as its service history.
+     6. With nothing left open, the visit's work prints as a one-page summary
+        for the client.
 
    CONVENTIONS
      - Views return HTML strings and MUST pass user text through `esc()`.
@@ -548,26 +612,19 @@ const CLIENT_FIELDS = [
 ];
 
 /**
- * Changelog entry kinds.
- *   work   the shop did it — written when a work item is completed, and by
- *          the manual "Add work" form for anything outside the step flow.
- *   owner  someone else did it.
+ * Changelog entry kinds. The changelog is an audit trail kept out of the
+ * everyday screens: it is reviewed (and pruned) from the Data tab only.
+ * Completed work items are the history people actually look at.
+ *   work   the shop did it — written when a work item is completed.
+ *   owner  someone else did it (older data only).
  *   edit   nobody touched the bike — the *record* changed.
  *   status the bike moved through the shop workflow.
- *
- * `manual: true` marks the kinds a user can add directly from the changelog.
  */
 const ENTRY_KINDS = {
-  work:  { label: "Shop work",    badge: "badge-work",  verb: "Add work", manual: true,
-           titlePlaceholder: "e.g. Annual service + new chain",
-           byLabel: "Performed by", byPlaceholder: "Mechanic name" },
-  owner: { label: "Owner change", badge: "badge-owner", verb: "Add owner change", manual: true,
-           titlePlaceholder: "e.g. Owner fitted new saddle",
-           byLabel: "Changed by",  byPlaceholder: "Owner, other shop, …" },
-  edit:  { label: "Record edit",  badge: "badge-edit",  verb: "Edit details",
-           byLabel: "Edited by",   byPlaceholder: "" },
-  status:{ label: "Status",       badge: "badge-status", verb: "Change status",
-           byLabel: "Changed by",  byPlaceholder: "" }
+  work:  { label: "Shop work",    badge: "badge-work" },
+  owner: { label: "Owner change", badge: "badge-owner" },
+  edit:  { label: "Record edit",  badge: "badge-edit" },
+  status:{ label: "Status",       badge: "badge-status" }
 };
 
 /**
@@ -585,9 +642,8 @@ const JOB_STATES = {
  * Templates the shop starts with. The owner edits these in Settings; each one
  * is a priced, ordered checklist a mechanic works down.
  *
- * step: { title, note, minutes, price, optional, specKey }
+ * step: { title, note, price, optional, specKey }
  *   note     guidance shown under the step while it is being worked
- *   minutes  estimate, so the board can say how long a job should take
  *   price    extra labour charged for that step on top of the item price
  *   optional required steps are the ones the completion check counts
  *   specKey  the spec field this step usually replaces — pre-selects the
@@ -598,94 +654,94 @@ const DEFAULT_WORK_ITEMS = [
     name: "Basic tune-up", price: 120,
     description: "The standard bench service. Safety, shifting, braking and wheels — no parts beyond consumables.",
     steps: [
-      { title: "Intake check and test ride", note: "Ride it before you touch it. Note anything the client did not mention.", minutes: 10 },
-      { title: "Wash and degrease drivetrain", minutes: 15 },
-      { title: "Measure chain wear", note: "Replace at 0.75%. Check cassette teeth while it is off.", minutes: 5, specKey: "chain" },
-      { title: "Index gears, front and rear", note: "Check hanger alignment first — most bad shifting is a bent hanger.", minutes: 15, specKey: "rearDer" },
-      { title: "Adjust brakes, check pad wear", minutes: 15, specKey: "rotors" },
-      { title: "True both wheels", note: "Tension check as well as lateral true.", minutes: 20, specKey: "wheelset" },
-      { title: "Check bearing play — hubs, headset, BB", minutes: 10, specKey: "bottomBracket" },
-      { title: "Torque check — stem, bars, seatpost, cranks", minutes: 10 },
-      { title: "Inflate tyres, inspect casing and sidewalls", minutes: 5, specKey: "tires" },
-      { title: "Tubeless sealant top-up", note: "Only if the bike is set up tubeless.", minutes: 10, price: 15, optional: true, specKey: "tubeless" },
-      { title: "Final test ride and sign-off", minutes: 10 }
+      { title: "Intake check and test ride", note: "Ride it before you touch it. Note anything the client did not mention." },
+      { title: "Wash and degrease drivetrain" },
+      { title: "Measure chain wear", note: "Replace at 0.75%. Check cassette teeth while it is off.", specKey: "chain" },
+      { title: "Index gears, front and rear", note: "Check hanger alignment first — most bad shifting is a bent hanger.", specKey: "rearDer" },
+      { title: "Adjust brakes, check pad wear", specKey: "rotors" },
+      { title: "True both wheels", note: "Tension check as well as lateral true.", specKey: "wheelset" },
+      { title: "Check bearing play — hubs, headset, BB", specKey: "bottomBracket" },
+      { title: "Torque check — stem, bars, seatpost, cranks" },
+      { title: "Inflate tyres, inspect casing and sidewalls", specKey: "tires" },
+      { title: "Tubeless sealant top-up", note: "Only if the bike is set up tubeless.", price: 15, optional: true, specKey: "tubeless" },
+      { title: "Final test ride and sign-off" }
     ]
   },
   {
     name: "Full service", price: 265,
     description: "Strip, clean and rebuild. Everything in the tune-up plus bearings out, cables replaced and brakes bled.",
     steps: [
-      { title: "Intake check and test ride", note: "Agree the scope with the client before stripping anything.", minutes: 10 },
-      { title: "Strip drivetrain and wash frame", minutes: 25 },
-      { title: "Replace inner and outer cables", minutes: 30, price: 25, specKey: "shifters" },
-      { title: "Bleed both brakes", minutes: 30, price: 30, specKey: "calipers" },
-      { title: "Service headset bearings", minutes: 20, specKey: "headset" },
-      { title: "Service or replace bottom bracket", minutes: 20, specKey: "bottomBracket" },
-      { title: "Service hub bearings", minutes: 30, optional: true, specKey: "wheelset" },
-      { title: "Replace chain", minutes: 10, specKey: "chain" },
-      { title: "Rebuild drivetrain and index", minutes: 25, specKey: "rearDer" },
-      { title: "True and tension both wheels", minutes: 25, specKey: "wheelset" },
-      { title: "Re-wrap bar tape", minutes: 15, price: 20, optional: true, specKey: "barTape" },
-      { title: "Full torque check", minutes: 10 },
-      { title: "Final test ride and sign-off", minutes: 15 }
+      { title: "Intake check and test ride", note: "Agree the scope with the client before stripping anything." },
+      { title: "Strip drivetrain and wash frame" },
+      { title: "Replace inner and outer cables", price: 25, specKey: "shifters" },
+      { title: "Bleed both brakes", price: 30, specKey: "calipers" },
+      { title: "Service headset bearings", specKey: "headset" },
+      { title: "Service or replace bottom bracket", specKey: "bottomBracket" },
+      { title: "Service hub bearings", optional: true, specKey: "wheelset" },
+      { title: "Replace chain", specKey: "chain" },
+      { title: "Rebuild drivetrain and index", specKey: "rearDer" },
+      { title: "True and tension both wheels", specKey: "wheelset" },
+      { title: "Re-wrap bar tape", price: 20, optional: true, specKey: "barTape" },
+      { title: "Full torque check" },
+      { title: "Final test ride and sign-off" }
     ]
   },
   {
     name: "Drivetrain replacement", price: 85,
     description: "Chain, cassette and rings measured and swapped as needed. Parts charged on top.",
     steps: [
-      { title: "Measure chain, cassette and chainring wear", note: "Record the numbers in the step notes — the client will ask.", minutes: 10, specKey: "chain" },
-      { title: "Remove and degrease drivetrain", minutes: 15 },
-      { title: "Fit new chain", minutes: 15, specKey: "chain" },
-      { title: "Fit new cassette", minutes: 10, specKey: "cassette" },
-      { title: "Fit new chainrings", minutes: 20, optional: true, specKey: "chainrings" },
-      { title: "Index and test under load", minutes: 15, specKey: "rearDer" }
+      { title: "Measure chain, cassette and chainring wear", note: "Record the numbers in the step notes — the client will ask.", specKey: "chain" },
+      { title: "Remove and degrease drivetrain" },
+      { title: "Fit new chain", specKey: "chain" },
+      { title: "Fit new cassette", specKey: "cassette" },
+      { title: "Fit new chainrings", optional: true, specKey: "chainrings" },
+      { title: "Index and test under load", specKey: "rearDer" }
     ]
   },
   {
     name: "Brake bleed — pair", price: 70,
     description: "Both brakes bled, pads and rotors inspected.",
     steps: [
-      { title: "Inspect pads and rotors", note: "Rotors under 1.5mm get replaced, not faced.", minutes: 10, specKey: "rotors" },
-      { title: "Bleed front brake", minutes: 20, specKey: "calipers" },
-      { title: "Bleed rear brake", minutes: 20, specKey: "calipers" },
-      { title: "Replace pads", minutes: 10, price: 10, optional: true, specKey: "rotors" },
-      { title: "Bed in and test", minutes: 10 }
+      { title: "Inspect pads and rotors", note: "Rotors under 1.5mm get replaced, not faced.", specKey: "rotors" },
+      { title: "Bleed front brake", specKey: "calipers" },
+      { title: "Bleed rear brake", specKey: "calipers" },
+      { title: "Replace pads", price: 10, optional: true, specKey: "rotors" },
+      { title: "Bed in and test" }
     ]
   },
   {
     name: "Wheel true and tension", price: 45,
     description: "One wheel, on the stand: lateral true, radial true and even tension.",
     steps: [
-      { title: "Check tension and find loose spokes", minutes: 10, specKey: "wheelset" },
-      { title: "Lateral and radial true", minutes: 20 },
-      { title: "Even out tension and stress-relieve", minutes: 15 },
-      { title: "Replace broken spokes", minutes: 15, price: 12, optional: true }
+      { title: "Check tension and find loose spokes", specKey: "wheelset" },
+      { title: "Lateral and radial true" },
+      { title: "Even out tension and stress-relieve" },
+      { title: "Replace broken spokes", price: 12, optional: true }
     ]
   },
   {
     name: "Tubeless setup — pair", price: 60,
     description: "Tape, valves, sealant and a proper seat on both wheels.",
     steps: [
-      { title: "Strip tyres and old tape", minutes: 15 },
-      { title: "Re-tape both rims", minutes: 20 },
-      { title: "Fit valves", minutes: 5 },
-      { title: "Seat tyres and add sealant", minutes: 20, specKey: "tubeless" },
-      { title: "Leave to settle, re-check pressure", note: "At least 30 minutes before it goes back to the client.", minutes: 5, specKey: "tires" }
+      { title: "Strip tyres and old tape" },
+      { title: "Re-tape both rims" },
+      { title: "Fit valves" },
+      { title: "Seat tyres and add sealant", specKey: "tubeless" },
+      { title: "Leave to settle, re-check pressure", note: "At least 30 minutes before it goes back to the client.", specKey: "tires" }
     ]
   },
   {
     name: "New bike build", price: 150,
     description: "Boxed bike out of the carton and onto the road, safety-checked.",
     steps: [
-      { title: "Unbox and check for shipping damage", note: "Photograph anything suspect before you touch it.", minutes: 15 },
-      { title: "Fit bars, stem, seatpost and saddle", minutes: 25 },
-      { title: "Fit wheels, check hub and rotor alignment", minutes: 15 },
-      { title: "Fit pedals and accessories", minutes: 10, specKey: "pedals" },
-      { title: "Torque everything to spec", minutes: 20 },
-      { title: "Index gears and set brakes", minutes: 20 },
-      { title: "Basic fit for the client", minutes: 20, optional: true },
-      { title: "Test ride and hand over", minutes: 15 }
+      { title: "Unbox and check for shipping damage", note: "Photograph anything suspect before you touch it." },
+      { title: "Fit bars, stem, seatpost and saddle" },
+      { title: "Fit wheels, check hub and rotor alignment" },
+      { title: "Fit pedals and accessories", specKey: "pedals" },
+      { title: "Torque everything to spec" },
+      { title: "Index gears and set brakes" },
+      { title: "Basic fit for the client", optional: true },
+      { title: "Test ride and hand over" }
     ]
   }
 ];
@@ -776,7 +832,7 @@ const Store = {
    * ordinary records from that point on, editable and deletable in Settings.
    */
   empty: () => ({
-    schemaVersion: 3,
+    schemaVersion: 4,
     clients: [],
     workItems: DEFAULT_WORK_ITEMS.map(item => Domain.newWorkItem(item)),
     settings: { lastBy: "" },
@@ -803,7 +859,10 @@ const Store = {
 
     data.workItems.forEach(item => {
       item.steps = Array.isArray(item.steps) ? item.steps : [];
-      item.steps.forEach(step => { if (!step.id) step.id = Util.uid("s"); });
+      item.steps.forEach(step => {
+        if (!step.id) step.id = Util.uid("s");
+        delete step.minutes;              // per-step time was retired
+      });
     });
 
     data.clients.forEach(client => (client.bikes || []).forEach(bike => {
@@ -811,15 +870,30 @@ const Store = {
       if (!bike.statusDate) bike.statusDate = "";
       if (!Array.isArray(bike.jobs)) bike.jobs = [];
       bike.stub = !!bike.stub;
+      if (typeof bike.leftShopAt !== "number") bike.leftShopAt = Store._lastLeftShop(bike);
       bike.jobs.forEach(job => {
         if (!JOB_STATES[job.status]) job.status = "scheduled";
+        job.timeSpent = Math.max(0, Number(job.timeSpent) || 0);
+        job.summary = job.summary || "";
         job.steps = Array.isArray(job.steps) ? job.steps : [];
-        job.steps.forEach(step => { if (!Array.isArray(step.changes)) step.changes = []; });
+        job.steps.forEach(step => {
+          if (!Array.isArray(step.changes)) step.changes = [];
+          delete step.minutes;            // per-step time was retired
+          delete step.estMinutes;
+        });
       });
     }));
 
-    data.schemaVersion = 3;
+    data.schemaVersion = 4;
     return data;
+  },
+
+  /** For older data: when the bike last went back to its owner, from the log. */
+  _lastLeftShop(bike) {
+    const outLabel = BIKE_STATUS.get("out").label;
+    return (bike.events || [])
+      .filter(e => e.kind === "status" && (e.changes || []).some(c => c.key === "status" && c.to === outLabel))
+      .reduce((latest, e) => Math.max(latest, e.createdAt || 0), 0);
   },
 
   save(db) {
@@ -904,6 +978,7 @@ const Domain = {
     stub: !!data.stub,
     status: BIKE_STATUS.has(data.status) ? data.status : DEFAULT_STATUS,
     statusDate: data.statusDate || "", // when it entered that status
+    leftShopAt: 0,                     // last time it went back to its owner; starts a new visit
     createdAt: Date.now()
   }),
 
@@ -921,7 +996,6 @@ const Domain = {
     id: Util.uid("s"),
     title: data.title || "",
     note: data.note || "",
-    minutes: Math.max(0, Math.round(Number(data.minutes) || 0)),
     price: Util.parseMoney(data.price),
     optional: !!data.optional,
     specKey: SPEC_FIELDS.has(data.specKey) ? data.specKey : ""
@@ -947,17 +1021,17 @@ const Domain = {
       completedAt: 0,
       completedDate: "",
       by: "",
+      timeSpent: 0,                       // minutes, optionally entered on completion
+      summary: "",                        // optional closing notes, entered on completion
       steps: workItem.steps.map(step => ({
         id: Util.uid("js"),
         title: step.title,
         note: step.note || "",
-        estMinutes: Number(step.minutes) || 0,
         price: Number(step.price) || 0,
         optional: !!step.optional,
         specKey: step.specKey || "",
         done: false,
         doneAt: 0,
-        minutes: "",                      // what the mechanic actually logged
         notes: "",
         changes: []                       // part changes, applied on completion
       }))
@@ -1041,13 +1115,55 @@ const Domain = {
 
   doneJobs: (bike) => (bike.jobs || []).filter(j => j.status === "done"),
 
+  /** Completed work, most recent first. */
+  history: (bike) => Domain.doneJobs(bike).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0)),
+
+  /**
+   * Work completed during the current visit: everything finished since the
+   * bike last went back to its owner, in the order it was done. This is what
+   * the printed summary covers.
+   */
+  visitJobs: (bike) => Domain.doneJobs(bike)
+    .filter(j => (j.completedAt || 0) > (bike.leftShopAt || 0))
+    .sort((a, b) => (a.completedAt || 0) - (b.completedAt || 0)),
+
+  /**
+   * Completed work grouped into visits, most recent visit first. A visit is
+   * everything finished between two pickups: jobs are stamped with the
+   * bike's `leftShopAt` when completed. Jobs completed before that stamp
+   * existed fall back to one visit per completion day.
+   *
+   * visit: { key, jobs (in the order done), from, to } — from/to are dates.
+   */
+  visits(bike) {
+    const groups = new Map();
+    Domain.doneJobs(bike).forEach(job => {
+      const key = typeof job.visitStart === "number" ? "v" + job.visitStart : "d" + (job.completedDate || "");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(job);
+    });
+    return Array.from(groups, ([key, jobs]) => {
+      jobs.sort((a, b) => (a.completedAt || 0) - (b.completedAt || 0));
+      const dates = jobs.map(j => j.completedDate).filter(Boolean).sort();
+      return { key, jobs, from: dates[0] || "", to: dates[dates.length - 1] || "" };
+    }).sort((a, b) => (b.jobs[b.jobs.length - 1].completedAt || 0) - (a.jobs[a.jobs.length - 1].completedAt || 0));
+  },
+
+  /** "30 Sep 2026", or "28 Sep 2026 – 30 Sep 2026" for a visit over several days. */
+  visitDates: (visit) => visit.from === visit.to
+    ? Util.formatDate(visit.from)
+    : `${Util.formatDate(visit.from)} – ${Util.formatDate(visit.to)}`,
+
+  /** Nothing left open and something finished this visit: time to print. */
+  readyToPrint: (bike) => !Domain.openJobs(bike).length && Domain.visitJobs(bike).length > 0,
+
   /** Every bike with work outstanding, whether or not it has arrived yet. */
   bikesWithOpenWork: (db) =>
     Domain.allBikes(db).filter(({ bike }) => Domain.openJobs(bike).length),
 
   /**
    * Everything a job card needs to describe itself: how far down the list the
-   * mechanic is, how long it has taken, and what it will cost.
+   * mechanic is, and what it will cost.
    *
    * The charge is the item price, plus the price of each *completed* priced
    * step (an optional step nobody did is not billed), plus every part cost
@@ -1066,8 +1182,6 @@ const Domain = {
       done: done.length,
       openRequired: steps.filter(s => !s.done && !s.optional).length,
       percent: steps.length ? Math.round((done.length / steps.length) * 100) : 0,
-      estMinutes: steps.reduce((sum, s) => sum + (Number(s.estMinutes) || 0), 0),
-      loggedMinutes: steps.reduce((sum, s) => sum + (Number(s.minutes) || 0), 0),
       parts: parts.length,
       partsCost,
       stepCharges,
@@ -1083,32 +1197,29 @@ const Domain = {
       acc.jobs += 1;
       acc.total += s.total;
       acc.done += s.done;
-      acc.loggedMinutes += s.loggedMinutes;
-      acc.estMinutes += s.estMinutes;
       acc.percent = acc.total ? Math.round((acc.done / acc.total) * 100) : 0;
       return acc;
-    }, { jobs: 0, total: 0, done: 0, loggedMinutes: 0, estMinutes: 0, percent: 0 });
+    }, { jobs: 0, total: 0, done: 0, percent: 0 });
   },
 
   /**
-   * The description written into the changelog when a work item is completed:
-   * what was actually done, with each mechanic's note and time against it.
-   * Pre-filled into the completion form, where it can be edited before saving.
+   * The description written into the (internal) changelog when a work item
+   * is completed: what was actually done, with each mechanic's note against it.
    */
   jobSummary(job) {
     const stats = Domain.jobStats(job);
     const lines = [`${stats.done}/${stats.total} steps`
-      + (stats.loggedMinutes ? ` · ${Util.duration(stats.loggedMinutes)} logged` : "")];
+      + (job.timeSpent ? ` · ${Util.duration(job.timeSpent)}` : "")];
 
     job.steps.filter(s => s.done).forEach(s => {
-      const time = Number(s.minutes) ? ` (${Util.duration(s.minutes)})` : "";
-      lines.push(`• ${s.title}${time}${s.notes ? " — " + s.notes : ""}`);
+      lines.push(`• ${s.title}${s.notes ? " — " + s.notes : ""}`);
     });
 
     const skipped = job.steps.filter(s => !s.done);
     if (skipped.length) {
       lines.push("Not done: " + skipped.map(s => s.title + (s.optional ? " (optional)" : "")).join(", "));
     }
+    if (job.summary) lines.push("", job.summary);
     return lines.join("\n");
   },
 
@@ -1149,9 +1260,7 @@ const Domain = {
 
   clientSpend: (client) => client.bikes.reduce((sum, b) => sum + Domain.bikeSpend(b), 0),
 
-  lastEvent(bike) {
-    return bike.events.slice().sort(Util.byDateDesc)[0] || null;
-  },
+  lastDoneJob: (bike) => Domain.history(bike)[0] || null,
 
   /**
    * Compare a bike against the values coming back from the edit form and
@@ -1276,7 +1385,7 @@ const Actions = {
 
   /**
    * A mutation with no visible consequence beyond the control the user is
-   * already looking at — a minutes box, a notes field. Saving is debounced and
+   * already looking at — a step's notes field. Saving is debounced and
    * nothing re-renders, so typing is never interrupted mid-word.
    */
   commitQuiet(mutator) {
@@ -1363,6 +1472,8 @@ const Actions = {
 
       bike.status = to.id;
       bike.statusDate = Util.today();
+      // Back with its owner: whatever happens next is a new visit.
+      if (to.id === "out") bike.leftShopAt = Date.now();
 
       bike.events.push(Domain.newEvent({
         kind: "status",
@@ -1497,15 +1608,13 @@ const Actions = {
     });
   },
 
-  /** Live field edits inside the work space: minutes and per-step notes. */
+  /** Live field edits inside the work space: per-step notes. */
   setStepField(clientId, bikeId, jobId, stepId, field, value) {
     Actions.commitQuiet(db => {
       const job = Domain.job(Domain.bike(db, clientId, bikeId), jobId);
       const step = Domain.step(job, stepId);
       if (!step || job.status === "done") return;
-      step[field] = field === "minutes"
-        ? (value === "" ? "" : Math.max(0, Number(value) || 0))
-        : value;
+      step[field] = value;
       if (job.status === "scheduled" && value !== "") {
         job.status = "active";
         job.startedAt = job.startedAt || Date.now();
@@ -1533,9 +1642,12 @@ const Actions = {
    * Finish a work item.
    *
    * This is the one path where history and current state move together: the
-   * job's part changes are applied to the bike's live specification and the
-   * whole item lands in the changelog as a single dated "Shop work" entry.
-   * The job itself stays on the bike as the record of how it was done.
+   * job's part changes are applied to the bike's live specification and a
+   * single dated "Shop work" entry goes into the internal changelog. The job
+   * itself stays on the bike as the record of how it was done — that is the
+   * service history the bike page shows and the printout is built from.
+   *
+   * `values.timeSpent` is minutes, 0 when nobody filled it in.
    */
   completeJob(clientId, bikeId, jobId, values) {
     Actions.commit(db => {
@@ -1546,21 +1658,24 @@ const Actions = {
       const changes = Domain.jobChanges(bike, job);
       changes.forEach(change => Actions._applyChange(bike, change));
 
-      bike.events.push(Domain.newEvent({
-        kind: "work",
-        date: values.date || Util.today(),
-        by: values.by || "",
-        title: job.name,
-        description: values.description || "",
-        cost: values.cost,
-        changes
-      }));
-
       job.status = "done";
       job.completedAt = Date.now();
       job.completedDate = values.date || Util.today();
       job.by = values.by || "";
       job.charged = Util.parseMoney(values.cost);
+      job.timeSpent = Math.max(0, Math.round(Number(values.timeSpent) || 0));
+      job.summary = values.summary || "";
+      job.visitStart = bike.leftShopAt || 0;  // which visit this belongs to
+
+      bike.events.push(Domain.newEvent({
+        kind: "work",
+        date: job.completedDate,
+        by: job.by,
+        title: job.name,
+        description: Domain.jobSummary(job),
+        cost: values.cost,
+        changes
+      }));
       db.settings.lastBy = values.by || db.settings.lastBy;
     });
   },
@@ -1578,27 +1693,13 @@ const Actions = {
   },
 
   /**
-   * Record a changelog entry directly and apply its part changes. Used by the
-   * manual "Add work" / "Add owner change" forms for anything that happened
-   * outside the step flow.
-   */
-  addEvent(clientId, bikeId, data) {
-    const event = Domain.newEvent(data);
-    Actions.commit(db => {
-      const bike = Domain.bike(db, clientId, bikeId);
-      event.changes.forEach(change => Actions._applyChange(bike, change));
-      bike.events.push(event);
-    });
-  },
-
-  /**
    * Remove a changelog entry. The bike's current spec is left as-is: history
    * is a record of what happened, and un-applying it would be a guess.
    */
   deleteEvent(clientId, bikeId, eventId) {
-    Actions.commit(db => {
+    Actions.commitLocal(db => {
       const bike = Domain.bike(db, clientId, bikeId);
-      bike.events = bike.events.filter(e => e.id !== eventId);
+      if (bike) bike.events = bike.events.filter(e => e.id !== eventId);
     });
   },
 
@@ -1620,9 +1721,8 @@ const Modal = {
    *   build(body) fills the scrollable body; return value ignored
    *   submitLabel primary button text
    *   onSubmit(body)  -> return false to keep the modal open
-   *   randomize(body) -> optional; adds the 🎲 test-data button to the footer
    */
-  open({ title, build, submitLabel = "Save", onSubmit, randomize, width }) {
+  open({ title, build, submitLabel = "Save", onSubmit, width }) {
     Modal.close();
 
     const body = Util.el("div", { class: "body" });
@@ -1639,12 +1739,6 @@ const Modal = {
       Util.el("header", {}, [Util.el("h2", { text: title })]),
       body,
       Util.el("footer", {}, [
-        randomize ? Util.el("button", {
-          type: "button", class: "btn", text: "🎲 Random",
-          title: "Fill this form with plausible test data",
-          onclick: () => randomize(body)
-        }) : null,
-        randomize ? Util.el("span", { class: "spacer" }) : null,
         Util.el("button", { type: "button", class: "btn", text: "Cancel", onclick: Modal.close }),
         Util.el("button", { type: "submit", class: "btn btn-primary", text: submitLabel })
       ])
@@ -1719,7 +1813,7 @@ const Form = {
       input = Util.el("input", {
         id, name: field.key, value: value ?? "",
         type: field.type === "number" ? "number" : (field.type || "text"),
-        step: field.step, placeholder: field.placeholder,
+        step: field.step, min: field.min, placeholder: field.placeholder,
         required: !!field.required,
         list: field.suggest ? id + "_list" : null,
         autocomplete: "off"
@@ -1977,11 +2071,6 @@ const DynRows = {
       ]),
       Util.el("div", { class: "sub" }, [
         Util.el("div", { class: "field" }, [
-          Util.el("label", { text: "Est. minutes" }),
-          Util.el("input", { "data-step": "minutes", type: "number", min: "0", step: "5",
-                             value: step.minutes || "" })
-        ]),
-        Util.el("div", { class: "field" }, [
           Util.el("label", { text: "Extra labour" }),
           Util.el("input", { "data-step": "price", inputmode: "decimal", placeholder: "0.00",
                              value: step.price || "" })
@@ -2004,7 +2093,6 @@ const DynRows = {
     return Array.from(container.querySelectorAll(".dyn-row.step-editor")).map(row => ({
       title: row.querySelector('[data-step="title"]').value.trim(),
       note: row.querySelector('[data-step="note"]').value.trim(),
-      minutes: row.querySelector('[data-step="minutes"]').value,
       price: row.querySelector('[data-step="price"]').value,
       specKey: row.querySelector('[data-step="specKey"]').value,
       optional: row.querySelector('[data-step="optional"]').checked
@@ -2012,416 +2100,147 @@ const DynRows = {
   }
 };
 
-/* ==========================================================================
-   6.5 RANDOM — test-data generation
-   --------------------------------------------------------------------------
-   A development aid: powers the 🎲 button on every form and the bulk
-   generator in the Data tab. Nothing else in the app depends on it, so this
-   whole section (plus the `randomize:` options in HANDLERS and the two
-   generator buttons in View.dataTab) can be deleted for a production build.
+/**
+ * The printable work summary: one sheet the client takes away with the
+ * invoice. It is shown full-screen before printing and every word of it is
+ * editable, so the mechanic can tidy a note or add a line for the client.
+ * Nothing typed here is saved — it is a document, not a record.
+ *
+ * Two versions are rendered side by side and toggled: "short" (the default)
+ * squeezes each work item to a couple of lines; "long" lists every step with
+ * its notes and part changes. Edits made in one are kept if you switch away
+ * and back. Prices are deliberately absent — billing lives on the invoice.
+ */
+const Print = {
+  open(client, bike, jobs, { title = "Work summary", date = Util.today() } = {}) {
+    Print.close();
+    const root = document.getElementById("print-root");
 
-   Bikes are generated from ARCHETYPES so the result stays coherent — you get
-   a carbon road bike with a road groupset, not a steel triathlon e-bike.
-   ========================================================================== */
-
-const Random = {
-
-  /* --- primitives --- */
-  int:    (min, max) => min + Math.floor(Math.random() * (max - min + 1)),
-  pick:   (arr) => arr[Math.floor(Math.random() * arr.length)],
-  chance: (p) => Math.random() < p,
-  /** n distinct members of arr (fewer if arr is short). */
-  sample(arr, n) {
-    const copy = arr.slice();
-    const out = [];
-    while (out.length < n && copy.length) out.push(...copy.splice(Random.int(0, copy.length - 1), 1));
-    return out;
-  },
-  /** ISO date somewhere in the last `days` days. */
-  dateWithin: (days) => new Date(Date.now() - Random.int(0, days) * 86400000).toISOString().slice(0, 10),
-
-  /* --- pools --- */
-  NAMES: {
-    first: ["Dana","Marco","Priya","Elliot","Saoirse","Tom","Aisha","Jonas","Mei","Rowan","Beatriz","Kwame",
-            "Lena","Hiro","Nadia","Felix","Imani","Oskar","Yuki","Camille","Rafael","Ingrid","Theo","Amara"],
-    last:  ["Whitfield","Reyes","Nair","Brennan","Doyle","Kaminski","Okafor","Lindqvist","Chen","Hargreaves",
-            "Moreau","Santos","Vogel","Tanaka","Halvorsen","Delgado","Osei","Novak","Fischer","Aaltonen"]
-  },
-  MECHANICS: ["Ellis","Sam","Priya","Marek","Jo"],
-  COMPANIES: ["Northside Couriers","Ridgeline Racing","Harbour Cycling Club","Velo Collective",
-              "Summit Tri Team","Bike Bus Co-op","Copperfield Cabs"],
-  STREETS: ["Alder","Birch","Canal","Dunmore","Elmwood","Foundry","Granary","Harbour","Ivy","Juniper"],
-  CLIENT_NOTES: [
-    "Rides most weekends. Prefers a call before any work over $150.",
-    "Commutes daily — needs same-day turnaround where possible.",
-    "Racing season runs April to September; keep the race wheels aside.",
-    "Very particular about bar tape. Always ask before replacing.",
-    "Drops off after 5pm. Partner sometimes collects.",
-    "Happy for us to use our judgement on consumables.",
-    "New to cycling — explain the work in plain terms.",
-    "Has an account with the shop; invoice monthly."
-  ],
-
-  /** What a client says on the phone — the note attached to scheduled work. */
-  REQUESTS: [
-    "Says the gears skip under load going uphill. Wants it back before the weekend.",
-    "Rear brake feels spongy. Also mentioned a click from the pedals.",
-    "Hasn't been serviced in two years. Do whatever it needs, call if over $200.",
-    "Winter is coming — wants it made safe and reliable, not fast.",
-    "Bought secondhand, wants it checked over before riding it.",
-    "Creak somewhere around the bottom bracket, worse when out of the saddle.",
-    "Front wheel has a wobble after hitting a pothole.",
-    "Getting it ready for a tour next month. Lower gearing if possible.",
-    "Chain came off twice on the commute. Wants it sorted properly this time.",
-    "Just needs the tyres swapped, but have a quick look at everything else."
-  ],
-
-  STEP_NOTES: [
-    "All good.", "Within tolerance.", "Worn but usable — flagged to the client.",
-    "Replaced, old part kept in the parts bin.", "Took longer than expected, threads were seized.",
-    "Cleaned and re-greased.", "Client called and approved the extra work.",
-    "Measured 0.6% — leaving it for now.", "Torqued to spec, marked with paint pen."
-  ],
-
-  /** Coherent bike families. Each supplies its own plausible core spec. */
-  ARCHETYPES: [
-    { types: ["Road"],
-      models: { Specialized: ["Tarmac SL7","Allez Sprint","Aethos"], Trek: ["Émonda SL6","Madone SLR 7"],
-                Cannondale: ["SuperSix EVO","CAAD13"], "Cervélo": ["Caledonia 5","S5"], Giant: ["TCR Advanced 2","Defy Advanced"] },
-      materials: ["Carbon","Carbon","Aluminium","Steel"],
-      sizes: ["49","52","54","56","58","61"],
-      groupsets: ["Shimano 105 R7100 Di2","Shimano Ultegra R8100 Di2","Shimano Dura-Ace R9200","SRAM Rival AXS","SRAM Force AXS","Campagnolo Chorus"],
-      drivetrains: ["2x11","2x12"],
-      brakes: ["Hydraulic disc","Hydraulic disc","Rim — caliper"],
-      wheelsets: ["DT Swiss ARC 1400","Roval Rapide CLX","Zipp 303 S","Fulcrum Racing 5","Mavic Ksyrium S"],
-      tires: ["Continental GP5000 700x28","Vittoria Corsa 700x25","Pirelli P Zero Race 700x28","Schwalbe Pro One 700x30"] },
-
-    { types: ["Gravel"],
-      models: { Salsa: ["Warbird","Journeyer"], Specialized: ["Diverge Comp","Crux"], Canyon: ["Grail CF SL","Grizl 7"],
-                Trek: ["Checkpoint SL5"], Surly: ["Midnight Special"] },
-      materials: ["Carbon","Aluminium","Steel","Titanium"],
-      sizes: ["S","M","L","XL","52","54","56"],
-      groupsets: ["Shimano GRX","Shimano GRX Di2","SRAM Apex AXS","SRAM Rival AXS","Shimano 105 R7100 Di2"],
-      drivetrains: ["1x11","1x12","2x11"],
-      brakes: ["Hydraulic disc"],
-      wheelsets: ["DT Swiss G1800","Hunt 4 Season Gravel","Zipp 303 Firecrest","Industry Nine Ultralite 250"],
-      tires: ["Panaracer GravelKing SK 700x43","René Herse Fleecer Ridge 700x45","WTB Riddler 700x37","Schwalbe G-One 700x40"] },
-
-    { types: ["Mountain — XC","Mountain — Trail","Mountain — Enduro"],
-      models: { "Santa Cruz": ["Hightower","Tallboy","Megatower"], Trek: ["Fuel EX 8","Top Fuel"],
-                Specialized: ["Stumpjumper Alloy","Epic Evo"], Giant: ["Trance X 29"], Canyon: ["Spectral 29"] },
-      materials: ["Carbon","Aluminium"],
-      sizes: ["S","M","L","XL"],
-      groupsets: ["Shimano Deore","Shimano SLX","Shimano XT","SRAM GX Eagle","SRAM XX1 Eagle"],
-      drivetrains: ["1x11","1x12"],
-      brakes: ["Hydraulic disc"],
-      wheelsets: ["DT Swiss XM 1700","Industry Nine Enduro S","Stan's Flow S2","Race Face AR30"],
-      tires: ["Maxxis Minion DHF 29x2.5","Schwalbe Nobby Nic 29x2.35","Continental Kryptotal 29x2.4"] },
-
-    { types: ["Commuter","Hybrid","Touring"],
-      models: { Trek: ["FX 3 Disc","Verve 2"], Surly: ["Steamroller","Cross-Check"], Giant: ["Escape 2"],
-                Specialized: ["Sirrus X 3.0"], Bianchi: ["C-Sport 2"] },
-      materials: ["Aluminium","Steel","Chromoly"],
-      sizes: ["S","M","L","XL","54","56"],
-      groupsets: ["Shimano Claris","Shimano Sora","Shimano Deore","Shimano Alivio"],
-      drivetrains: ["1x9","2x9","3x9","Singlespeed","Internal hub"],
-      brakes: ["Hydraulic disc","Mechanical disc","Rim — V-brake","Rim — caliper"],
-      wheelsets: ["Alex rims on Shimano hubs","Bontrager Connection","Stock alloy wheelset"],
-      tires: ["Bontrager H2 700x35","Schwalbe Marathon 700x38","Continental Contact 700x32"] },
-
-    { types: ["E-bike"],
-      models: { Specialized: ["Turbo Vado 4.0","Turbo Como"], Trek: ["Allant+ 7","Verve+ 2"],
-                Giant: ["Explore E+ 2"], Canyon: ["Pathlite:ON 7"] },
-      materials: ["Aluminium"],
-      sizes: ["S","M","L","XL"],
-      groupsets: ["Shimano Deore","Shimano SLX","Shimano Alivio"],
-      drivetrains: ["1x10","1x11","2x10"],
-      brakes: ["Hydraulic disc"],
-      wheelsets: ["Stock alloy, 36h","DT Swiss H1900 Hybrid"],
-      tires: ["Schwalbe Super Moto-X 27.5x2.4","Continental Contact Plus 700x42"] }
-  ],
-
-  /** Values used for extras and for part-change swaps, keyed by spec field. */
-  POOLS: {
-    fork:        ["Carbon, tapered","RockShox SID SL 100mm","Fox 34 Factory 130mm","Alloy rigid","Fox 36 Performance 160mm"],
-    shifters:    ["Shimano ST-R7170","Shimano ST-RX600","SRAM Rival AXS eTap","Shimano SL-M6100","Campagnolo Ergopower"],
-    frontDer:    ["Shimano FD-R7150","Shimano FD-RX810","None (1x)","Shimano FD-M2000"],
-    rearDer:     ["Shimano RD-R7150","Shimano RD-RX822 GRX","SRAM GX Eagle AXS","Shimano RD-M8100 XT","SRAM Force AXS"],
-    crankset:    ["Shimano FC-R7100 50/34","GRX FC-RX810 48/31","SRAM Force 46/33","Shimano XT M8100 32t","Race Face Aeffect 30t"],
-    chainrings:  ["50/34","52/36","48/31","40t","32t","34t"],
-    cassette:    ["Shimano 105 11-34","Shimano Ultegra 11-30","Shimano GRX 11-40","SRAM Eagle 10-52","Shimano XT 10-51","SRAM XPLR 10-44"],
-    chain:       ["Shimano HG601","Shimano XT M8100","SRAM PC-1130","KMC X11EL","KMC X12","Shimano CN-M6100"],
-    bottomBracket: ["Shimano BB-RS500","Praxis M30","SRAM DUB BSA","Chris King ThreadFit","Hope BSA"],
-    calipers:    ["Shimano BR-R7170","Shimano BR-M6100","SRAM Rival hydraulic","TRP Spyre mechanical","Hope Tech 4 E4"],
-    rotors:      ["Shimano RT-CL800 160mm","Shimano RT-MT800 180mm","SRAM Centerline 160mm","Galfer 203mm"],
-    headset:     ["Cane Creek 40","FSA Orbit","Chris King InSet","Stock integrated"],
-    stem:        ["Zipp Service Course 100mm","PRO Vibe 90mm","Race Face Aeffect 50mm","Bontrager Elite 110mm"],
-    handlebar:   ["Zipp Service Course 42cm","PRO Discover 44cm flare","Race Face Turbine 780mm","Bontrager Comp VR-C 40cm"],
-    barTape:     ["Lizard Skins 3.2mm","Supacaz Super Sticky Kush","Fizik Vento Solocush","Ergon GA3 grips","ODI Elite Pro grips"],
-    saddle:      ["Fizik Argo Tempo","Specialized Power Expert","Selle Italia Model X","Brooks C17","Ergon SM Pro"],
-    seatpost:    ["Alloy 27.2mm","Carbon 27.2mm","OneUp V2 dropper 150mm","Fox Transfer 125mm"],
-    pedals:      ["Shimano XT M8100","Shimano 105 R7000","Look Keo Classic","Crank Brothers Candy 3","Flat alloy platform"],
-    suspension:  ["RockShox SID SL / SIDLuxe 100mm","Fox 34 / Float DPS 130mm","Fox 36 / Float X 160mm"],
-    powerMeter:  ["4iiii left crank","Stages LR","Quarq DZero","Favero Assioma Duo pedals"],
-    accessories: ["Wahoo mount, rear light","Full mudguards + rear rack","Bottle cages x2, saddle bag","Garmin mount, bell","Front dynamo light"],
-    tubeless:    ["Yes — sealant","Yes — sealant","No — tubes"],
-    wheelset:    ["DT Swiss ARC 1400","Hunt 4 Season Gravel","Zipp 303 S","Stan's Flow S2","Fulcrum Racing 5"],
-    tires:       ["Continental GP5000 700x28","Panaracer GravelKing SK 700x43","Maxxis Minion DHF 29x2.5","Schwalbe Marathon 700x38"],
-    groupset:    ["Shimano 105 R7100 Di2","Shimano GRX","SRAM Rival AXS","Shimano XT"]
-  },
-
-  /** Free-form "Other" entries. */
-  OTHER: [
-    () => ({ label: "Fit measurements", value: `Saddle height ${Random.int(680, 790)}mm, setback ${Random.int(40, 90)}mm` }),
-    () => ({ label: "Purchased", value: `${Random.pick(["January","March","June","September","November"])} ${Random.int(2016, 2025)}, ${Random.pick(["from us","secondhand","online","from another shop"])}` }),
-    () => ({ label: "Insurance", value: `Listed with ${Random.pick(["Laka","Velosurance","home policy"])} — value ${Util.money(Random.int(800, 6000))}` }),
-    () => ({ label: "Known quirk", value: Random.pick([
-      "Creak from the BB under load — repacked twice, watch it.",
-      "Rear thru-axle threads are tired; do not overtighten.",
-      "Owner's original bar tape kept in the parts bin.",
-      "Frame has a repaired chainstay chip; keep an eye on it.",
-      "Dropper cable routing is fiddly — allow extra time."]) }),
-    () => ({ label: "Storage", value: Random.pick(["Kept outdoors under cover","Garage, dry","Hallway — carried up stairs"]) })
-  ],
-
-  WORK_JOBS: [
-    { title: "Annual service", desc: "Full strip and clean, bled brakes, trued both wheels, checked bearing play.", wear: ["chain"] },
-    { title: "Drivetrain refresh", desc: "Chain measured past 0.75%. Replaced chain and cassette, cleaned rings.", wear: ["chain","cassette"] },
-    { title: "Brake service", desc: "Bled both brakes, replaced pads, faced one rotor. Lever feel much firmer.", wear: ["rotors","calipers"] },
-    { title: "New tyres fitted", desc: "Customer wanted more grip for winter. Set up tubeless, checked clearance.", wear: ["tires","tubeless"] },
-    { title: "Wheel rebuild", desc: "Rear wheel rebuilt onto a new rim, retensioned and stress-relieved.", wear: ["wheelset"] },
-    { title: "Gear indexing + hanger", desc: "Straightened derailleur hanger, reindexed. Shifting clean across the block.", wear: ["rearDer"] },
-    { title: "Bar tape and cables", desc: "Fresh tape, replaced inner and outer cables front and rear.", wear: ["barTape"] },
-    { title: "Crash check", desc: "Post-crash inspection. Frame and fork sound. Realigned bars, replaced damaged parts.", wear: ["handlebar","stem"] },
-    { title: "Bike fit adjustments", desc: "Raised saddle, shorter stem fitted. Customer reports less shoulder strain.", wear: ["stem","saddle"] },
-    { title: "Bottom bracket replacement", desc: "Traced the creak to a dry BB. Replaced and torqued to spec.", wear: ["bottomBracket"] },
-    { title: "Suspension service", desc: "Lowers service and air can rebuild, fresh seals and oil.", wear: ["suspension"] },
-    { title: "Pre-season tune", desc: "Safety check, torque check, lubed and adjusted throughout. No parts needed.", wear: [] }
-  ],
-
-  OWNER_JOBS: [
-    { title: "Owner fitted new saddle", desc: "Swapped to a saddle brought back from a bike fit elsewhere.", wear: ["saddle"] },
-    { title: "Owner changed pedals", desc: "Moved to a different pedal system; old pedals kept.", wear: ["pedals"] },
-    { title: "Tyres swapped by owner", desc: "Fitted winter tyres at home before a wet spell.", wear: ["tires"] },
-    { title: "Work done at another shop", desc: "Serviced while away on a trip. No paperwork supplied.", wear: ["chain","cassette"] },
-    { title: "Owner added accessories", desc: "Fitted their own lights, mudguards and a rack.", wear: ["accessories"] },
-    { title: "Owner replaced bar tape", desc: "Re-wrapped at home after a wet winter.", wear: ["barTape"] },
-    { title: "Wheels upgraded privately", desc: "Bought a secondhand wheelset from a club mate.", wear: ["wheelset"] },
-    { title: "Owner reports a noise", desc: "Intermittent click under power. Nothing changed — logged for next visit.", wear: [] }
-  ],
-
-  /* --- entity generators --- */
-
-  clientData() {
-    const first = Random.pick(Random.NAMES.first);
-    const last = Random.pick(Random.NAMES.last);
-    return {
-      name: `${first} ${last}`,
-      phone: `555-0${Random.int(100, 199)}`,
-      email: `${first}.${last}@example.com`.toLowerCase(),
-      company: Random.chance(0.25) ? Random.pick(Random.COMPANIES) : "",
-      address: Random.chance(0.5) ? `${Random.int(1, 240)} ${Random.pick(Random.STREETS)} ${Random.pick(["Street","Road","Lane","Avenue"])}` : "",
-      notes: Random.chance(0.6) ? Random.pick(Random.CLIENT_NOTES) : ""
-    };
-  },
-
-  /** A coherent bike: nickname, core + extras specs, and a few Other rows. */
-  bikeData() {
-    const arch = Random.pick(Random.ARCHETYPES);
-    const type = Random.pick(arch.types);
-    const brand = Random.pick(Object.keys(arch.models));
-    const isDrop = ["Road","Gravel","Touring"].includes(type);
-    const isMTB = type.startsWith("Mountain") || type === "E-bike";
-
-    const specs = {
-      brand,
-      model: Random.pick(arch.models[brand]),
-      year: String(Random.int(2015, 2025)),
-      bikeType: type,
-      frameMaterial: Random.pick(arch.materials),
-      frameSize: Random.pick(arch.sizes),
-      serial: Random.chance(0.7) ? `${brand.slice(0, 2).toUpperCase()}${Random.int(10, 25)}-${Random.int(100000, 999999)}` : "",
-      color: Random.pick(["Deep blue","Matte black","Gloss red","Sage green","Raw / polished","Pearl white","Burnt orange","Slate grey"]),
-      groupset: Random.pick(arch.groupsets),
-      drivetrain: Random.pick(arch.drivetrains),
-      brakeType: Random.pick(arch.brakes),
-      wheelset: Random.pick(arch.wheelsets),
-      tires: Random.pick(arch.tires)
-    };
-
-    // Extras: fill roughly half, skipping anything that makes no sense here.
-    SPEC_GROUPS.find(g => g.id === "extras").fields.forEach(f => {
-      if (f.key === "suspension" && !isMTB) return;
-      if (f.key === "barTape" && !isDrop && !Random.chance(0.4)) return;
-      if (f.key === "powerMeter" && !Random.chance(0.2)) return;
-      if (Random.POOLS[f.key] && Random.chance(0.55)) specs[f.key] = Random.pick(Random.POOLS[f.key]);
+    const sheet = Util.el("div", {
+      class: "ps-sheet", "data-mode": "short", contenteditable: "true", spellcheck: "true",
+      html: Print.sheet(client, bike, jobs, title, date)
     });
 
-    // Most bikes are with their owners; a minority are somewhere in the
-    // workflow, so generated data exercises every group in the lists.
-    const status = Random.chance(0.7) ? "out" : Random.pick(["scheduled", "in_shop", "in_shop", "completed"]);
-
-    return {
-      label: Random.chance(0.45)
-        ? `${Random.pick(["Blue","Black","Red","Green","Silver","Winter","Summer","Old","Best"])} ${Random.pick(["gravel bike","road bike","commuter","trail bike","hack","race bike"])}`
-        : "",
-      specs,
-      status,
-      statusDate: status === "out" ? "" : Random.dateWithin(14),
-      other: Random.sample(Random.OTHER, Random.int(0, 3)).map(make => Object.assign({ id: Util.uid("o") }, make()))
-    };
-  },
-
-  /**
-   * A changelog entry for a specific bike. Part changes are drawn from the
-   * job's wear items so the story and the swapped parts agree.
-   */
-  eventData(bike, kind) {
-    const job = Random.pick(kind === "owner" ? Random.OWNER_JOBS : Random.WORK_JOBS);
-    const changes = job.wear
-      .filter(key => Random.chance(0.85) && SPEC_FIELDS.has(key))
-      .map(key => ({
-        target: "spec",
-        key,
-        label: SPEC_FIELDS.get(key).label,
-        from: (bike.specs || {})[key] || "",
-        to: Random.pick(Random.POOLS[key] || [`New ${SPEC_FIELDS.get(key).label.toLowerCase()}`]),
-        cost: kind === "owner" ? 0 : Random.int(2, 24) * 5
-      }));
-
-    const partsTotal = changes.reduce((sum, c) => sum + c.cost, 0);
-    return {
-      kind,
-      date: Random.dateWithin(730),
-      by: kind === "owner"
-        ? Random.pick(["Owner","Owner","Another shop","Club mechanic"])
-        : Random.pick(Random.MECHANICS),
-      title: job.title,
-      description: job.desc,
-      cost: kind === "owner"
-        ? (Random.chance(0.4) ? String(partsTotal || Random.int(4, 30) * 5) : "0")
-        : String(partsTotal + Random.int(6, 30) * 5),
-      changes
-    };
-  },
-
-  /**
-   * Scheduled work for a bike that is with us or due in, part-worked if the
-   * bike is already in the shop — so the Work tab has something to show.
-   */
-  addJobs(bike, workItems) {
-    if (!workItems.length) return;
-    const inShop = bike.status === "in_shop";
-
-    Random.sample(workItems, Random.int(1, 2)).forEach(item => {
-      const job = Domain.newJob(item, {
-        request: Random.chance(0.75) ? Random.pick(Random.REQUESTS) : "",
-        scheduledDate: bike.statusDate || Util.today()
-      });
-
-      if (inShop && Random.chance(0.8)) {
-        // Work down the list in order — a mechanic does not skip ahead.
-        const upTo = Random.int(1, job.steps.length - 1);
-        job.steps.slice(0, upTo).forEach(step => {
-          step.done = true;
-          step.doneAt = Date.now();
-          step.minutes = Math.max(5, Math.round((step.estMinutes || 10) * (0.6 + Math.random())/ 5) * 5);
-          if (Random.chance(0.35)) step.notes = Random.pick(Random.STEP_NOTES);
-          if (step.specKey && Random.chance(0.3)) {
-            step.changes.push({
-              id: Util.uid("ch"), target: "spec", key: step.specKey,
-              label: SPEC_FIELDS.get(step.specKey).label,
-              from: (bike.specs || {})[step.specKey] || "",
-              to: Random.pick(Random.POOLS[step.specKey] || ["Replaced"]),
-              cost: Random.int(2, 20) * 5
-            });
-          }
-        });
-        job.status = "active";
-        job.startedAt = Date.now();
+    const modeButton = (mode, label) => Util.el("button", {
+      type: "button", text: label, "aria-pressed": String(mode === "short"),
+      onclick: (ev) => {
+        sheet.dataset.mode = mode;
+        ev.target.parentNode.querySelectorAll("button")
+          .forEach(b => b.setAttribute("aria-pressed", String(b === ev.target)));
       }
-
-      bike.jobs.push(job);
     });
+
+    root.append(Util.el("div", { class: "print-view", role: "dialog", "aria-label": title }, [
+      Util.el("div", { class: "print-toolbar" }, [
+        Util.el("strong", { text: title }),
+        Util.el("span", { class: "small muted", text: "Click anywhere on the page to edit it." }),
+        Util.el("span", { class: "spacer" }),
+        Util.el("div", { class: "seg", role: "group", "aria-label": "Detail" },
+          [modeButton("short", "Short"), modeButton("long", "Long")]),
+        Util.el("button", { type: "button", class: "btn", text: "Close", onclick: Print.close }),
+        Util.el("button", { type: "button", class: "btn btn-primary", text: "Print",
+                            onclick: () => Print.print(sheet) })
+      ]),
+      sheet
+    ]));
+    document.body.classList.add("printing");
+    window.scrollTo(0, 0);
   },
 
-  /** A whole client with bikes and applied history — used by bulk generation. */
-  fullClient(workItems = []) {
-    const client = Domain.newClient(Random.clientData());
-
-    for (let i = Random.int(1, 3); i > 0; i--) {
-      const bike = Domain.newBike(Random.bikeData());
-
-      // Generate oldest-first and apply as we go, so the current spec is the
-      // result of its own history — exactly as if it had been entered by hand.
-      const events = Array.from({ length: Random.int(0, 6) }, () =>
-        Domain.newEvent(Random.eventData(bike, Random.chance(0.25) ? "owner" : "work")))
-        .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-
-      events.forEach(event => {
-        event.changes.forEach(change => {
-          change.from = bike.specs[change.key] || "";   // re-anchor to the live value
-          Actions._applyChange(bike, change);
-        });
-        bike.events.push(event);
-      });
-
-      if (bike.status === "scheduled" || bike.status === "in_shop") Random.addJobs(bike, workItems);
-      client.bikes.push(bike);
-    }
-    return client;
-  },
-
-  /* --- form fillers (called by the 🎲 buttons) --- */
-
-  /** Set a named control inside a modal body. */
-  _set(body, name, value) {
-    const input = body.querySelector(`[name="${name}"]`);
-    if (input) input.value = value ?? "";
-  },
-
-  fillClientForm(body) {
-    const data = Random.clientData();
-    CLIENT_FIELDS.forEach(f => Random._set(body, f.key, data[f.key]));
-  },
-
-  fillBikeForm(body) {
-    const data = Random.bikeData();
-    Random._set(body, "label", data.label);
-    SPEC_FIELDS.forEach(f => Random._set(body, f.key, data.specs[f.key] || ""));
-
-    const rows = body.querySelector('[data-rows="kv"]');
-    if (rows) {
-      rows.innerHTML = "";
-      data.other.forEach(entry => rows.append(DynRows.kvRow(entry)));
-    }
-  },
-
-  fillEventForm(body, bike, kind) {
-    const data = Random.eventData(bike, kind);
-    ["date", "by", "title", "description", "cost"].forEach(key => Random._set(body, key, data[key]));
-
-    const rows = body.querySelector('[data-rows="change"]');
-    if (!rows) return;
-    rows.innerHTML = "";
-    data.changes.forEach(change => {
-      // Built the same way a mechanic builds it: the part is named, not picked.
-      const row = DynRows.changeRow(bike, change.key);
-      rows.append(row);
-      row.querySelector('[data-change="to"]').value = change.to;
-      row.querySelector('[data-change="cost"]').value = change.cost || "";
+  /** Blank optional blocks are left out of the paper copy. */
+  print(sheet) {
+    sheet.querySelectorAll("[data-optional]").forEach(node => {
+      const body = node.querySelector("[data-body]") || node;
+      node.classList.toggle("is-blank", !body.textContent.trim());
     });
-    rows.append(DynRows.changeRow(bike));          // leave one blank row ready
+    window.print();
   },
 
-  /** The 🎲 on the work-item form borrows one of the shipped templates. */
-  fillWorkItemForm(body) {
-    const item = Random.pick(DEFAULT_WORK_ITEMS);
-    ["name", "price", "description"].forEach(key => Random._set(body, key, item[key]));
-    const rows = body.querySelector('[data-rows="step-editor"]');
-    if (!rows) return;
-    rows.innerHTML = "";
-    item.steps.forEach(step => rows.append(DynRows.stepRow(step)));
+  close() {
+    const root = document.getElementById("print-root");
+    if (root) root.innerHTML = "";
+    document.body.classList.remove("printing");
+  },
+
+  sheet(client, bike, jobs, title, date) {
+    const s = bike.specs || {};
+    const line = (label, value) => value
+      ? `<div><span class="ps-label">${esc(label)}</span> ${esc(value)}</div>` : "";
+
+    return `
+      <header class="ps-head">
+        <h1>${esc(title)}</h1>
+        <div class="ps-date">${esc(Util.formatDate(date))}</div>
+      </header>
+      <section class="ps-meta">
+        <div>
+          <h2>Client</h2>
+          <div class="ps-strong">${esc(client.name)}</div>
+          ${line("Phone", client.phone)}${line("Email", client.email)}${line("Company", client.company)}
+        </div>
+        <div>
+          <h2>Bike</h2>
+          <div class="ps-strong">${esc(Domain.bikeTitle(bike))}</div>
+          ${line("Model", Domain.bikeSubtitle(bike))}${line("Colour", s.color)}
+          ${line("Size", s.frameSize)}${line("Serial", s.serial)}
+        </div>
+      </section>
+      <section class="ps-short">
+        <h2>Work carried out</h2>
+        ${jobs.map(Print.shortJob).join("")}
+      </section>
+      <section class="ps-long">
+        <h2>Work carried out</h2>
+        ${jobs.map(Print.longJob).join("")}
+      </section>
+      <section class="ps-notes" data-optional>
+        <h2>Notes</h2>
+        <div class="ps-notes-body" data-body data-placeholder="Add a note for the client — optional, left off the page if blank."></div>
+      </section>`;
+  },
+
+  /** Part changes as "Chain: Shimano HG601". `withFrom` adds the old value. */
+  parts(job, withFrom) {
+    return job.steps.flatMap(step => step.changes || []).map(ch =>
+      `${Domain.changeLabel(ch)}: ${withFrom && ch.from ? ch.from + " → " : ""}${ch.to || "removed"}`);
+  },
+
+  shortJob(job) {
+    const done = job.steps.filter(st => st.done).map(st => st.title);
+    const parts = Print.parts(job, false);
+    return `
+      <article class="ps-job">
+        <div class="ps-job-head"><strong>${esc(job.name)}</strong>
+          <span>${esc(Util.formatDate(job.completedDate))}</span></div>
+        ${done.length ? `<p>${esc(done.join(" · "))}</p>` : ""}
+        ${parts.length ? `<p><span class="ps-label">Parts fitted</span> ${esc(parts.join("; "))}</p>` : ""}
+        ${job.summary ? `<p class="ps-pre">${esc(job.summary)}</p>` : ""}
+      </article>`;
+  },
+
+  longJob(job) {
+    const skipped = job.steps.filter(st => !st.done);
+    const meta = [
+      Util.formatDate(job.completedDate),
+      job.by ? "by " + job.by : "",
+      job.timeSpent ? Util.duration(job.timeSpent) : ""
+    ].filter(Boolean).join(" · ");
+
+    const steps = job.steps.filter(st => st.done).map(st => {
+      const parts = (st.changes || []).map(ch =>
+        `${Domain.changeLabel(ch)}: ${ch.from ? ch.from + " → " : ""}${ch.to || "removed"}`);
+      return `<li>${esc(st.title)}${st.notes ? ` — <em>${esc(st.notes)}</em>` : ""}${
+        parts.length ? `<div class="ps-parts">${esc(parts.join("; "))}</div>` : ""}</li>`;
+    }).join("");
+
+    return `
+      <article class="ps-job">
+        <div class="ps-job-head"><strong>${esc(job.name)}</strong><span>${esc(meta)}</span></div>
+        ${job.request ? `<p><span class="ps-label">You asked</span> ${esc(job.request)}</p>` : ""}
+        ${steps ? `<ul>${steps}</ul>` : ""}
+        ${skipped.length ? `<p class="ps-dim">Not done: ${esc(skipped.map(st => st.title).join(", "))}</p>` : ""}
+        ${job.summary ? `<p class="ps-pre">${esc(job.summary)}</p>` : ""}
+      </article>`;
   }
 };
 
@@ -2490,8 +2309,7 @@ const View = {
   workLine(bike) {
     const s = Domain.bikeWorkStats(bike);
     if (!s.jobs) return "";
-    return `${s.jobs} work item${s.jobs === 1 ? "" : "s"} · ${s.done}/${s.total} steps`
-      + (s.loggedMinutes ? ` · ${esc(Util.duration(s.loggedMinutes))} logged` : "");
+    return `${s.jobs} work item${s.jobs === 1 ? "" : "s"} · ${s.done}/${s.total} steps`;
   },
 
   progressBar(percent) {
@@ -2533,8 +2351,8 @@ const View = {
       .join(" ");
   },
 
-  /** One changelog entry. `context` adds the client/bike line for feeds. */
-  entry(clientId, bikeId, event, context) {
+  /** One changelog entry, with the client/bike it belongs to. */
+  entry(client, bike, event) {
     const kind = ENTRY_KINDS[event.kind] || ENTRY_KINDS.work;
     const changes = (event.changes || []).map(ch => `
       <li>
@@ -2553,10 +2371,10 @@ const View = {
         <span class="spacer"></span>
         ${event.cost ? `<strong class="money">${esc(Util.money(event.cost))}</strong>` : ""}
         <button class="btn btn-sm btn-danger" data-action="event:delete"
-                data-client="${esc(clientId)}" data-bike="${esc(bikeId)}"
+                data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
                 data-event="${esc(event.id)}" title="Delete this entry">✕</button>
       </div>
-      ${context ? `<div class="small muted">${esc(context)}</div>` : ""}
+      <div class="small muted">${esc(client.name + " · " + Domain.bikeTitle(bike))}</div>
       ${event.description ? `<div class="entry-body small">${esc(event.description)}</div>` : ""}
       ${changes ? `<ul class="diff-list">${changes}</ul>` : ""}
     </li>`;
@@ -2636,7 +2454,7 @@ const View = {
                       Domain.bikeTitle(a).localeCompare(Domain.bikeTitle(b)))
       .map(b => {
       const work = View.workLine(b);
-      const last = Domain.lastEvent(b);
+      const last = Domain.lastDoneJob(b);
       return `
       <article class="card clickable" data-status="${esc(Domain.status(b).id)}"
                data-action="bike:open" data-client="${esc(client.id)}" data-bike="${esc(b.id)}">
@@ -2648,8 +2466,8 @@ const View = {
           b.stub ? ` · <span class="badge">details pending</span>` : ""}</p>
         <p style="margin-top:10px">${View.specChips(b)}</p>
         <p class="small muted" style="margin-top:10px">
-          ${work || (last ? `last ${esc(Util.formatDate(last.date))} — ${esc(last.title || ENTRY_KINDS[last.kind].label)}`
-                          : "nothing recorded yet")}
+          ${work || (last ? `last ${esc(Util.formatDate(last.completedDate))} — ${esc(last.name)}`
+                          : "no work recorded yet")}
         </p>
         <div class="row" style="margin-top:10px">${View.quickAction(client, b)}</div>
       </article>`;
@@ -2707,8 +2525,7 @@ const View = {
         <div class="job-head">
           <span class="badge ${state.badge}">${esc(state.label)}</span>
           <strong>${esc(job.name)}</strong>
-          <span class="small muted">${stats.done}/${stats.total} steps${
-            stats.loggedMinutes ? " · " + esc(Util.duration(stats.loggedMinutes)) : ""}</span>
+          <span class="small muted">${stats.done}/${stats.total} steps</span>
           <span class="spacer"></span>
           <span class="money small">${esc(Util.money(job.status === "done" ? (job.charged || stats.charge) : stats.charge))}</span>
         </div>
@@ -2746,11 +2563,8 @@ const View = {
     const otherRows = (bike.other || []).filter(o => o.label || o.value)
       .map(o => `<div class="spec-item"><dt>${esc(o.label)}</dt><dd>${esc(o.value)}</dd></div>`).join("");
 
-    const events = bike.events.slice().sort(Util.byDateDesc)
-      .map(e => View.entry(client.id, bike.id, e)).join("");
-
     const open = Domain.openJobs(bike);
-    const done = Domain.doneJobs(bike).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+    const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"`;
 
     return `
       <div class="stack">
@@ -2776,7 +2590,7 @@ const View = {
             <span class="muted"> — created from a phone call. “Edit details” once the bike is in front of you.</span></p>` : ""}
           <p style="margin-top:12px">${View.specChips(bike)}</p>
           <div class="row" style="margin-top:12px">
-            <span class="chip">Log entries: <strong>${bike.events.length}</strong></span>
+            <span class="chip">Jobs on record: <strong>${Domain.doneJobs(bike).length}</strong></span>
             <span class="chip">Recorded spend: <strong>${esc(Util.money(Domain.bikeSpend(bike)))}</strong></span>
             ${open.length ? `<span class="chip">Open work: <strong>${open.length}</strong></span>` : ""}
           </div>
@@ -2787,21 +2601,20 @@ const View = {
           <div class="row between">
             <h3>Work</h3>
             <div class="row">
+              ${Domain.readyToPrint(bike)
+                ? `<button class="btn" data-action="print:visit" ${ids}
+                           title="A one-page summary of this visit's work for the client">Print</button>` : ""}
               ${View.quickAction(client, bike)}
-              <button class="btn btn-primary" data-action="work:schedule"
-                      data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">+ Schedule work</button>
+              <button class="btn btn-primary" data-action="work:schedule" ${ids}>+ Schedule work</button>
             </div>
           </div>
           <div style="margin-top:12px">
             ${open.map(j => View.jobSummaryRow(client, bike, j)).join("")
               || `<p class="small muted">No work outstanding.</p>`}
           </div>
-          ${done.length ? `
-            <h4 style="margin-top:18px">Completed</h4>
-            <div style="margin-top:8px">${done.slice(0, 5).map(j => View.jobSummaryRow(client, bike, j)).join("")}</div>
-            ${done.length > 5 ? `<p class="small muted" style="margin-top:8px">+${done.length - 5} earlier — see the changelog below.</p>` : ""}
-          ` : ""}
         </div>
+
+        ${View.history(client, bike)}
 
         <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
           ${SPEC_GROUPS.map(specSection).join("")}
@@ -2812,23 +2625,43 @@ const View = {
           </section>
         </div>
 
+      </div>`;
+  },
+
+  /**
+   * Service history: pick any past visit and see exactly how its work went —
+   * steps, notes, parts, who and how long — and reprint that visit's summary.
+   * For when the bike comes back and someone asks "what did we do last time?".
+   */
+  history(client, bike) {
+    const visits = Domain.visits(bike);
+    if (!visits.length) {
+      return `
         <div class="card">
-          <div class="row between">
-            <h3>Changelog</h3>
-            <div class="row">
-              <button class="btn" data-action="event:add" data-kind="work"
-                      data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
-                      title="For work done outside the step-by-step flow">+ Add work</button>
-              <button class="btn" data-action="event:add" data-kind="owner"
-                      data-client="${esc(client.id)}" data-bike="${esc(bike.id)}">+ Add owner change</button>
-            </div>
-          </div>
-          <div style="margin-top:14px">
-            ${events ? `<ul class="timeline">${events}</ul>`
-                     : View.empty("🧰", "Nothing logged yet",
-                        "Completing a work item in the Work tab writes an entry here. Owner changes and record corrections land here too.")}
-          </div>
+          <h3>Service history</h3>
+          <p class="small muted" style="margin-top:8px">Nothing completed on this bike yet. Finished work items appear here with their steps and notes.</p>
+        </div>`;
+    }
+
+    const selected = visits.find(v => v.key === App.ui.historyVisit) || visits[0];
+    const options = visits.map(v => `
+      <option value="${esc(v.key)}" ${v === selected ? "selected" : ""}>${
+        esc(Domain.visitDates(v) + " — " + v.jobs.map(j => j.name).join(", "))}</option>`).join("");
+
+    return `
+      <div class="card">
+        <div class="row between">
+          <h3>Service history <span class="badge">${visits.length} visit${visits.length === 1 ? "" : "s"}</span></h3>
         </div>
+        <div class="row" style="margin-top:12px">
+          <label class="small muted" for="history-pick">Visit</label>
+          <select id="history-pick" class="history-select" data-input="history:select"
+                  data-focus-key="history-pick">${options}</select>
+          <button class="btn" data-action="print:history" data-client="${esc(client.id)}"
+                  data-bike="${esc(bike.id)}" data-visit="${esc(selected.key)}"
+                  title="Reprint the summary for this visit">Print visit</button>
+        </div>
+        <div style="margin-top:14px">${selected.jobs.map(j => View.workJob(client, bike, j)).join("")}</div>
       </div>`;
   },
 
@@ -2853,7 +2686,7 @@ const View = {
           bike.stub ? " · details pending" : ""}</p>
         <p style="margin-top:10px">${View.specChips(bike)}</p>
         <p class="small muted" style="margin-top:10px">
-          ${work || `${bike.events.length} log entr${bike.events.length === 1 ? "y" : "ies"}`}${
+          ${work || `${Domain.doneJobs(bike).length} job${Domain.doneJobs(bike).length === 1 ? "" : "s"} on record`}${
             bike.statusDate ? ` · ${esc(Domain.status(bike).short.toLowerCase())} since ${esc(Util.formatDate(bike.statusDate))}` : ""}
         </p>
         <div class="row" style="margin-top:10px">${View.quickAction(client, bike)}</div>
@@ -2983,10 +2816,7 @@ const View = {
                                  ${ids} data-change="${esc(ch.id)}" title="Remove this part change">✕</button>`}
       </li>`).join("");
 
-    const meta = [
-      step.estMinutes ? "~" + Util.duration(step.estMinutes) : "",
-      step.price ? "+" + Util.money(step.price) : ""
-    ].filter(Boolean).join(" · ");
+    const meta = step.price ? "+" + Util.money(step.price) : "";
 
     return `
       <li class="step${step.done ? " done" : ""}">
@@ -3002,16 +2832,10 @@ const View = {
             ${meta ? `<span class="small muted">${esc(meta)}</span>` : ""}
           </div>
           ${step.note ? `<p class="step-note">${esc(step.note)}</p>` : ""}
-          ${locked ? `
-            <p class="small" style="margin-top:6px">
-              ${step.minutes ? `<span class="chip">${esc(Util.duration(step.minutes))}</span> ` : ""}
-              ${step.notes ? esc(step.notes) : ""}
-            </p>`
+          ${locked
+          ? (step.notes ? `<p class="small" style="margin-top:6px">${esc(step.notes)}</p>` : "")
           : `
             <div class="step-fields">
-              <input type="number" min="0" step="5" placeholder="min" value="${esc(step.minutes)}"
-                     data-input="step:field" data-field="minutes" ${ids}
-                     data-focus-key="step-${esc(step.id)}-min" aria-label="Minutes spent">
               <input type="text" placeholder="Notes — what you found, what you did"
                      value="${esc(step.notes)}" data-input="step:field" data-field="notes" ${ids}
                      data-focus-key="step-${esc(step.id)}-notes" aria-label="Step notes">
@@ -3040,9 +2864,7 @@ const View = {
           <span class="badge ${state.badge}">${esc(state.label)}</span>
           <h3>${esc(job.name)}</h3>
           <span class="spacer"></span>
-          <span class="small muted">${stats.done}/${stats.total} steps${
-            stats.estMinutes ? ` · est ${esc(Util.duration(stats.estMinutes))}` : ""}${
-            stats.loggedMinutes ? ` · ${esc(Util.duration(stats.loggedMinutes))} logged` : ""}</span>
+          <span class="small muted">${stats.done}/${stats.total} steps</span>
         </div>
         ${View.progressBar(stats.percent)}
         ${job.description ? `<p class="small muted">${esc(job.description)}</p>` : ""}
@@ -3051,6 +2873,7 @@ const View = {
         <ul class="steps">
           ${job.steps.map(step => View.workStep(client, bike, job, step)).join("")}
         </ul>
+        ${done && job.summary ? `<div class="job-summary"><strong>Notes:</strong> ${esc(job.summary)}</div>` : ""}
 
         <div class="row between" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
           <div>
@@ -3061,9 +2884,10 @@ const View = {
             ${done
               ? `<span class="small muted">Completed ${esc(Util.formatDate(job.completedDate))}${
                    job.by ? " by " + esc(job.by) : ""}</span>
+                 ${job.timeSpent ? `<span class="chip">Time: <strong>${esc(Util.duration(job.timeSpent))}</strong></span>` : ""}
                  <button class="btn btn-sm btn-danger" data-action="job:delete"
                          data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
-                         data-job="${esc(job.id)}">Remove from board</button>`
+                         data-job="${esc(job.id)}">Delete record</button>`
               : `${stats.openRequired
                     ? `<span class="small muted">${stats.openRequired} required step${
                         stats.openRequired === 1 ? "" : "s"} left</span>` : ""}
@@ -3104,7 +2928,6 @@ const View = {
           <div class="row" style="margin-top:12px">
             <span class="chip">Open items: <strong>${open.length}</strong></span>
             <span class="chip">Steps: <strong>${stats.done}/${stats.total}</strong></span>
-            <span class="chip">Logged: <strong>${esc(Util.duration(stats.loggedMinutes) || "—")}</strong></span>
             <span class="spacer"></span>
             <button class="btn btn-sm" data-action="bike:open" ${ids}>Open bike record</button>
             <button class="btn btn-sm" data-action="work:schedule" ${ids}
@@ -3122,8 +2945,10 @@ const View = {
         ${open.length
           ? open.map(job => View.workJob(client, bike, job)).join("")
           : View.empty("✅", "No open work items",
-              "Everything scheduled for this bike is done. Add another work item, or mark the bike ready for collection.",
-              `<button class="btn btn-primary" data-action="work:schedule" ${ids}>+ Add work item</button>`)}
+              "Everything scheduled for this bike is done. Print a summary for the client, add another work item, or mark the bike ready for collection.",
+              (Domain.readyToPrint(bike)
+                ? `<button class="btn btn-primary" data-action="print:visit" ${ids}>Print</button> ` : "")
+              + `<button class="btn" data-action="work:schedule" ${ids}>+ Add work item</button>`)}
 
         ${done.length ? `
           <details>
@@ -3139,7 +2964,6 @@ const View = {
 
   settingsTab(db) {
     const items = db.workItems.map(item => {
-      const minutes = item.steps.reduce((sum, s) => sum + (Number(s.minutes) || 0), 0);
       const steps = item.steps.map((s, i) => `
         <li>
           <span class="n">${i + 1}</span>
@@ -3147,7 +2971,6 @@ const View = {
             ${s.note ? `<br><span class="hint">${esc(s.note)}</span>` : ""}</span>
           <span class="spacer"></span>
           <span class="small muted nowrap">${[
-            s.minutes ? "~" + Util.duration(s.minutes) : "",
             s.price ? "+" + esc(Util.money(s.price)) : "",
             s.specKey && SPEC_FIELDS.has(s.specKey) ? esc(SPEC_FIELDS.get(s.specKey).label) : ""
           ].filter(Boolean).join(" · ")}</span>
@@ -3163,7 +2986,6 @@ const View = {
             <div class="row">
               <span class="chip">${esc(Util.money(item.price))}</span>
               <span class="chip">${item.steps.length} step${item.steps.length === 1 ? "" : "s"}</span>
-              ${minutes ? `<span class="chip">~${esc(Util.duration(minutes))}</span>` : ""}
             </div>
           </div>
           ${steps ? `<ul class="wi-steps">${steps}</ul>`
@@ -3188,8 +3010,8 @@ const View = {
           <h3>Work items</h3>
           <p class="small muted" style="margin-top:6px">
             A work item is a priced job with an ordered list of steps — what gets scheduled when a client
-            calls, and what a mechanic works down in the Work tab. Steps can carry guidance, a time
-            estimate, extra labour, and the part they usually replace.
+            calls, and what a mechanic works down in the Work tab. Steps can carry guidance, extra
+            labour, and the part they usually replace.
           </p>
           <p class="hint" style="margin-top:8px">
             Editing an item changes what is scheduled from now on. Work already scheduled or in progress
@@ -3217,18 +3039,8 @@ const View = {
 
   /* --- tab: activity ---------------------------------------------------- */
 
-  activityTab(db, filter) {
+  activityTab(db) {
     const stats = Domain.stats(db);
-    const entries = Domain.allEvents(db)
-      .filter(({ event }) => filter === "all" || event.kind === filter)
-      .slice(0, 200)
-      .map(({ client, bike, event }) =>
-        View.entry(client.id, bike.id, event, client.name + " · " + Domain.bikeTitle(bike)))
-      .join("");
-
-    const filterBtn = (id, label) =>
-      `<button class="btn btn-sm ${filter === id ? "btn-primary" : ""}"
-               data-action="activity:filter" data-filter="${id}">${esc(label)}</button>`;
 
     // The working board: everything the shop is currently responsible for,
     // with how far down its work list each bike is.
@@ -3269,24 +3081,28 @@ const View = {
           <h3>On the books</h3>
           <p class="small muted" style="margin-top:4px">Bikes that are with us or due in.</p>
           <dl class="spec-grid one-per-line" style="margin-top:10px">${board}</dl>
-        </div>` : ""}
-        <div class="row">
-          ${filterBtn("all", "Everything")} ${filterBtn("work", "Shop work")}
-          ${filterBtn("owner", "Owner changes")} ${filterBtn("status", "Status changes")}
-          ${filterBtn("edit", "Record edits")}
-        </div>
-        <div class="card">
-          ${entries ? `<ul class="timeline">${entries}</ul>`
-                    : View.empty("📋", "Nothing here yet", "Changelog entries from every bike show up in this feed.")}
-        </div>
+        </div>` : View.empty("📋", "Nothing on the books", "Bikes that are with us or due in show up here.")}
       </div>`;
   },
 
   /* --- tab: data -------------------------------------------------------- */
 
-  dataTab(db) {
+  dataTab(db, filter, search) {
     const stats = Domain.stats(db);
     const bytes = new Blob([JSON.stringify(db)]).size;
+
+    // The changelog lives here and only here: an audit trail to review and
+    // prune, not something anyone needs on the shop floor.
+    const needle = (search || "").toLowerCase();
+    const matches = Domain.allEvents(db)
+      .filter(({ event }) => filter === "all" || event.kind === filter)
+      .filter(({ client, bike, event }) => !needle ||
+        [client.name, Domain.bikeTitle(bike), event.title, event.description, event.by]
+          .join(" ").toLowerCase().includes(needle));
+    const shown = matches.slice(0, 200);
+    const filterBtn = (id, label) =>
+      `<button class="btn btn-sm ${filter === id ? "btn-primary" : ""}"
+               data-action="log:filter" data-filter="${id}">${esc(label)}</button>`;
     return `
       <div class="stack">
         <h2>Data</h2>
@@ -3302,7 +3118,7 @@ const View = {
             <span class="chip">Bikes: <strong>${stats.bikes}</strong></span>
             <span class="chip">Work items: <strong>${stats.workItems}</strong></span>
             <span class="chip">Open jobs: <strong>${stats.openJobs}</strong></span>
-            <span class="chip">Entries: <strong>${stats.entries}</strong></span>
+            <span class="chip">Changelog entries: <strong>${stats.entries}</strong></span>
             <span class="chip">Size: <strong>${(bytes / 1024).toFixed(1)} KB</strong></span>
             <span class="chip">Last saved: <strong>${db.updatedAt ? esc(new Date(db.updatedAt).toLocaleString(CONFIG.locale)) : "—"}</strong></span>
           </div>
@@ -3310,7 +3126,7 @@ const View = {
 
         <div class="card stack">
           <h3>Backup &amp; restore</h3>
-          <p class="small muted">Export writes a JSON file containing every client, bike, work item and changelog entry.</p>
+          <p class="small muted">Export writes a JSON file containing every client, bike, work item and its full history.</p>
           <div class="row">
             <button class="btn btn-primary" data-action="data:export">⬇ Export JSON</button>
             <button class="btn" data-action="data:import">⬆ Import JSON…</button>
@@ -3320,20 +3136,38 @@ const View = {
         </div>
 
         <div class="card stack">
-          <h3>Test data</h3>
+          <div class="row between">
+            <h3>Changelog</h3>
+            <input class="search" type="search" placeholder="Search client, bike or entry…"
+                   value="${esc(search || "")}" data-input="search" data-scope="searchLog"
+                   data-focus-key="search-log">
+          </div>
           <p class="small muted">
-            For trying the app out. Generated clients are added alongside whatever is already
-            stored; every form also has a 🎲 button that fills it in for you.
+            Every status move, record edit and completed work item, across all bikes. Deleting an
+            entry does not change the bike's current details or its service history.
           </p>
           <div class="row">
-            <button class="btn" data-action="data:generate" data-count="5">+ 5 random clients</button>
-            <button class="btn" data-action="data:generate" data-count="25">+ 25 random clients</button>
-            <button class="btn" data-action="data:sample">Load curated sample</button>
+            ${filterBtn("all", "Everything")} ${filterBtn("work", "Shop work")}
+            ${filterBtn("status", "Status changes")} ${filterBtn("edit", "Record edits")}
+            ${filterBtn("owner", "Owner changes")}
           </div>
-          <p class="hint">
-            Each generated client gets 1–3 bikes with a full build spec and up to 6 changelog entries.
-            Bikes in the shop get scheduled work items, part-worked, so the Work tab has something in it.
+          ${shown.length
+            ? `<ul class="timeline">${shown.map(({ client, bike, event }) => View.entry(client, bike, event)).join("")}</ul>
+               ${matches.length > shown.length
+                 ? `<p class="hint">Showing the latest ${shown.length} of ${matches.length}. Search or filter to narrow it down.</p>` : ""}`
+            : `<p class="small muted">${stats.entries ? "No entries match." : "Nothing logged yet."}</p>`}
+        </div>
+
+        <div class="card stack">
+          <h3>Sample data</h3>
+          <p class="small muted">
+            For trying the app out: two clients, a bike on the bench part-way through a tune-up,
+            and a bike booked in over the phone.
           </p>
+          <div class="row">
+            <button class="btn" data-action="data:sample">Load sample data</button>
+          </div>
+          <p class="hint">Loading the sample replaces everything currently stored.</p>
         </div>
 
         <div class="card stack">
@@ -3361,7 +3195,7 @@ const App = {
    * client's phone number must not close the job you are half way through.
    */
   route: { tab: "clients", clientId: null, bikeId: null, workClientId: null, workBikeId: null },
-  ui: { searchClients: "", searchBikes: "", searchWork: "", activityFilter: "all" },
+  ui: { searchClients: "", searchBikes: "", searchWork: "", searchLog: "", logFilter: "all", historyVisit: null },
 
   navigate(patch) {
     Object.assign(App.route, patch);
@@ -3381,9 +3215,9 @@ const App = {
     switch (App.route.tab) {
       case "bikes":    html = View.bikesTab(App.db, App.ui.searchBikes); break;
       case "work":     html = View.workTab(App.db, App.route, App.ui.searchWork); break;
-      case "activity": html = View.activityTab(App.db, App.ui.activityFilter); break;
+      case "activity": html = View.activityTab(App.db); break;
       case "settings": html = View.settingsTab(App.db); break;
-      case "data":     html = View.dataTab(App.db); break;
+      case "data":     html = View.dataTab(App.db, App.ui.logFilter, App.ui.searchLog); break;
       default:
         if (client && bike)  html = View.bikeDetail(App.db, client, bike);
         else if (client)     html = View.clientDetail(App.db, client);
@@ -3430,7 +3264,6 @@ const HANDLERS = {
   "nav:clients": () => App.navigate({ tab: "clients", clientId: null, bikeId: null }),
   "client:open": (d) => App.navigate({ tab: "clients", clientId: d.client, bikeId: null }),
   "bike:open":   (d) => App.navigate({ tab: "clients", clientId: d.client, bikeId: d.bike }),
-  "activity:filter": (d) => { App.ui.activityFilter = d.filter; App.render(); },
 
   /** Open a bike on the bench. The only way into the work space. */
   "work:open": (d) => App.navigate({ tab: "work", workClientId: d.client, workBikeId: d.bike }),
@@ -3440,7 +3273,6 @@ const HANDLERS = {
     title: "New client",
     submitLabel: "Create client",
     build: (body) => body.append(Form.section("Client details", CLIENT_FIELDS, {})),
-    randomize: Random.fillClientForm,
     onSubmit: (body) => {
       const values = Form.values(body);
       if (!values.name) return false;
@@ -3453,7 +3285,6 @@ const HANDLERS = {
     Modal.open({
       title: "Edit client",
       build: (body) => body.append(Form.section("Client details", CLIENT_FIELDS, client)),
-      randomize: Random.fillClientForm,
       onSubmit: (body) => {
         const values = Form.values(body);
         if (!values.name) return false;
@@ -3464,7 +3295,7 @@ const HANDLERS = {
 
   "client:delete": (d) => {
     const client = Domain.client(App.db, d.client);
-    const msg = `Delete ${client.name}, their ${client.bikes.length} bike(s) and all changelog history?\n\nThis cannot be undone.`;
+    const msg = `Delete ${client.name}, their ${client.bikes.length} bike(s) and all service history?\n\nThis cannot be undone.`;
     if (confirm(msg)) Actions.deleteClient(client.id);
   },
 
@@ -3532,15 +3363,6 @@ const HANDLERS = {
             hint: "Leave blank to name the bike from its year, brand and model." }
         ], { label: bike ? bike.label : "" }));
 
-        // Editing an existing record is itself logged, so offer a reason.
-        if (bike) {
-          body.append(Form.section("Why this edit", [
-            { key: "editNote", label: "Reason / what you noticed", type: "textarea", wide: true,
-              placeholder: "e.g. Spotted the bar tape was recorded wrong — it's always been red.",
-              hint: "Optional. Any change you make below is recorded in the changelog as a dated “Record edit”." }
-          ], {}));
-        }
-
         SPEC_GROUPS.forEach(group =>
           body.append(Form.section(group.label, group.fields, specs, group.hint)));
 
@@ -3556,17 +3378,14 @@ const HANDLERS = {
           DynRows.addButton("+ Add entry", rows, () => DynRows.kvRow())
         ]));
       },
-      randomize: Random.fillBikeForm,
       onSubmit: (body) => {
         const values = Form.values(body);
         // Pull the non-spec fields out before the rest becomes `specs`.
         const label = values.label || "";
-        const note = values.editNote || "";
         delete values.label;
-        delete values.editNote;
 
         const data = { label, specs: values, other: DynRows.parseKV(body) };
-        if (bike) Actions.updateBike(clientId, bike.id, data, note);
+        if (bike) Actions.updateBike(clientId, bike.id, data);
         else Actions.addBike(clientId, data);
       }
     });
@@ -3618,7 +3437,7 @@ const HANDLERS = {
 
   "bike:delete": (d) => {
     const bike = Domain.bike(App.db, d.client, d.bike);
-    if (confirm(`Delete “${Domain.bikeTitle(bike)}” and its ${bike.events.length} changelog entr(ies)?\n\nThis cannot be undone.`)) {
+    if (confirm(`Delete “${Domain.bikeTitle(bike)}” and all of its service history?\n\nThis cannot be undone.`)) {
       Actions.deleteBike(d.client, d.bike);
     }
   },
@@ -3651,15 +3470,13 @@ const HANDLERS = {
       submitLabel: "Schedule",
       build: (body) => {
         const list = Util.el("div", { class: "pick-list" }, App.db.workItems.map(item => {
-          const minutes = item.steps.reduce((sum, s) => sum + (Number(s.minutes) || 0), 0);
           return Util.el("label", { class: "pick" }, [
             Util.el("input", { type: "checkbox", "data-pick": item.id }),
             Util.el("div", {}, [
               Util.el("div", { class: "row", style: "gap:8px" }, [
                 Util.el("strong", { text: item.name }),
                 Util.el("span", { class: "chip", text: Util.money(item.price) }),
-                Util.el("span", { class: "chip", text: item.steps.length + " steps" }),
-                minutes ? Util.el("span", { class: "chip", text: "~" + Util.duration(minutes) }) : null
+                Util.el("span", { class: "chip", text: item.steps.length + " steps" })
               ]),
               item.description ? Util.el("div", { class: "hint", text: item.description }) : null
             ])
@@ -3669,7 +3486,7 @@ const HANDLERS = {
         body.append(Util.el("fieldset", {}, [
           Util.el("legend", {}, [
             Util.el("h4", { text: "Work items" }),
-            Util.el("div", { class: "hint", text: "Each one becomes its own checklist on the bike, and its own changelog entry when it is finished." })
+            Util.el("div", { class: "hint", text: "Each one becomes its own checklist on the bike, and part of its service history when it is finished." })
           ]),
           list
         ]));
@@ -3695,8 +3512,8 @@ const HANDLERS = {
     const job = Domain.job(bike, d.job);
     if (!job) return;
     const msg = job.status === "done"
-      ? `Remove “${job.name}” from this bike's board?\n\nThe changelog entry it wrote stays where it is.`
-      : `Cancel “${job.name}”?\n\nAny notes, times and part changes recorded against its steps are lost.`;
+      ? `Delete the record of “${job.name}”?\n\nIts steps and notes will no longer appear in this bike's service history. This cannot be undone.`
+      : `Cancel “${job.name}”?\n\nAny notes and part changes recorded against its steps are lost.`;
     if (confirm(msg)) Actions.deleteJob(d.client, d.bike, d.job);
   },
 
@@ -3730,7 +3547,7 @@ const HANDLERS = {
         body.append(Util.el("fieldset", {}, [
           Util.el("legend", {}, [
             Util.el("h4", { text: "Part changes" }),
-            Util.el("div", { class: "hint", text: "Applied to the bike's specification when this work item is completed, and recorded as a before → after in the changelog." })
+            Util.el("div", { class: "hint", text: "Applied to the bike's specification when this work item is completed, and kept as a before → after in its service history." })
           ]),
           rows,
           DynRows.addButton("+ Add another", rows, () => DynRows.changeRow(bike, ""))
@@ -3776,11 +3593,11 @@ const HANDLERS = {
     form();
   },
 
-  /** The completion form: who, when, what it says, and what it costs. */
+  /** The completion form: who, when, how long, any closing notes, and the charge. */
   _completeForm(d, bike, job, stats) {
     Modal.open({
       title: `Complete — ${job.name}`,
-      submitLabel: "Complete and log it",
+      submitLabel: "Complete work item",
       build: (body) => {
         body.append(Form.section("Sign-off", [
           { key: "by", label: "Completed by", placeholder: "Mechanic name" },
@@ -3792,10 +3609,16 @@ const HANDLERS = {
                 + ` = ${Util.money(stats.charge)}` }
         ], { by: App.db.settings.lastBy || "", date: Util.today(), cost: String(stats.charge) }));
 
-        body.append(Form.section("What went in the log", [
-          { key: "description", label: "Entry", type: "textarea", wide: true, rows: 8,
-            hint: "Built from the steps you ticked, their times and their notes. Edit freely — this is what the client's history will say." }
-        ], { description: Domain.jobSummary(job) }));
+        body.append(Form.section("Time spent", [
+          { key: "hours", label: "Hours", type: "number", min: "0", step: "1", placeholder: "0" },
+          { key: "minutes", label: "Minutes", type: "number", min: "0", step: "5", placeholder: "0" }
+        ], {}, "Optional. How long the whole work item took."));
+
+        body.append(Form.section("Notes", [
+          { key: "summary", label: "Closing notes (optional)", type: "textarea", wide: true, rows: 3,
+            placeholder: "Anything worth knowing next time — advice given, parts to watch, follow-up needed.",
+            hint: "Kept in the bike's service history and shown on the printed summary. Step notes are kept as well." }
+        ], {}));
 
         if (stats.parts) {
           const changes = Domain.jobChanges(bike, job);
@@ -3813,6 +3636,7 @@ const HANDLERS = {
       },
       onSubmit: (body) => {
         const values = Form.values(body);
+        values.timeSpent = (Number(values.hours) || 0) * 60 + (Number(values.minutes) || 0);
         Actions.completeJob(d.client, d.bike, d.job, values);
 
         // With nothing left open, the bike itself is done — offer the move
@@ -3823,8 +3647,11 @@ const HANDLERS = {
             title: "All work finished",
             message: `Nothing is outstanding on “${Domain.bikeTitle(bikeNow)}”.\n\n`
                    + `Mark it completed so the front counter knows it is ready for collection?`,
-            actions: [{ label: "Mark work completed", class: "btn-primary",
-                        run: () => Actions.setBikeStatus(d.client, d.bike, "completed") }]
+            actions: [
+              { label: "Print summary", run: () => HANDLERS["print:visit"](d) },
+              { label: "Mark work completed", class: "btn-primary",
+                run: () => Actions.setBikeStatus(d.client, d.bike, "completed") }
+            ]
           }), 0);
         }
       }
@@ -3876,7 +3703,6 @@ const HANDLERS = {
           DynRows.addButton("+ Add step", rows, () => DynRows.stepRow())
         ]));
       },
-      randomize: Random.fillWorkItemForm,
       onSubmit: (body) => {
         const values = Form.values(body);
         if (!values.name) return false;
@@ -3887,74 +3713,35 @@ const HANDLERS = {
     });
   },
 
-  /* --- changelog --- */
+  /* --- printing --- */
 
-  /**
-   * Add work / add owner change by hand.
-   *
-   * The step flow covers scheduled work; this is the escape hatch for
-   * everything else — a five-minute favour at the counter, a warranty claim,
-   * something a mechanic did before the job was ever booked in.
-   */
-  "event:add": (d, _el, opts = {}) => {
+  /** Everything finished this visit, as one sheet for the client. */
+  "print:visit": (d) => {
+    const client = Domain.client(App.db, d.client);
     const bike = Domain.bike(App.db, d.client, d.bike);
-    const kind = (ENTRY_KINDS[d.kind] || {}).manual ? d.kind : "work";
-    const meta = ENTRY_KINDS[kind];
-
-    Modal.open({
-      title: meta.verb + " — " + Domain.bikeTitle(bike),
-      submitLabel: "Save to changelog",
-      build: (body) => {
-        body.append(Form.section("What happened", [
-          { key: "date",  label: "Date", type: "date" },
-          { key: "by",    label: meta.byLabel, placeholder: meta.byPlaceholder },
-          { key: "title", label: "Summary", required: true, wide: true, placeholder: meta.titlePlaceholder },
-          { key: "description", label: "Details", type: "textarea", wide: true,
-            placeholder: "Notes for future reference: what was found, what was done, what to watch." }
-        ], { date: Util.today(), by: kind === "work" ? (App.db.settings.lastBy || "") : "" }));
-
-        // Part changes — each one updates the bike's current spec on save.
-        const rows = DynRows.container("change");
-        rows.append(DynRows.changeRow(bike));
-        body.append(Util.el("fieldset", {}, [
-          Util.el("legend", {}, [
-            Util.el("h4", { text: "Part changes" }),
-            Util.el("div", { class: "hint", text: "Each row updates the bike's current specification and is recorded as a before → after in the changelog." })
-          ]),
-          rows,
-          DynRows.addButton("+ Add part change", rows, () => DynRows.changeRow(bike))
-        ]));
-
-        body.append(Form.section("Cost", [
-          { key: "cost", label: kind === "work" ? "Total charged" : "Cost (if known)",
-            placeholder: "0.00", hint: "Parts and labour combined." }
-        ], {}));
-      },
-      randomize: (body) => Random.fillEventForm(body, bike, kind),
-      onSubmit: (body) => {
-        const values = Form.values(body);
-        if (!values.title) return false;
-        Actions.addEvent(d.client, d.bike, {
-          kind,
-          date: values.date || Util.today(),
-          by: values.by,
-          title: values.title,
-          description: values.description,
-          cost: values.cost,
-          changes: DynRows.parseChanges(body, bike)
-        });
-        if (opts.onSaved) opts.onSaved();
-      }
-    });
+    if (!client || !bike) return;
+    const jobs = Domain.visitJobs(bike);
+    if (jobs.length) Print.open(client, bike, jobs);
   },
 
+  /** A past visit from the service history, reprinted as it was on the day. */
+  "print:history": (d) => {
+    const client = Domain.client(App.db, d.client);
+    const bike = Domain.bike(App.db, d.client, d.bike);
+    const visit = bike ? Domain.visits(bike).find(v => v.key === d.visit) : null;
+    if (client && visit) Print.open(client, bike, visit.jobs, { date: visit.to || Util.today() });
+  },
+
+  /* --- data --- */
+  /* --- changelog (Data tab) --- */
+  "log:filter": (d) => { App.ui.logFilter = d.filter; App.renderKeepingPlace(); },
+
   "event:delete": (d) => {
-    if (confirm("Delete this changelog entry?\n\nThe bike's current specification will NOT be reverted.")) {
+    if (confirm("Delete this changelog entry?\n\nThe bike's current details and service history are not changed.")) {
       Actions.deleteEvent(d.client, d.bike, d.event);
     }
   },
 
-  /* --- data --- */
   "data:export": () => {
     const stamp = new Date().toISOString().slice(0, 10);
     Util.download(`bikeshop-backup-${stamp}.json`, JSON.stringify(App.db, null, 2));
@@ -3962,21 +3749,13 @@ const HANDLERS = {
 
   "data:import": () => document.getElementById("import-file").click(),
 
-  "data:generate": (d) => {
-    const count = Math.min(parseInt(d.count, 10) || 5, 200);
-    Actions.commit(db => {
-      for (let i = 0; i < count; i++) db.clients.push(Random.fullClient(db.workItems));
-    });
-    Store.flashStatus(`Generated ${count} random client(s)`);
-  },
-
   "data:sample": () => {
     if (App.db.clients.length && !confirm("Loading sample data replaces everything currently stored. Continue?")) return;
     Actions.replaceDatabase(SAMPLE_DATA());
   },
 
   "data:reset": () => {
-    if (!confirm("Delete every client, bike, work item and changelog entry?\n\nThis cannot be undone. Export a backup first if you might want it back.")) return;
+    if (!confirm("Delete every client, bike, work item and all service history?\n\nThis cannot be undone. Export a backup first if you might want it back.")) return;
     if (!confirm("Really delete everything?")) return;
     Actions.replaceDatabase(Store.empty());
   }
@@ -3994,11 +3773,17 @@ const INPUTS = {
   },
 
   /**
-   * Minutes and notes inside a step. Nothing else on screen depends on them,
-   * so there is deliberately no re-render here — the mechanic keeps typing and
-   * the value is already in the database.
+   * Notes inside a step. Nothing else on screen depends on them, so there is
+   * deliberately no re-render here — the mechanic keeps typing and the value
+   * is already in the database.
    */
-  "step:field": (d, el) => Actions.setStepField(d.client, d.bike, d.job, d.step, d.field, el.value)
+  "step:field": (d, el) => Actions.setStepField(d.client, d.bike, d.job, d.step, d.field, el.value),
+
+  /** The service-history picker on the bike page. */
+  "history:select": (_d, el) => {
+    App.ui.historyVisit = el.value;
+    App.renderKeepingPlace();
+  }
 };
 
 /* ==========================================================================
@@ -4113,12 +3898,11 @@ function SAMPLE_DATA() {
   tuneUp.status = "active";
   tuneUp.startedAt = Date.now();
   ["Intake check and test ride", "Wash and degrease drivetrain", "Measure chain wear", "Index gears, front and rear"]
-    .forEach((title, i) => {
+    .forEach(title => {
       const step = tuneUp.steps.find(s => s.title === title);
       if (!step) return;
       step.done = true;
       step.doneAt = Date.now();
-      step.minutes = [10, 20, 5, 25][i];
     });
   const chainStep = tuneUp.steps.find(s => s.title === "Measure chain wear");
   chainStep.notes = "0.9% — well past it. Cassette teeth hooked too, quoted the client.";
