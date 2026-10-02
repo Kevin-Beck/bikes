@@ -1236,24 +1236,6 @@ const Domain = {
   /** "Chain › Wear" for a substep, the plain title for a step. */
   stepLabel: ({ step, parent }) => (parent ? `${parent.title} › ${step.title}` : step.title),
 
-  /**
-   * What was left undone, as few lines as possible: a step nobody started is
-   * one line, not one per substep. `notes` carries whatever the mechanic wrote
-   * against it — usually why it was not done.
-   */
-  skippedSteps(job) {
-    return (job.steps || []).flatMap(step => {
-      const subs = step.substeps || [];
-      if (!step.done && !subs.some(s => s.done)) {
-        const notes = [step.notes, ...subs.filter(s => s.notes).map(s => `${s.title}: ${s.notes}`)];
-        return [{ label: step.title, optional: step.optional, notes: notes.filter(Boolean).join("; ") }];
-      }
-      return (!step.done && step.notes ? [{ label: step.title, optional: step.optional, notes: step.notes }] : [])
-        .concat(subs.filter(s => !s.done)
-          .map(s => ({ label: `${step.title} › ${s.title}`, optional: s.optional, notes: s.notes || "" })));
-    });
-  },
-
   workItem: (db, id) => db.workItems.find(w => w.id === id) || null,
 
   /** Every bike in the shop, each paired with its owner. */
@@ -1420,11 +1402,6 @@ const Domain = {
       subs.forEach(sub => lines.push(`   – ${sub.title}${sub.notes ? " — " + sub.notes : ""}`));
     });
 
-    const skipped = Domain.skippedSteps(job);
-    if (skipped.length) {
-      lines.push("Not done: " + skipped.map(s => s.label + (s.optional ? " (optional)" : "")
-        + (s.notes ? " — " + s.notes : "")).join(", "));
-    }
     if (job.summary) lines.push("", job.summary);
     return lines.join("\n");
   },
@@ -2573,12 +2550,6 @@ const Print = {
       </div>`;
   },
 
-  /** "Not done: Battery Check — no battery fitted; Firmware Update" */
-  skipped(list) {
-    return list.length ? `<p class="ps-dim">Not done: ${esc(list.map(st =>
-      st.label + (st.notes ? " — " + st.notes : "")).join("; "))}</p>` : "";
-  },
-
   /** Part changes as "Chain: Shimano HG601". `withFrom` adds the old value. */
   parts(job, withFrom) {
     return Domain.allSteps(job).flatMap(step => step.changes || []).map(ch =>
@@ -2594,14 +2565,12 @@ const Print = {
           <span>${esc(Util.formatDate(job.completedDate))}</span></div>
         ${done.length ? `<p>${esc(done.join(" · "))}</p>` : ""}
         ${parts.length ? `<p><span class="ps-label">Parts fitted</span> ${esc(parts.join("; "))}</p>` : ""}
-        ${Print.skipped(Domain.skippedSteps(job).filter(st => st.notes))}
         ${job.summary ? `<p class="ps-pre">${esc(job.summary)}</p>` : ""}
         ${Print.price(job)}
       </article>`;
   },
 
   longJob(job) {
-    const skipped = Domain.skippedSteps(job);
     const meta = [
       Util.formatDate(job.completedDate),
       job.by ? "by " + job.by : ""
@@ -2627,7 +2596,6 @@ const Print = {
         <div class="ps-job-head"><strong>${esc(job.name)}</strong><span>${esc(meta)}</span></div>
         ${job.request ? `<p><span class="ps-label">You asked</span> ${esc(job.request)}</p>` : ""}
         ${steps ? `<ul>${steps}</ul>` : ""}
-        ${Print.skipped(skipped)}
         ${job.summary ? `<p class="ps-pre">${esc(job.summary)}</p>` : ""}
         ${Print.price(job)}
       </article>`;
