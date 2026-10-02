@@ -347,6 +347,15 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .substeps .step { padding: 7px 0; border-top-style: dashed; }
 .substeps .step-title { font-weight: 500; }
 .job-summary { margin-top: 10px; font-size: 14px; white-space: pre-wrap; }
+/* A completed work item unlocked for corrections. */
+.job-card.is-editing { background: var(--surface); border-color: var(--accent); }
+.job-edit { margin-top: 12px; }
+.step-parts input {
+  font: inherit; font-size: 13px; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; min-width: 0;
+}
+.step-parts input[data-field="to"] { flex: 1 1 auto; }
+.step-parts input[data-field="cost"] { width: 90px; flex: none; }
 
 /* service history: one compact row per visit, expanding in place (bike page) */
 .visits { list-style: none; margin: 12px 0 0; padding: 0; }
@@ -390,7 +399,10 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .ps-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 14px 0 18px; }
 .ps-strong { font-weight: 600; font-size: 11.5pt; }
 .ps-label { color: #666; font-size: 9pt; text-transform: uppercase; letter-spacing: .04em; }
-.ps-job { padding: 8px 0; border-top: 1px solid #ddd; break-inside: avoid; }
+/* Work items may split across pages: keeping each one whole pushed a long
+   first item onto page 2 and left "Work carried out" alone on page 1. */
+.ps-sheet h2 { break-after: avoid; }
+.ps-job { padding: 8px 0; border-top: 1px solid #ddd; }
 .ps-job-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
 .ps-job-head span { color: #555; font-size: 9.5pt; text-align: right; }
 .ps-job p { margin-top: 3px; }
@@ -399,6 +411,11 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .ps-parts { color: #555; font-size: 9.5pt; }
 .ps-dim { color: #666; font-size: 9.5pt; }
 .ps-pre { white-space: pre-wrap; }
+.ps-price { margin-top: 6px; text-align: right; break-inside: avoid; }
+.ps-price .ps-dim { display: block; }
+.ps-total { display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+            margin-top: 6px; padding-top: 8px; border-top: 2px solid #1a1a1a; break-inside: avoid; }
+.ps-total strong { font-size: 13pt; font-variant-numeric: tabular-nums; }
 .ps-notes { margin-top: 14px; padding-top: 10px; border-top: 1px solid #ddd; }
 .ps-notes-body { min-height: 3em; white-space: pre-wrap; }
 .ps-notes-body:empty::before { content: attr(data-placeholder); color: #999; }
@@ -536,10 +553,11 @@ legend { padding: 0 0 8px; }
         steps of each work item — ticking them off, writing notes and
         recording part changes as they go. Every keystroke is saved, so
         leaving the tab and coming back later loses nothing.
-     5. Completing a work item records who did it, when, and (optionally) how
-        long it took, applies its part changes to the live specification, and
-        charges the item price + completed step prices + parts. It then stays
-        on the bike as its service history.
+     5. Completing a work item records who did it and when, applies its part
+        changes to the live specification, and prices it: labor (hours ×
+        hourly rate, pre-filled from the item's estimate and the shop rate)
+        + parts, less any discount. It then stays on the bike as its service
+        history, and can be unlocked later to correct it in place.
      6. With nothing left open, the visit's work prints as a one-page summary
         for the client.
 
@@ -560,6 +578,8 @@ const CONFIG = {
   storageKey: "bikeshop.db.v3",
   routeKey:   "bikeshop.route.v3",
   currency:   "USD",   // single place to change money formatting
+  hourlyRate: 84,      // the shop rate a fresh install starts with (editable in Settings)
+  defaultHours: 10,    // estimate for a work item that does not name one
   locale:     undefined // undefined = browser default
 };
 
@@ -705,11 +725,11 @@ const JOB_STATES = {
 
 /**
  * Templates the shop starts with. The owner edits these in Settings; each one
- * is a priced, ordered checklist a mechanic works down.
+ * is an ordered checklist a mechanic works down, with an estimate of the
+ * hours it takes — what labor is charged at when it is completed.
  *
- * step: { title, note, price, optional, specKey, substeps }
+ * step: { title, note, optional, specKey, substeps }
  *   note     guidance shown under the step while it is being worked
- *   price    extra labour charged for that step on top of the item price
  *   optional required steps are the ones the completion check counts
  *   specKey  the spec field this step usually replaces — pre-selects the
  *            part-change row so the mechanic does not go hunting
@@ -719,7 +739,7 @@ const JOB_STATES = {
  */
 const DEFAULT_WORK_ITEMS = [
   {
-    name: "Tune up", price: 120,
+    name: "Tune up", hours: 10,
     description: "The standard inspection and bench service: every system on the bike checked, adjusted and signed off, finished with a light wash and a test ride.",
     steps: [
       { title: "Frame / Fork", specKey: "fork", substeps: [
@@ -842,13 +862,11 @@ const Util = {
     return isNaN(n) ? 0 : n;
   },
 
-  /** Minutes -> "1h 25m" / "45m" / "" for nothing. */
-  duration(minutes) {
-    const m = Math.max(0, Math.round(Number(minutes) || 0));
-    if (!m) return "";
-    const h = Math.floor(m / 60);
-    return h ? `${h}h${m % 60 ? " " + (m % 60) + "m" : ""}` : `${m}m`;
-  },
+  /** Round a money amount to whole cents. */
+  cents: (n) => Math.round((Number(n) || 0) * 100) / 100,
+
+  /** Decimal hours for display: 10 -> "10", 1.75 -> "1.75". */
+  hours: (n) => String(Math.round((Number(n) || 0) * 100) / 100),
 
   /** Sort helper: newest date first, ties broken by creation time. */
   byDateDesc(a, b) {
@@ -894,10 +912,10 @@ const Store = {
    * ordinary records from that point on, editable and deletable in Settings.
    */
   empty: () => ({
-    schemaVersion: 5,
+    schemaVersion: 6,
     clients: [],
     workItems: DEFAULT_WORK_ITEMS.map(item => Domain.newWorkItem(item)),
-    settings: { lastBy: "" },
+    settings: { lastBy: "", hourlyRate: CONFIG.hourlyRate },
     updatedAt: Date.now()
   }),
 
@@ -918,14 +936,20 @@ const Store = {
 
     if (!Array.isArray(data.workItems)) data.workItems = [];
     if (!data.settings || typeof data.settings !== "object") data.settings = { lastBy: "" };
+    if (typeof data.settings.hourlyRate !== "number") data.settings.hourlyRate = CONFIG.hourlyRate;
 
+    // Schema 6: a work item is priced by its estimated hours, not a fixed
+    // price, and steps no longer carry labour of their own.
     data.workItems.forEach(item => {
+      if (typeof item.hours !== "number") item.hours = CONFIG.defaultHours;
+      delete item.price;
       item.steps = Array.isArray(item.steps) ? item.steps : [];
       item.steps.forEach(step => {
         step.substeps = Array.isArray(step.substeps) ? step.substeps : [];
         [step, ...step.substeps].forEach(s => {
           if (!s.id) s.id = Util.uid("s");
           delete s.minutes;               // per-step time was retired
+          delete s.price;                 // per-step labour was retired
         });
       });
     });
@@ -938,7 +962,6 @@ const Store = {
       if (typeof bike.leftShopAt !== "number") bike.leftShopAt = Store._lastLeftShop(bike);
       bike.jobs.forEach(job => {
         if (!JOB_STATES[job.status]) job.status = "scheduled";
-        job.timeSpent = Math.max(0, Number(job.timeSpent) || 0);
         job.summary = job.summary || "";
         job.steps = Array.isArray(job.steps) ? job.steps : [];
         job.steps.forEach(step => {
@@ -950,11 +973,51 @@ const Store = {
             delete s.estMinutes;
           });
         });
+        Store._migratePricing(data, bike, job);
       });
     }));
 
-    data.schemaVersion = 5;
+    data.schemaVersion = 6;
     return data;
+  },
+
+  /**
+   * Schema 6 pricing: labor (hours × rate) + parts, less a discount.
+   *
+   * Open jobs take their estimate from the template they were scheduled from.
+   * Completed jobs from before this had a single charged total; it is kept
+   * exactly by pricing the labor as one hour at (total − parts). Each one is
+   * also linked to the changelog entry it wrote, so later corrections can
+   * update that entry in place.
+   */
+  _migratePricing(data, bike, job) {
+    if (typeof job.hours !== "number") {
+      const item = data.workItems.find(w => w.id === job.workItemId);
+      job.hours = item ? item.hours : CONFIG.defaultHours;
+    }
+    if (typeof job.discount !== "number") job.discount = 0;
+
+    if (job.status === "done" && typeof job.rate !== "number") {
+      const steps = Domain.allSteps(job);
+      const parts = steps.flatMap(s => s.changes).reduce((sum, c) => sum + (Number(c.cost) || 0), 0);
+      const charged = typeof job.charged === "number" && job.charged
+        ? job.charged
+        : (Number(job.price) || 0) + parts
+          + steps.filter(s => s.done).reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+      job.hours = 1;
+      job.rate = Util.cents(Math.max(0, charged - parts));
+    }
+    if (job.status === "done" && !job.eventId) {
+      const linked = new Set(bike.jobs.map(j => j.eventId).filter(Boolean));
+      const event = (bike.events || []).find(e => e.kind === "work" && !linked.has(e.id)
+        && e.title === job.name && e.date === job.completedDate);
+      if (event) job.eventId = event.id;
+    }
+
+    delete job.price;
+    delete job.charged;
+    delete job.timeSpent;
+    Domain.allSteps(job).forEach(s => delete s.price);
   },
 
   /** For older data: when the bike last went back to its owner, from the log. */
@@ -1051,11 +1114,14 @@ const Domain = {
     createdAt: Date.now()
   }),
 
-  /** A work-item template. Steps are ordered and carry their own ids. */
+  /**
+   * A work-item template. Steps are ordered and carry their own ids. `hours`
+   * is the estimate that pre-fills labor when the work is completed.
+   */
   newWorkItem: (data = {}) => ({
     id: Util.uid("w"),
     name: data.name || "Untitled work item",
-    price: Util.parseMoney(data.price),
+    hours: Domain.parseHours(data.hours, CONFIG.defaultHours),
     description: data.description || "",
     steps: (data.steps || []).map(step => Domain.newStep(step)),
     createdAt: Date.now()
@@ -1070,22 +1136,31 @@ const Domain = {
     id: Util.uid("s"),
     title: data.title || "",
     note: data.note || "",
-    price: Util.parseMoney(data.price),
     optional: !!data.optional,
     specKey: SPEC_FIELDS.has(data.specKey) ? data.specKey : ""
   }),
 
+  /** A typed number of hours; `fallback` for blank or garbage. */
+  parseHours(value, fallback = 0) {
+    const n = parseFloat(String(value ?? "").trim());
+    return isNaN(n) || n < 0 ? fallback : n;
+  },
+
   /**
    * A job is a *snapshot* of a work item taken when it was scheduled: name,
-   * price and the full step list are copied in. Editing the template later
-   * changes what gets scheduled next, never what is already on the bench.
+   * estimated hours and the full step list are copied in. Editing the
+   * template later changes what gets scheduled next, never what is already on
+   * the bench.
+   *
+   * A job has no price until it is completed. Completion fixes its `hours`,
+   * `rate` and `discount` (a percentage) on the job itself, so changing the
+   * shop rate later never changes work already done.
    */
   newJob(workItem, data = {}) {
     const snapshot = (step) => ({
       id: Util.uid("js"),
       title: step.title,
       note: step.note || "",
-      price: Number(step.price) || 0,
       optional: !!step.optional,
       specKey: step.specKey || "",
       done: false,
@@ -1097,7 +1172,7 @@ const Domain = {
       id: Util.uid("j"),
       workItemId: workItem.id,
       name: workItem.name,
-      price: Number(workItem.price) || 0,
+      hours: Domain.parseHours(workItem.hours, CONFIG.defaultHours),
       description: workItem.description || "",
       request: data.request || "",        // the client's own words
       status: "scheduled",
@@ -1107,7 +1182,9 @@ const Domain = {
       completedAt: 0,
       completedDate: "",
       by: "",
-      timeSpent: 0,                       // minutes, optionally entered on completion
+      rate: 0,                            // hourly rate, fixed on completion
+      discount: 0,                        // percent off the total, entered on completion
+      eventId: "",                        // the changelog entry completion wrote
       summary: "",                        // optional closing notes, entered on completion
       steps: workItem.steps.map(step => Object.assign(snapshot(step), {
         substeps: (step.substeps || []).map(snapshot)
@@ -1161,14 +1238,19 @@ const Domain = {
 
   /**
    * What was left undone, as few lines as possible: a step nobody started is
-   * one line, not one per substep.
+   * one line, not one per substep. `notes` carries whatever the mechanic wrote
+   * against it — usually why it was not done.
    */
   skippedSteps(job) {
     return (job.steps || []).flatMap(step => {
       const subs = step.substeps || [];
-      if (!step.done && !subs.some(s => s.done)) return [{ label: step.title, optional: step.optional }];
-      return subs.filter(s => !s.done)
-        .map(s => ({ label: `${step.title} › ${s.title}`, optional: s.optional }));
+      if (!step.done && !subs.some(s => s.done)) {
+        const notes = [step.notes, ...subs.filter(s => s.notes).map(s => `${s.title}: ${s.notes}`)];
+        return [{ label: step.title, optional: step.optional, notes: notes.filter(Boolean).join("; ") }];
+      }
+      return (!step.done && step.notes ? [{ label: step.title, optional: step.optional, notes: step.notes }] : [])
+        .concat(subs.filter(s => !s.done)
+          .map(s => ({ label: `${step.title} › ${s.title}`, optional: s.optional, notes: s.notes || "" })));
     });
   },
 
@@ -1265,21 +1347,11 @@ const Domain = {
   bikesWithOpenWork: (db) =>
     Domain.allBikes(db).filter(({ bike }) => Domain.openJobs(bike).length),
 
-  /**
-   * Everything a job card needs to describe itself: how far down the list the
-   * mechanic is, and what it will cost.
-   *
-   * The charge is the item price, plus the price of each *completed* priced
-   * step (an optional step nobody did is not billed), plus every part cost
-   * recorded against the steps.
-   */
+  /** Everything a job card needs to describe itself: how far down the list the mechanic is. */
   jobStats(job) {
     const steps = Domain.allSteps(job);
     const done = steps.filter(s => s.done);
     const parts = steps.flatMap(s => s.changes || []);
-
-    const partsCost = parts.reduce((sum, c) => sum + (Number(c.cost) || 0), 0);
-    const stepCharges = done.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
 
     return {
       total: steps.length,
@@ -1287,11 +1359,36 @@ const Domain = {
       openRequired: steps.filter(s => !s.done && !s.optional).length,
       percent: steps.length ? Math.round((done.length / steps.length) * 100) : 0,
       parts: parts.length,
-      partsCost,
-      stepCharges,
-      charge: (Number(job.price) || 0) + stepCharges + partsCost
+      partsCost: Util.cents(parts.reduce((sum, c) => sum + (Number(c.cost) || 0), 0))
     };
   },
+
+  /**
+   * What a work item costs: labor (hours × rate) + every part recorded
+   * against its steps, less a percentage discount on that total.
+   *
+   * Pass `values` to price a job before it is saved — the completion form
+   * does, so its preview shows exactly what saving will charge.
+   */
+  jobPrice(job, values = {}) {
+    const hours = Domain.parseHours(values.hours ?? job.hours);
+    const rate = Domain.parseHours(values.rate ?? job.rate);
+    const discount = Math.min(100, Domain.parseHours(values.discount ?? job.discount));
+    const labor = Util.cents(hours * rate);
+    const parts = Domain.jobStats(job).partsCost;
+    const subtotal = Util.cents(labor + parts);
+    const off = Util.cents(subtotal * discount / 100);
+    return { hours, rate, discount, labor, parts, subtotal, off, total: Util.cents(subtotal - off) };
+  },
+
+  /** "$840.00 labor + $34.00 parts − $87.40 (10% off)" */
+  priceBreakdown(price) {
+    return `${Util.money(price.labor)} labor + ${Util.money(price.parts)} parts`
+      + (price.off ? ` − ${Util.money(price.off)} (${Util.hours(price.discount)}% off)` : "");
+  },
+
+  /** "10 h × $84.00/h" */
+  laborLine: (price) => `${Util.hours(price.hours)} h × ${Util.money(price.rate)}/h`,
 
   /** The same numbers rolled up across every open job on a bike. */
   bikeWorkStats(bike) {
@@ -1312,8 +1409,9 @@ const Domain = {
    */
   jobSummary(job) {
     const stats = Domain.jobStats(job);
-    const lines = [`${stats.done}/${stats.total} steps`
-      + (job.timeSpent ? ` · ${Util.duration(job.timeSpent)}` : "")];
+    const price = Domain.jobPrice(job);
+    const lines = [`${stats.done}/${stats.total} steps · ${Domain.laborLine(price)}`,
+                   `${Util.money(price.total)} = ${Domain.priceBreakdown(price)}`];
 
     job.steps.forEach(s => {
       const subs = (s.substeps || []).filter(sub => sub.done);
@@ -1324,7 +1422,8 @@ const Domain = {
 
     const skipped = Domain.skippedSteps(job);
     if (skipped.length) {
-      lines.push("Not done: " + skipped.map(s => s.label + (s.optional ? " (optional)" : "")).join(", "));
+      lines.push("Not done: " + skipped.map(s => s.label + (s.optional ? " (optional)" : "")
+        + (s.notes ? " — " + s.notes : "")).join(", "));
     }
     if (job.summary) lines.push("", job.summary);
     return lines.join("\n");
@@ -1339,14 +1438,20 @@ const Domain = {
   jobChanges(bike, job) {
     return Domain.allSteps(job).flatMap(step => (step.changes || []).map(change => {
       const next = Object.assign({}, change);
-      if (next.target === "spec") {
-        next.from = (bike.specs || {})[next.key] || "";
-      } else if (next.target === "other") {
-        const row = (bike.other || []).find(o => o.id === next.key);
-        next.from = row ? row.value : "";
-      }
+      const now = Domain.currentValue(bike, change);
+      if (now !== null) next.from = now;
       return next;
     }));
+  },
+
+  /** What the bike says now for the part a change points at; null for a log-only note. */
+  currentValue(bike, change) {
+    if (change.target === "spec") return (bike.specs || {})[change.key] || "";
+    if (change.target === "other") {
+      const row = (bike.other || []).find(o => o.id === change.key);
+      return row ? row.value : "";
+    }
+    return null;
   },
 
   /* --- derived values --- */
@@ -1471,7 +1576,6 @@ const Domain = {
       workItems: db.workItems.length,
       openJobs: openJobs.length,
       openSteps: openJobs.reduce((sum, j) => sum + Domain.jobStats(j).total - Domain.jobStats(j).done, 0),
-      bookedValue: openJobs.reduce((sum, j) => sum + Domain.jobStats(j).charge, 0),
       revenue: events.reduce((sum, e) => sum + (Number(e.cost) || 0), 0),
       byStatus
     };
@@ -1627,7 +1731,7 @@ const Actions = {
       if (!item) return;
       Object.assign(item, {
         name: data.name,
-        price: Util.parseMoney(data.price),
+        hours: Domain.parseHours(data.hours, CONFIG.defaultHours),
         description: data.description,
         steps: (data.steps || []).map(Domain.newStep)
       });
@@ -1701,6 +1805,23 @@ const Actions = {
   },
 
   /**
+   * Run a mutation against one job. A completed job is history that has
+   * already been written to the changelog, so any correction to it rewrites
+   * that entry in place to match.
+   *
+   * `commit` is one of the three commit functions; return false from the
+   * mutator to signal there was nothing to do.
+   */
+  _withJob(commit, clientId, bikeId, jobId, mutator) {
+    commit(db => {
+      const bike = Domain.bike(db, clientId, bikeId);
+      const job = Domain.job(bike, jobId);
+      if (!job || mutator(bike, job, db) === false) return;
+      if (job.status === "done") Actions._syncJobEvent(bike, job);
+    });
+  },
+
+  /**
    * Tick a step off, or un-tick it.
    *
    * The first tick is also what starts the clock on a job — nobody wants to
@@ -1711,10 +1832,9 @@ const Actions = {
    * A step can still be ticked by hand without its substeps.
    */
   setStepDone(clientId, bikeId, jobId, stepId, done) {
-    Actions.commitLocal(db => {
-      const job = Domain.job(Domain.bike(db, clientId, bikeId), jobId);
+    Actions._withJob(Actions.commitLocal, clientId, bikeId, jobId, (bike, job) => {
       const step = Domain.step(job, stepId);
-      if (!step || job.status === "done") return;
+      if (!step) return false;
 
       step.done = done;
       step.doneAt = done ? Date.now() : 0;
@@ -1737,12 +1857,14 @@ const Actions = {
     });
   },
 
-  /** Live field edits inside the work space: per-step notes. */
+  /**
+   * Live field edits inside the work space: per-step notes. A note does not
+   * need a tick — "not done, client declined" is worth writing down too.
+   */
   setStepField(clientId, bikeId, jobId, stepId, field, value) {
-    Actions.commitQuiet(db => {
-      const job = Domain.job(Domain.bike(db, clientId, bikeId), jobId);
+    Actions._withJob(Actions.commitQuiet, clientId, bikeId, jobId, (bike, job) => {
       const step = Domain.step(job, stepId);
-      if (!step || job.status === "done") return;
+      if (!step) return false;
       step[field] = value;
       if (job.status === "scheduled" && value !== "") {
         job.status = "active";
@@ -1751,20 +1873,70 @@ const Actions = {
     });
   },
 
+  /**
+   * Record part changes against a step. On a completed job the bike's
+   * specification has already been brought up to date, so a part added
+   * afterwards is applied straight away.
+   */
   addStepChanges(clientId, bikeId, jobId, stepId, changes) {
-    Actions.commit(db => {
-      const job = Domain.job(Domain.bike(db, clientId, bikeId), jobId);
+    Actions._withJob(Actions.commit, clientId, bikeId, jobId, (bike, job) => {
       const step = Domain.step(job, stepId);
-      if (!step) return;
-      changes.forEach(change => step.changes.push(Object.assign({ id: Util.uid("ch") }, change)));
+      if (!step) return false;
+      changes.forEach(data => {
+        const change = Object.assign({ id: Util.uid("ch") }, data);
+        if (job.status === "done") Actions._applyChange(bike, change);
+        step.changes.push(change);
+      });
     });
   },
 
+  /** Remove a part change; on a completed job, the part it fitted is put back. */
   removeStepChange(clientId, bikeId, jobId, stepId, changeId) {
-    Actions.commit(db => {
-      const step = Domain.step(Domain.job(Domain.bike(db, clientId, bikeId), jobId), stepId);
-      if (step) step.changes = step.changes.filter(c => c.id !== changeId);
+    Actions._withJob(Actions.commit, clientId, bikeId, jobId, (bike, job) => {
+      const step = Domain.step(job, stepId);
+      const change = step && step.changes.find(c => c.id === changeId);
+      if (!change) return false;
+      if (job.status === "done") Actions._revertChange(bike, change);
+      step.changes = step.changes.filter(c => c !== change);
     });
+  },
+
+  /**
+   * Correct a part change in place: the part fitted (`to`) or its `cost`.
+   * On a completed job the new name follows through to the bike, unless the
+   * bike has moved on to something else since.
+   */
+  setChangeField(clientId, bikeId, jobId, stepId, changeId, field, value) {
+    Actions._withJob(Actions.commitQuiet, clientId, bikeId, jobId, (bike, job) => {
+      const step = Domain.step(job, stepId);
+      const change = step && step.changes.find(c => c.id === changeId);
+      if (!change) return false;
+      if (field === "cost") {
+        change.cost = Util.parseMoney(value);
+      } else if (field === "to") {
+        const fitted = job.status === "done" && Domain.currentValue(bike, change) === change.to;
+        change.to = value;
+        if (fitted) Actions._setCurrentValue(bike, change, value);
+      }
+    });
+  },
+
+  /**
+   * Edit a completed job's sign-off: who, when, closing notes, and the
+   * pricing — hours, rate and discount.
+   */
+  setJobField(clientId, bikeId, jobId, field, value) {
+    Actions._withJob(Actions.commitQuiet, clientId, bikeId, jobId, (bike, job) => {
+      if (field === "hours" || field === "rate") job[field] = Domain.parseHours(value);
+      else if (field === "discount") job.discount = Math.min(100, Domain.parseHours(value));
+      else if (field === "by" || field === "completedDate" || field === "summary") job[field] = value;
+      else return false;
+    });
+  },
+
+  /** The shop rate that pre-fills labor when work is completed. */
+  setHourlyRate(value) {
+    Actions.commitQuiet(db => { db.settings.hourlyRate = Domain.parseHours(value); });
   },
 
   /**
@@ -1776,7 +1948,8 @@ const Actions = {
    * itself stays on the bike as the record of how it was done — that is the
    * service history the bike page shows and the printout is built from.
    *
-   * `values.timeSpent` is minutes, 0 when nobody filled it in.
+   * Pricing is fixed on the job here: `values.hours`, `values.rate` and
+   * `values.discount` (percent), so it never moves with the shop rate later.
    */
   completeJob(clientId, bikeId, jobId, values) {
     Actions.commit(db => {
@@ -1784,41 +1957,76 @@ const Actions = {
       const job = Domain.job(bike, jobId);
       if (!job || job.status === "done") return;
 
-      const changes = Domain.jobChanges(bike, job);
-      changes.forEach(change => Actions._applyChange(bike, change));
+      // Applied in order, each anchored to what the bike says at that moment:
+      // the same part swapped twice in one job still reads as an honest diff,
+      // and the stored `from` is what a later correction puts back.
+      Domain.allSteps(job).forEach(step => (step.changes || []).forEach(change => {
+        const now = Domain.currentValue(bike, change);
+        if (now !== null) change.from = now;
+        Actions._applyChange(bike, change);
+      }));
 
       job.status = "done";
       job.completedAt = Date.now();
       job.completedDate = values.date || Util.today();
       job.by = values.by || "";
-      job.charged = Util.parseMoney(values.cost);
-      job.timeSpent = Math.max(0, Math.round(Number(values.timeSpent) || 0));
+      // Priced exactly as the form's preview showed it.
+      const price = Domain.jobPrice(job, values);
+      job.hours = price.hours;
+      job.rate = price.rate;
+      job.discount = price.discount;
       job.summary = values.summary || "";
       job.visitStart = bike.leftShopAt || 0;  // which visit this belongs to
 
-      bike.events.push(Domain.newEvent({
-        kind: "work",
-        date: job.completedDate,
-        by: job.by,
-        title: job.name,
-        description: Domain.jobSummary(job),
-        cost: values.cost,
-        changes
-      }));
+      const event = Domain.newEvent({ kind: "work" });
+      bike.events.push(event);
+      job.eventId = event.id;
+      Actions._syncJobEvent(bike, job);
       db.settings.lastBy = values.by || db.settings.lastBy;
+    });
+  },
+
+  /** Rewrite a completed job's "Shop work" changelog entry from the job as it is now. */
+  _syncJobEvent(bike, job) {
+    const event = job.eventId && bike.events.find(e => e.id === job.eventId);
+    if (!event) return;   // deleted from the log on purpose; leave it gone
+    Object.assign(event, {
+      date: job.completedDate,
+      by: job.by,
+      title: job.name,
+      description: Domain.jobSummary(job),
+      cost: Domain.jobPrice(job).total,
+      changes: Domain.allSteps(job).flatMap(step => step.changes || []).map(c => Object.assign({}, c))
     });
   },
 
   /** Apply one recorded change to the bike's current specification. */
   _applyChange(bike, change) {
+    if (change.target === "other" && !(bike.other || []).some(o => o.id === change.key)) {
+      const entry = { id: Util.uid("o"), label: change.label, value: change.to };
+      (bike.other = bike.other || []).push(entry);
+      change.key = entry.id;   // so a later correction can find it again
+      return;
+    }
+    Actions._setCurrentValue(bike, change, change.to);
+    // target === "note": recorded in history only, by design.
+  },
+
+  /**
+   * Undo an applied change — but only if the bike still shows the part it
+   * fitted. Anything else means the bike has moved on, and is left alone.
+   */
+  _revertChange(bike, change) {
+    if (Domain.currentValue(bike, change) === change.to) Actions._setCurrentValue(bike, change, change.from || "");
+  },
+
+  _setCurrentValue(bike, change, value) {
     if (change.target === "spec") {
-      bike.specs[change.key] = change.to;
+      bike.specs[change.key] = value;
     } else if (change.target === "other") {
       const entry = (bike.other || []).find(o => o.id === change.key);
-      if (entry) entry.value = change.to;
-      else (bike.other = bike.other || []).push({ id: Util.uid("o"), label: change.label, value: change.to });
+      if (entry) entry.value = value;
     }
-    // target === "note": recorded in history only, by design.
   },
 
   /**
@@ -2216,11 +2424,6 @@ const DynRows = {
       ]),
       Util.el("div", { class: "sub" }, [
         Util.el("div", { class: "field" }, [
-          Util.el("label", { text: "Extra labour" }),
-          Util.el("input", { "data-step": "price", inputmode: "decimal", placeholder: "0.00",
-                             value: step.price || "" })
-        ]),
-        Util.el("div", { class: "field" }, [
           Util.el("label", { text: "Usually replaces" }),
           Form.specSelect({ "data-step": "specKey" }, step.specKey || "")
         ]),
@@ -2244,7 +2447,6 @@ const DynRows = {
     const read = (row) => ({
       title: own(row, '[data-step="title"]').value.trim(),
       note: own(row, '[data-step="note"]').value.trim(),
-      price: own(row, '[data-step="price"]').value,
       specKey: own(row, '[data-step="specKey"]').value,
       optional: own(row, '[data-step="optional"]').checked
     });
@@ -2258,15 +2460,16 @@ const DynRows = {
 };
 
 /**
- * The printable work summary: one sheet the client takes away with the
- * invoice. It is shown full-screen before printing and every word of it is
- * editable, so the mechanic can tidy a note or add a line for the client.
- * Nothing typed here is saved — it is a document, not a record.
+ * The printable work summary: one sheet the client takes away. It is shown
+ * full-screen before printing and every word of it is editable, so the
+ * mechanic can tidy a note or add a line for the client. Nothing typed here
+ * is saved — it is a document, not a record.
  *
  * Two versions are rendered side by side and toggled: "short" (the default)
  * squeezes each work item to a couple of lines; "long" lists every step with
  * its notes and part changes. Edits made in one are kept if you switch away
- * and back. Prices are deliberately absent — billing lives on the invoice.
+ * and back. Both close each item with its price (total, then labor + parts)
+ * and end the sheet with the visit's total.
  */
 const Print = {
   open(client, bike, jobs, { title = "Work summary", date = Util.today() } = {}) {
@@ -2353,7 +2556,27 @@ const Print = {
       <section class="ps-notes" data-optional>
         <h2>Notes</h2>
         <div class="ps-notes-body" data-body data-placeholder="Add a note for the client — optional, left off the page if blank."></div>
+      </section>
+      <section class="ps-total">
+        <h2>Total</h2>
+        <strong>${esc(Util.money(jobs.reduce((sum, job) => sum + Domain.jobPrice(job).total, 0)))}</strong>
       </section>`;
+  },
+
+  /** The closing price line of one work item, laid out as on the work card. */
+  price(job) {
+    const price = Domain.jobPrice(job);
+    return `
+      <div class="ps-price">
+        <strong>${esc(Util.money(price.total))}</strong>
+        <span class="ps-dim">${esc(Domain.priceBreakdown(price))}</span>
+      </div>`;
+  },
+
+  /** "Not done: Battery Check — no battery fitted; Firmware Update" */
+  skipped(list) {
+    return list.length ? `<p class="ps-dim">Not done: ${esc(list.map(st =>
+      st.label + (st.notes ? " — " + st.notes : "")).join("; "))}</p>` : "";
   },
 
   /** Part changes as "Chain: Shimano HG601". `withFrom` adds the old value. */
@@ -2371,7 +2594,9 @@ const Print = {
           <span>${esc(Util.formatDate(job.completedDate))}</span></div>
         ${done.length ? `<p>${esc(done.join(" · "))}</p>` : ""}
         ${parts.length ? `<p><span class="ps-label">Parts fitted</span> ${esc(parts.join("; "))}</p>` : ""}
+        ${Print.skipped(Domain.skippedSteps(job).filter(st => st.notes))}
         ${job.summary ? `<p class="ps-pre">${esc(job.summary)}</p>` : ""}
+        ${Print.price(job)}
       </article>`;
   },
 
@@ -2379,13 +2604,13 @@ const Print = {
     const skipped = Domain.skippedSteps(job);
     const meta = [
       Util.formatDate(job.completedDate),
-      job.by ? "by " + job.by : "",
-      job.timeSpent ? Util.duration(job.timeSpent) : ""
+      job.by ? "by " + job.by : ""
     ].filter(Boolean).join(" · ");
 
     const line = (st) => {
       const parts = (st.changes || []).map(ch =>
-        `${Domain.changeLabel(ch)}: ${ch.from ? ch.from + " → " : ""}${ch.to || "removed"}`);
+        `${Domain.changeLabel(ch)}: ${ch.from ? ch.from + " → " : ""}${ch.to || "removed"}`
+        + (ch.cost ? ` (${Util.money(ch.cost)})` : ""));
       return `${esc(st.title)}${st.notes ? ` — <em>${esc(st.notes)}</em>` : ""}${
         parts.length ? `<div class="ps-parts">${esc(parts.join("; "))}</div>` : ""}`;
     };
@@ -2402,8 +2627,9 @@ const Print = {
         <div class="ps-job-head"><strong>${esc(job.name)}</strong><span>${esc(meta)}</span></div>
         ${job.request ? `<p><span class="ps-label">You asked</span> ${esc(job.request)}</p>` : ""}
         ${steps ? `<ul>${steps}</ul>` : ""}
-        ${skipped.length ? `<p class="ps-dim">Not done: ${esc(skipped.map(st => st.label).join(", "))}</p>` : ""}
+        ${Print.skipped(skipped)}
         ${job.summary ? `<p class="ps-pre">${esc(job.summary)}</p>` : ""}
+        ${Print.price(job)}
       </article>`;
   }
 };
@@ -2975,23 +3201,44 @@ const View = {
       </div>`;
   },
 
-  /** One step of a job in progress: the row a mechanic actually works in. */
+  /**
+   * One step of a work item: the row a mechanic actually works in. Notes are
+   * open whether or not the step is ticked, so "not done — client declined"
+   * can be written down. A completed item is read-only until it is unlocked
+   * with Edit; unlocked, it works like an open one, and its part changes can
+   * be corrected in place.
+   */
   workStep(client, bike, job, step) {
     const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"`
       + ` data-job="${esc(job.id)}" data-step="${esc(step.id)}"`;
-    const locked = job.status === "done";
+    const done = job.status === "done";
+    const locked = done && !App.ui.editJobs.has(job.id);
 
-    const parts = (step.changes || []).map(ch => `
-      <li>
-        <span class="diff-label">${esc(Domain.changeLabel(ch))}:</span>
-        ${ch.from ? `<span class="diff-from">${esc(ch.from)}</span><span class="diff-arrow">→</span>` : ""}
-        <span class="diff-to">${esc(ch.to || "—")}</span>
-        ${ch.cost ? `<span class="muted money">· ${esc(Util.money(ch.cost))}</span>` : ""}
-        ${locked ? "" : `<button class="btn btn-sm btn-danger" data-action="step:part-remove"
-                                 ${ids} data-change="${esc(ch.id)}" title="Remove this part change">✕</button>`}
-      </li>`).join("");
+    const parts = (step.changes || []).map(ch => {
+      const changeIds = `${ids} data-change="${esc(ch.id)}"`;
+      const remove = locked ? "" : `<button class="btn btn-sm btn-danger" data-action="step:part-remove"
+                                            ${changeIds} title="Remove this part change">✕</button>`;
+      // Unlocked history: the part and its cost become fields, for typos.
+      if (done && !locked) return `
+        <li>
+          <span class="diff-label">${esc(Domain.changeLabel(ch))}:</span>
+          ${ch.from ? `<span class="diff-from">${esc(ch.from)}</span><span class="diff-arrow">→</span>` : ""}
+          <input type="text" value="${esc(ch.to)}" data-input="change:field" data-field="to" ${changeIds}
+                 aria-label="Part fitted">
+          <input type="text" inputmode="decimal" value="${esc(ch.cost || "")}" placeholder="0.00"
+                 data-input="change:field" data-field="cost" ${changeIds} aria-label="Part cost">
+          ${remove}
+        </li>`;
+      return `
+        <li>
+          <span class="diff-label">${esc(Domain.changeLabel(ch))}:</span>
+          ${ch.from ? `<span class="diff-from">${esc(ch.from)}</span><span class="diff-arrow">→</span>` : ""}
+          <span class="diff-to">${esc(ch.to || "—")}</span>
+          ${ch.cost ? `<span class="muted money">· ${esc(Util.money(ch.cost))}</span>` : ""}
+          ${remove}
+        </li>`;
+    }).join("");
 
-    const meta = step.price ? "+" + Util.money(step.price) : "";
     const subs = step.substeps || [];
     const subsDone = subs.filter(sub => sub.done).length;
 
@@ -3006,7 +3253,6 @@ const View = {
           <div class="step-head">
             <span class="step-title">${esc(step.title)}</span>
             ${step.optional ? `<span class="badge">Optional</span>` : ""}
-            ${meta ? `<span class="small muted">${esc(meta)}</span>` : ""}
             ${subs.length ? `<span class="small muted">${subsDone}/${subs.length}</span>` : ""}
           </div>
           ${step.note ? `<p class="step-note">${esc(step.note)}</p>` : ""}
@@ -3014,7 +3260,7 @@ const View = {
           ? (step.notes ? `<p class="small" style="margin-top:6px">${esc(step.notes)}</p>` : "")
           : `
             <div class="step-fields">
-              <input type="text" placeholder="Notes — what you found, what you did"
+              <input type="text" placeholder="Notes — what you found, what you did, or why it was not done"
                      value="${esc(step.notes)}" data-input="step:field" data-field="notes" ${ids}
                      data-focus-key="step-${esc(step.id)}-notes" aria-label="Step notes">
               <button class="btn btn-sm" data-action="step:parts" ${ids}>+ Parts</button>
@@ -3026,20 +3272,56 @@ const View = {
       </li>`;
   },
 
+  /**
+   * A completed item's price: the total, with labor + parts underneath. Kept
+   * as its own piece so live edits to hours, rate, discount or a part cost
+   * can redraw just this (see App.refreshTotals) without a full render.
+   */
+  jobTotals(job) {
+    const price = Domain.jobPrice(job);
+    return `
+      <div class="money"><strong>${esc(Util.money(price.total))}</strong></div>
+      <div class="hint">${esc(Domain.priceBreakdown(price))}</div>
+      <div class="hint">${esc(Domain.laborLine(price))}</div>`;
+  },
+
+  /** The sign-off of a completed item, as fields, while it is unlocked. */
+  jobEditFields(client, bike, job) {
+    const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}" data-job="${esc(job.id)}"`;
+    const field = (key, label, value, extra = "") => `
+      <div class="field">
+        <label for="je-${esc(job.id)}-${key}">${label}</label>
+        <input id="je-${esc(job.id)}-${key}" ${extra} value="${esc(value)}"
+               data-input="job:field" data-field="${key}" ${ids}>
+      </div>`;
+    const number = `type="text" inputmode="decimal" autocomplete="off"`;
+    return `
+      <div class="job-edit">
+        <div class="fields">
+          ${field("by", "Completed by", job.by, `type="text" autocomplete="off"`)}
+          ${field("completedDate", "Date", job.completedDate, `type="date"`)}
+          ${field("hours", "Hours", Util.hours(job.hours), number)}
+          ${field("rate", "Hourly rate", job.rate, number)}
+          ${field("discount", "Discount %", job.discount || "", `${number} placeholder="0"`)}
+          <div class="field wide">
+            <label for="je-${esc(job.id)}-summary">Closing notes</label>
+            <textarea id="je-${esc(job.id)}-summary" rows="3" data-input="job:field" data-field="summary"
+                      ${ids}>${esc(job.summary)}</textarea>
+          </div>
+        </div>
+      </div>`;
+  },
+
   /** One work item on the bench, with its whole checklist. */
   workJob(client, bike, job) {
     const stats = Domain.jobStats(job);
     const state = JOB_STATES[job.status];
     const done = job.status === "done";
-
-    const breakdown = [
-      `${esc(Util.money(job.price))} item`,
-      stats.stepCharges ? `${esc(Util.money(stats.stepCharges))} steps` : "",
-      stats.partsCost ? `${esc(Util.money(stats.partsCost))} parts` : ""
-    ].filter(Boolean).join(" + ");
+    const editing = done && App.ui.editJobs.has(job.id);
+    const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}" data-job="${esc(job.id)}"`;
 
     return `
-      <div class="job-card${done ? " is-done" : ""}" data-job="${esc(job.id)}">
+      <div class="job-card${done ? " is-done" : ""}${editing ? " is-editing" : ""}" data-job="${esc(job.id)}">
         <div class="job-head">
           <span class="badge ${state.badge}">${esc(state.label)}</span>
           <h3>${esc(job.name)}</h3>
@@ -3053,30 +3335,26 @@ const View = {
         <ul class="steps">
           ${job.steps.map(step => View.workStep(client, bike, job, step)).join("")}
         </ul>
-        ${done && job.summary ? `<div class="job-summary"><strong>Notes:</strong> ${esc(job.summary)}</div>` : ""}
+        ${editing ? View.jobEditFields(client, bike, job)
+          : done && job.summary ? `<div class="job-summary"><strong>Notes:</strong> ${esc(job.summary)}</div>` : ""}
 
         <div class="row between" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-          <div>
-            <div class="money"><strong>${esc(Util.money(done ? (job.charged || stats.charge) : stats.charge))}</strong></div>
-            <div class="hint">${breakdown}</div>
-          </div>
+          <div data-job-totals="${esc(job.id)}">${done ? View.jobTotals(job) : ""}</div>
           <div class="row">
-            ${done
+            ${editing
+              ? `<span class="small muted">Changes save as you type.</span>
+                 <button class="btn btn-primary" data-action="job:edit" ${ids}>Done editing</button>`
+              : done
               ? `<span class="small muted">Completed ${esc(Util.formatDate(job.completedDate))}${
                    job.by ? " by " + esc(job.by) : ""}</span>
-                 ${job.timeSpent ? `<span class="chip">Time: <strong>${esc(Util.duration(job.timeSpent))}</strong></span>` : ""}
-                 <button class="btn btn-sm btn-danger" data-action="job:delete"
-                         data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
-                         data-job="${esc(job.id)}">Delete record</button>`
+                 <button class="btn btn-sm btn-danger" data-action="job:delete" ${ids}>Delete record</button>
+                 <button class="btn btn-sm" data-action="job:edit" ${ids}
+                         title="Unlock this record to correct it in place">Edit</button>`
               : `${stats.openRequired
                     ? `<span class="small muted">${stats.openRequired} required step${
                         stats.openRequired === 1 ? "" : "s"} left</span>` : ""}
-                 <button class="btn btn-sm btn-danger" data-action="job:delete"
-                         data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
-                         data-job="${esc(job.id)}">Cancel</button>
-                 <button class="btn btn-primary" data-action="job:complete"
-                         data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
-                         data-job="${esc(job.id)}">Complete work item</button>`}
+                 <button class="btn btn-sm btn-danger" data-action="job:delete" ${ids}>Cancel</button>
+                 <button class="btn btn-primary" data-action="job:complete" ${ids}>Complete work item</button>`}
           </div>
         </div>
       </div>`;
@@ -3131,7 +3409,8 @@ const View = {
               + `<button class="btn" data-action="work:schedule" ${ids}>+ Add work item</button>`)}
 
         ${done.length ? `
-          <details>
+          <details data-done-for="${esc(bike.id)}"
+                   ${App.ui.openDone.has(bike.id) || done.some(j => App.ui.editJobs.has(j.id)) ? "open" : ""}>
             <summary class="small muted" style="cursor:pointer;padding:6px 0">
               Completed on this bike (${done.length})
             </summary>
@@ -3150,10 +3429,8 @@ const View = {
           <span>${esc(s.title)}${s.optional ? ` <span class="badge">Optional</span>` : ""}
             ${s.note ? `<br><span class="hint">${esc(s.note)}</span>` : ""}</span>
           <span class="spacer"></span>
-          <span class="small muted nowrap">${[
-            s.price ? "+" + esc(Util.money(s.price)) : "",
-            s.specKey && SPEC_FIELDS.has(s.specKey) ? esc(SPEC_FIELDS.get(s.specKey).label) : ""
-          ].filter(Boolean).join(" · ")}</span>
+          <span class="small muted nowrap">${
+            s.specKey && SPEC_FIELDS.has(s.specKey) ? esc(SPEC_FIELDS.get(s.specKey).label) : ""}</span>
         </li>`;
       const steps = item.steps.map((s, i) => stepLine(s, i + 1, false)
         + (s.substeps || []).map((sub, j) => stepLine(sub, `${i + 1}.${j + 1}`, true)).join("")).join("");
@@ -3166,7 +3443,7 @@ const View = {
               <p class="small muted">${esc(item.description || "")}</p>
             </div>
             <div class="row">
-              <span class="chip">${esc(Util.money(item.price))}</span>
+              <span class="chip">Est. <strong>${esc(Util.hours(item.hours))} h</strong></span>
               <span class="chip">${item.steps.length} step${item.steps.length === 1 ? "" : "s"}</span>
             </div>
           </div>
@@ -3183,17 +3460,33 @@ const View = {
 
     return `
       <div class="stack">
-        <div class="row between">
-          <h2>Settings</h2>
-          <button class="btn btn-primary" data-action="item:add">+ New work item</button>
+        <h2>Settings</h2>
+
+        <div class="card">
+          <h3>Pricing</h3>
+          <div class="fields" style="margin-top:10px">
+            <div class="field">
+              <label for="set-rate">Hourly rate</label>
+              <input id="set-rate" type="text" inputmode="decimal" autocomplete="off"
+                     value="${esc(db.settings.hourlyRate)}" data-input="settings:rate">
+            </div>
+          </div>
+          <p class="hint" style="margin-top:8px">
+            Labor is hours × rate. When a work item is completed, its estimated hours and this rate fill in
+            the sign-off form, and either can be changed there. Completed work keeps the rate it was
+            charged at, so changing this never alters past work.
+          </p>
         </div>
 
         <div class="card">
-          <h3>Work items</h3>
+          <div class="row between">
+            <h3>Work items</h3>
+            <button class="btn btn-primary" data-action="item:add">+ New work item</button>
+          </div>
           <p class="small muted" style="margin-top:6px">
-            A work item is a priced job with an ordered list of steps — what gets scheduled when a client
-            calls, and what a mechanic works down in the Work tab. Steps can carry guidance, extra
-            labour, and the part they usually replace.
+            A work item is a job with an ordered list of steps and an estimate of the hours it takes — what
+            gets scheduled when a client calls, and what a mechanic works down in the Work tab. Steps can
+            carry guidance and the part they usually replace.
           </p>
           <p class="hint" style="margin-top:8px">
             Editing an item changes what is scheduled from now on. Work already scheduled or in progress
@@ -3254,7 +3547,6 @@ const View = {
           <div class="stat"><div class="n">${stats.byStatus.scheduled}</div><div class="l">Scheduled</div></div>
           <div class="stat"><div class="n">${stats.openJobs}</div><div class="l">Open work items</div></div>
           <div class="stat"><div class="n">${stats.openSteps}</div><div class="l">Steps outstanding</div></div>
-          <div class="stat"><div class="n money">${esc(Util.money(stats.bookedValue))}</div><div class="l">On the books</div></div>
           <div class="stat"><div class="n">${stats.workEntries}</div><div class="l">Jobs done</div></div>
           <div class="stat"><div class="n money">${esc(Util.money(stats.revenue))}</div><div class="l">Recorded spend</div></div>
         </div>
@@ -3377,7 +3669,9 @@ const App = {
    * client's phone number must not close the job you are half way through.
    */
   route: { tab: "clients", clientId: null, bikeId: null, workClientId: null, workBikeId: null },
-  ui: { searchClients: "", searchBikes: "", searchWork: "", searchLog: "", logFilter: "all", openVisits: new Set() },
+  ui: { searchClients: "", searchBikes: "", searchWork: "", searchLog: "", logFilter: "all", openVisits: new Set(),
+        editJobs: new Set(),    // completed work items unlocked for correction
+        openDone: new Set() },  // bikes whose "Completed on this bike" list is expanded
 
   navigate(patch) {
     Object.assign(App.route, patch);
@@ -3432,6 +3726,18 @@ const App = {
     if (!next) return;
     next.focus();
     try { if (start !== null) next.setSelectionRange(start, end); } catch { /* not a text field */ }
+  },
+
+  /**
+   * Redraw just the price of a completed work item. Hours, rate, discount
+   * and part costs are typed into fields; a full render would take the caret
+   * (and a half-typed "1.") away from the person typing them.
+   */
+  refreshTotals(clientId, bikeId, jobId) {
+    const job = Domain.job(Domain.bike(App.db, clientId, bikeId), jobId);
+    if (!job || job.status !== "done") return;
+    document.querySelectorAll(`[data-job-totals="${CSS.escape(jobId)}"]`)
+      .forEach(node => { node.innerHTML = View.jobTotals(job); });
   }
 };
 
@@ -3641,7 +3947,7 @@ const HANDLERS = {
     if (!App.db.workItems.length) {
       Modal.ask({
         title: "No work items yet",
-        message: "Work is scheduled by picking a work item — a priced job with a list of steps.\n\n"
+        message: "Work is scheduled by picking a work item — a job with a list of steps.\n\n"
                + "Create some in Settings first; the app ships with a default set you can start from.",
         actions: [{ label: "Open Settings", class: "btn-primary", run: () => App.navigate({ tab: "settings" }) }]
       });
@@ -3660,7 +3966,7 @@ const HANDLERS = {
             Util.el("div", {}, [
               Util.el("div", { class: "row", style: "gap:8px" }, [
                 Util.el("strong", { text: item.name }),
-                Util.el("span", { class: "chip", text: Util.money(item.price) }),
+                Util.el("span", { class: "chip", text: `Est. ${Util.hours(item.hours)} h` }),
                 Util.el("span", { class: "chip", text: item.steps.length + " steps" })
               ]),
               item.description ? Util.el("div", { class: "hint", text: item.description }) : null
@@ -3749,6 +4055,16 @@ const HANDLERS = {
   "step:part-remove": (d) => Actions.removeStepChange(d.client, d.bike, d.job, d.step, d.change),
 
   /**
+   * Unlock a completed work item to correct it in place, or lock it again.
+   * Nothing is reopened: it stays completed, and every change is saved and
+   * written through to the bike and its changelog entry as it is made.
+   */
+  "job:edit": (d) => {
+    if (!App.ui.editJobs.delete(d.job)) App.ui.editJobs.add(d.job);
+    App.renderKeepingPlace();
+  },
+
+  /**
    * Finish a work item: the moment the job becomes history.
    *
    * Required steps that are still open stop this once — an optional step
@@ -3779,7 +4095,11 @@ const HANDLERS = {
     form();
   },
 
-  /** The completion form: who, when, how long, any closing notes, and the charge. */
+  /**
+   * The completion form: who, when, any closing notes, and the price — the
+   * item's estimated hours at the shop rate, both editable, plus parts, less
+   * an optional discount. The total underneath follows every keystroke.
+   */
   _completeForm(d, bike, job, stats) {
     Modal.open({
       title: `Complete — ${job.name}`,
@@ -3787,18 +4107,15 @@ const HANDLERS = {
       build: (body) => {
         body.append(Form.section("Sign-off", [
           { key: "by", label: "Completed by", placeholder: "Mechanic name" },
-          { key: "date", label: "Date", type: "date" },
-          { key: "cost", label: "Total charged",
-            hint: `${Util.money(job.price)} item`
-                + (stats.stepCharges ? ` + ${Util.money(stats.stepCharges)} steps` : "")
-                + (stats.partsCost ? ` + ${Util.money(stats.partsCost)} parts` : "")
-                + ` = ${Util.money(stats.charge)}` }
-        ], { by: App.db.settings.lastBy || "", date: Util.today(), cost: String(stats.charge) }));
+          { key: "date", label: "Date", type: "date" }
+        ], { by: App.db.settings.lastBy || "", date: Util.today() }));
 
-        body.append(Form.section("Time spent", [
-          { key: "hours", label: "Hours", type: "number", min: "0", step: "1", placeholder: "0" },
-          { key: "minutes", label: "Minutes", type: "number", min: "0", step: "5", placeholder: "0" }
-        ], {}, "Optional. How long the whole work item took."));
+        body.append(Form.section("Labor", [
+          { key: "hours", label: "Hours", type: "number", min: "0", step: "any",
+            hint: "The work item's estimate. Decimals are fine, e.g. 1.75." },
+          { key: "rate", label: "Hourly rate", type: "number", min: "0", step: "any",
+            hint: "The shop rate from Settings." }
+        ], { hours: Util.hours(job.hours), rate: App.db.settings.hourlyRate }));
 
         body.append(Form.section("Notes", [
           { key: "summary", label: "Closing notes (optional)", type: "textarea", wide: true, rows: 3,
@@ -3819,10 +4136,25 @@ const HANDLERS = {
             })))
           ]));
         }
+
+        body.append(Form.section("Discount", [
+          { key: "discount", label: "Discount %", type: "number", min: "0", step: "any", placeholder: "0",
+            hint: "Optional. 10 takes 10% off the total." }
+        ], {}));
+
+        const total = Util.el("div", { class: "money", style: "font-size:18px" });
+        const breakdown = Util.el("div", { class: "hint" });
+        const update = () => {
+          const price = Domain.jobPrice(job, Form.values(body));
+          total.innerHTML = `<strong>${esc(Util.money(price.total))}</strong>`;
+          breakdown.textContent = `${Domain.priceBreakdown(price)} · ${Domain.laborLine(price)}`;
+        };
+        body.append(Util.el("div", { style: "margin-top:4px" }, [total, breakdown]));
+        body.addEventListener("input", update);
+        update();
       },
       onSubmit: (body) => {
         const values = Form.values(body);
-        values.timeSpent = (Number(values.hours) || 0) * 60 + (Number(values.minutes) || 0);
         Actions.completeJob(d.client, d.bike, d.job, values);
 
         // With nothing left open, the bike itself is done — offer the move
@@ -3870,8 +4202,8 @@ const HANDLERS = {
       build: (body) => {
         body.append(Form.section("The job", [
           { key: "name", label: "Name", required: true, wide: true, placeholder: "e.g. Tune up" },
-          { key: "price", label: "Price", placeholder: "0.00",
-            hint: "The base charge. Step labour and parts are added on top." },
+          { key: "hours", label: "Estimated hours", placeholder: String(CONFIG.defaultHours),
+            hint: "Pre-fills labor (hours × the hourly rate) when the work is completed. Decimals are fine, e.g. 1.75." },
           { key: "description", label: "What it covers", type: "textarea", wide: true,
             placeholder: "One or two lines, shown when scheduling and on the bench." }
         ], item || {}));
@@ -3970,7 +4302,21 @@ const INPUTS = {
    * deliberately no re-render here — the mechanic keeps typing and the value
    * is already in the database.
    */
-  "step:field": (d, el) => Actions.setStepField(d.client, d.bike, d.job, d.step, d.field, el.value)
+  "step:field": (d, el) => Actions.setStepField(d.client, d.bike, d.job, d.step, d.field, el.value),
+
+  /** A part change on an unlocked completed item: the part fitted, or its cost. */
+  "change:field": (d, el) => {
+    Actions.setChangeField(d.client, d.bike, d.job, d.step, d.change, d.field, el.value);
+    App.refreshTotals(d.client, d.bike, d.job);
+  },
+
+  /** The sign-off and pricing of an unlocked completed item. */
+  "job:field": (d, el) => {
+    Actions.setJobField(d.client, d.bike, d.job, d.field, el.value);
+    App.refreshTotals(d.client, d.bike, d.job);
+  },
+
+  "settings:rate": (d, el) => Actions.setHourlyRate(el.value)
 };
 
 /* ==========================================================================
@@ -3986,6 +4332,14 @@ document.addEventListener("click", (ev) => {
   ev.preventDefault();
   handler(target.dataset, target);
 });
+
+/** Remember which "Completed on this bike" lists are open across renders. */
+document.addEventListener("toggle", (ev) => {
+  const bikeId = ev.target.dataset && ev.target.dataset.doneFor;
+  if (!bikeId) return;
+  if (ev.target.open) App.ui.openDone.add(bikeId);
+  else App.ui.openDone.delete(bikeId);
+}, true);
 
 /** An open ⋯ menu closes when you click anywhere outside it. */
 document.addEventListener("click", (ev) => {
