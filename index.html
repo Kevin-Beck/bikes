@@ -533,7 +533,7 @@ legend { padding: 0 0 8px; }
      1. CONFIG & SCHEMA   Declarative description of bike spec fields, workflow
                           statuses and the default work-item templates.
      2. UTIL              Pure helpers (ids, escaping, formatting, DOM build).
-     3. STORE             localStorage persistence + in-memory database.
+     3. STORE             Server persistence (server.py) + in-memory database.
      4. DOMAIN            Entity factories, lookups and derived values.
      5. ACTIONS           The only functions that mutate the db.
      6. COMPONENTS        Reusable render helpers (modal, forms, dynamic rows).
@@ -575,8 +575,11 @@ legend { padding: 0 0 8px; }
    ========================================================================== */
 
 const CONFIG = {
-  storageKey: "bikeshop.db.v3",
-  routeKey:   "bikeshop.route.v3",
+  routeKey:   "bikeshop.route.v3", // which tab/client each browser was on
+  api:        "api/db",
+  apiVersion: "api/version",
+  pollMs:     4000,    // how often to look for other people's changes
+  retryMs:    3000,    // how soon to resend a save the server did not get
   currency:   "USD",   // single place to change money formatting
   hourlyRate: 84,      // the shop rate a fresh install starts with (editable in Settings)
   defaultHours: 10,    // estimate for a work item that does not name one
@@ -919,15 +922,23 @@ const Store = {
     updatedAt: Date.now()
   }),
 
-  load() {
-    try {
-      const raw = localStorage.getItem(CONFIG.storageKey);
-      if (!raw) return Store.empty();
-      return Store.migrate(JSON.parse(raw));
-    } catch (err) {
-      console.error("Could not read saved data; starting empty.", err);
-      return Store.empty();
-    }
+  /**
+   * Fetch the shared database from the shop server. A server nobody has
+   * saved to yet starts the app empty; data from the days when each browser
+   * kept its own copy comes across through Data → Import JSON.
+   */
+  async load() {
+    const reply = await Store._fetchJson(CONFIG.api);
+    Store._version = reply.version;
+    Store._base = reply.db;
+    return reply.db ? Store.migrate(structuredClone(reply.db)) : Store.empty();
+  },
+
+  async _fetchJson(url, options) {
+    const res = await fetch(url, { cache: "no-store", ...options });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok && res.status !== 409) throw Object.assign(new Error(body.error || "Server said " + res.status), { status: res.status });
+    return Object.assign(body, { conflict: res.status === 409 });
   },
 
   /** Upgrade older payloads. Keep every past version handled here. */
@@ -1028,25 +1039,175 @@ const Store = {
       .reduce((latest, e) => Math.max(latest, e.createdAt || 0), 0);
   },
 
-  save(db) {
+  /* --- sync with the server --------------------------------------------
+     The server holds the whole database as one versioned document. A save
+     sends it with the version it was based on; if someone else saved in
+     between, the server answers 409 with its copy, the two are merged
+     (Store.merge) and the save goes again. `_base` is the last copy both
+     sides agreed on — what the merge measures each side's changes against.
+     ---------------------------------------------------------------------- */
+  _version: 0,
+  _base: null,
+  _db: null,
+  _dirty: false,      // local changes not yet sent
+  _inFlight: false,
+  _replace: false,    // an import or reset: overwrite rather than merge
+
+  save(db, { replace = false } = {}) {
     db.updatedAt = Date.now();
     clearTimeout(Store._saveTimer);
     Store._saveTimer = null;
+    Store._db = db;
+    Store._dirty = true;
+    if (replace) Store._replace = true;
+    Store._push();
+    return true;
+  },
+
+  async _push() {
+    if (Store._inFlight || !Store._dirty) return;
+    clearTimeout(Store._retryTimer);
+    Store._inFlight = true;
+    Store._dirty = false;
+    Store.flashStatus("Saving…", true);
+
+    const body = JSON.stringify({ baseVersion: Store._version, db: Store._db });
+    let reply;
     try {
-      localStorage.setItem(CONFIG.storageKey, JSON.stringify(db));
-      Store.flashStatus("Saved " + new Date().toLocaleTimeString(CONFIG.locale));
-      return true;
+      // keepalive lets a save started as the tab closes still arrive; the
+      // browser only allows it for small bodies.
+      reply = await Store._fetchJson(CONFIG.api, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body, keepalive: body.length < 60000
+      });
     } catch (err) {
       console.error(err);
-      Store.flashStatus("⚠️ Could not save — storage full or blocked", true);
-      return false;
+      Store._inFlight = false;
+      if (err.status) {   // the server refused it; sending it again will not help
+        Store.flashStatus("⚠️ Server refused the save: " + err.message, true);
+        return;
+      }
+      Store._dirty = true;
+      Store.flashStatus("⚠️ Can't reach the shop server — not saved yet, retrying", true);
+      Store._retryTimer = setTimeout(Store._push, CONFIG.retryMs);
+      return;
     }
+
+    Store._inFlight = false;
+    if (reply.conflict) {
+      Store._adopt(reply);
+      Store._dirty = true;
+    } else {
+      Store._version = reply.version;
+      Store._base = JSON.parse(body).db;
+      Store._replace = false;
+      if (!Store._dirty) Store.flashStatus("Saved " + new Date().toLocaleTimeString(CONFIG.locale));
+    }
+    Store._push();
+  },
+
+  /** Take a newer server copy, folding in any local edits it has not seen. */
+  _adopt({ version, db: remote }) {
+    const local = Store._db || App.db;
+    let next;
+    if (!remote || Store._replace) next = local;
+    else if (!Store._base) next = remote;    // both started from nothing at once: first one in wins
+    else next = Store.merge(Store._base, local, remote);
+
+    Store._version = version;
+    Store._base = remote;
+    App.db = Store._db = Store.migrate(structuredClone(next));
+    App.renderKeepingPlace();
+  },
+
+  /**
+   * Look for other people's saves. Skipped while this browser has its own
+   * work in progress (that save will conflict and merge anyway) or while
+   * someone is typing or in a dialog, so the screen never shifts under them.
+   */
+  async poll() {
+    if (document.hidden || Store._busy()) return;
+    try {
+      const { version } = await Store._fetchJson(CONFIG.apiVersion);
+      if (Store._offline) { Store._offline = false; Store.flashStatus("Reconnected"); }
+      if (version === Store._version) return;
+      const reply = await Store._fetchJson(CONFIG.api);
+      if (Store._busy()) return;
+      Store._base = null;   // nothing local to keep: take the server copy as is
+      Store._adopt(reply);
+    } catch {
+      if (!Store._offline) Store.flashStatus("⚠️ Can't reach the shop server", true);
+      Store._offline = true;
+    }
+  },
+
+  _busy() {
+    const active = document.activeElement;
+    const typing = active && (active.matches("textarea, select, [contenteditable]")
+      || (active.matches("input") && !/^(checkbox|radio|button|submit)$/.test(active.type)));
+    return Store._inFlight || Store._dirty || Store._saveTimer || typing
+      || document.getElementById("modal-root").childElementCount > 0;
+  },
+
+  /** Anything typed or clicked that the server has not confirmed yet. */
+  unsaved: () => !!(Store._dirty || Store._inFlight || Store._saveTimer),
+
+  /**
+   * Three-way merge of two edits of the same database.
+   *
+   * Walks both copies against the common base: whatever only one side
+   * changed is taken from that side, so two people working on different
+   * bikes — or different steps of the same job — both keep their work.
+   * Arrays of records are matched by `id`. Where both sides changed the very
+   * same value, this browser's edit wins.
+   */
+  merge(base, local, remote) {
+    const same = Store._equal;
+    if (same(local, base)) return remote;
+    if (same(remote, base) || same(local, remote)) return local;
+
+    const isObj = v => v && typeof v === "object" && !Array.isArray(v);
+    const isRecords = v => Array.isArray(v) && v.every(x => isObj(x) && x.id);
+
+    if (isRecords(local) && isRecords(remote)) {
+      const byId = list => new Map((isRecords(list) ? list : []).map(x => [x.id, x]));
+      const b = byId(base), r = byId(remote), l = byId(local);
+      const out = [];
+      for (const item of local) {
+        if (r.has(item.id)) out.push(Store.merge(b.get(item.id), item, r.get(item.id)));
+        else if (!b.has(item.id) || !same(item, b.get(item.id))) out.push(item);   // new here, or edited here after the other side deleted it
+      }
+      for (const item of remote) {
+        if (!l.has(item.id) && (!b.has(item.id) || !same(item, b.get(item.id)))) out.push(item);
+      }
+      return out;
+    }
+
+    if (isObj(local) && isObj(remote)) {
+      const b = isObj(base) ? base : {};
+      const out = {};
+      for (const key of new Set([...Object.keys(local), ...Object.keys(remote)])) {
+        const inL = key in local, inR = key in remote;
+        if (inL && inR) out[key] = Store.merge(b[key], local[key], remote[key]);
+        else if (inL) { if (!(key in b) || !same(local[key], b[key])) out[key] = local[key]; }
+        else if (!(key in b) || !same(remote[key], b[key])) out[key] = remote[key];
+      }
+      return out;
+    }
+
+    return local;
+  },
+
+  _equal(a, b) {
+    if (a === b) return true;
+    if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
+    const ka = Object.keys(a), kb = Object.keys(b);
+    return ka.length === kb.length && ka.every(k => Store._equal(a[k], b[k]));
   },
 
   /**
    * Save shortly after the last keystroke. The work space writes on every
-   * `input` event; serialising the whole database that often is wasteful, and
-   * a mechanic typing a paragraph does not need 200 writes to localStorage.
+   * `input` event; sending the whole database that often is wasteful, and
+   * a mechanic typing a paragraph does not need 200 round trips.
    * `flush` on unload and on tab change closes the gap.
    */
   saveSoon(db) {
@@ -2019,7 +2180,7 @@ const Actions = {
 
   replaceDatabase(data) {
     App.db = Store.migrate(data);
-    Store.save(App.db);
+    Store.save(App.db, { replace: true });
     App.navigate({ tab: "clients", clientId: null, bikeId: null, workBikeId: null, workClientId: null });
   }
 };
@@ -3551,9 +3712,9 @@ const View = {
         <div class="card stack">
           <h3>Where your data lives</h3>
           <p class="small muted">
-            Everything is stored in this browser only, under <code>${esc(CONFIG.storageKey)}</code>.
-            It is not sent anywhere. Clearing browser data, or using a different browser,
-            device or private window, means you will not see it. Export regularly.
+            Everything is stored on the shop server and shared by every device on the
+            network; changes from other people appear within a few seconds. The server
+            keeps a daily backup, and you can export a copy here at any time.
           </p>
           <div class="row">
             <span class="chip">Clients: <strong>${stats.clients}</strong></span>
@@ -4330,6 +4491,10 @@ document.addEventListener("input", (ev) => {
  * of the work space.
  */
 window.addEventListener("pagehide", () => Store.flush(App.db));
+window.addEventListener("beforeunload", (ev) => {
+  Store.flush(App.db);
+  if (Store.unsaved()) ev.preventDefault();   // the browser asks "leave anyway?"
+});
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") Store.flush(App.db);
 });
@@ -4470,10 +4635,24 @@ function SAMPLE_DATA() {
   return db;
 }
 
-/* Start. */
-App.db = Store.load();
-Object.assign(App.route, Store.loadRoute() || {});
-App.render();
+/* Start: fetch the shared database, then keep an eye out for other people's changes. */
+(async () => {
+  Object.assign(App.route, Store.loadRoute() || {});
+  try {
+    App.db = await Store.load();
+  } catch (err) {
+    console.error(err);
+    document.getElementById("view").innerHTML = `
+      <div class="card stack">
+        <h2>Can't reach the shop server</h2>
+        <p class="muted">${esc(err.message)}</p>
+        <div><button class="btn btn-primary" onclick="location.reload()">Try again</button></div>
+      </div>`;
+    return;
+  }
+  App.render();
+  setInterval(Store.poll, CONFIG.pollMs);
+})();
 </script>
 </body>
 </html>
