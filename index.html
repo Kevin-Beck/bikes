@@ -34,6 +34,8 @@
   --st-done-bg:#e2f5ec;
   --st-sched:  #9a5b00;
   --st-sched-bg:#fdf0da;
+  --st-paid:   #7a3fc4;
+  --st-paid-bg:#f1e8fc;
   --radius:    8px;
   --shadow:    0 1px 2px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.05);
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
@@ -61,6 +63,8 @@
     --st-done-bg:#12332a;
     --st-sched:  #f0b45e;
     --st-sched-bg:#382a13;
+    --st-paid:   #c49bff;
+    --st-paid-bg:#2c1f42;
     --shadow:    0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
   }
 }
@@ -132,6 +136,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .card[data-status] { border-left-width: 3px; }
 .card[data-status="in_shop"]   { border-left-color: var(--st-in); }
 .card[data-status="completed"] { border-left-color: var(--st-done); }
+.card[data-status="paid"]      { border-left-color: var(--st-paid); }
 .card[data-status="scheduled"] { border-left-color: var(--st-sched); }
 
 .btn {
@@ -160,6 +165,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .badge-in     { background: var(--st-in-bg);    color: var(--st-in); }
 .badge-done   { background: var(--st-done-bg);  color: var(--st-done); }
 .badge-sched  { background: var(--st-sched-bg); color: var(--st-sched); }
+.badge-paid   { background: var(--st-paid-bg);  color: var(--st-paid); }
 .badge-out    { background: var(--surface-2);   color: var(--text-dim); }
 .badge-status { background: var(--st-in-bg);    color: var(--st-in); }
 .chip {
@@ -181,6 +187,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .btn-stage { border: 0; font-weight: 600; color: #fff; padding: 8px 16px; }
 .btn-stage[data-to="in_shop"]   { background: var(--st-in); }
 .btn-stage[data-to="completed"] { background: var(--st-done); }
+.btn-stage[data-to="paid"]      { background: var(--st-paid); }
 .btn-stage[data-to="out"]       { background: #4b5563; }
 .btn-stage[data-to="scheduled"] { background: var(--st-sched); }
 .btn-stage:hover { filter: brightness(1.08); }
@@ -308,6 +315,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .rail-item:hover { border-color: var(--accent); }
 .rail-item[data-status="in_shop"]   { border-left-color: var(--st-in); }
 .rail-item[data-status="completed"] { border-left-color: var(--st-done); }
+.rail-item[data-status="paid"]      { border-left-color: var(--st-paid); }
 .rail-item[data-status="scheduled"] { border-left-color: var(--st-sched); }
 .rail-item[aria-current="true"] { background: var(--surface-2); border-color: var(--accent); }
 .rail-item .t { font-weight: 600; display: block; }
@@ -373,6 +381,46 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 @media (max-width: 620px) { .visit-row { flex-wrap: wrap; } .visit-row .date { min-width: 0; } }
 .visit-body { padding: 4px 0 16px 22px; }
 
+/* finished visits ledger (activity tab): 20 rows tall, then scrolls */
+.ledger { --row-h: 36px; max-height: calc(var(--row-h) * 21); overflow-y: auto; margin-top: 10px;
+          border: 1px solid var(--border); border-radius: 6px; }
+.ledger table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ledger th, .ledger td { height: var(--row-h); padding: 0 10px; text-align: left; border-bottom: 1px solid var(--border); }
+.ledger thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); color: var(--text-dim); font-weight: 600; }
+.ledger .month th { position: sticky; top: var(--row-h); z-index: 1; background: var(--surface-2); }
+.ledger .month .money { float: right; color: var(--text-dim); font-weight: 500; }
+.ledger tbody tr[data-action] { cursor: pointer; }
+.ledger tbody tr[data-action]:hover td { background: var(--surface-2); }
+.ledger .num { text-align: right; white-space: nowrap; }
+.ledger .actions { text-align: right; white-space: nowrap; width: 1%; }
+.ledger tfoot th { position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); }
+.ledger.wide { overflow-x: auto; }
+
+/* monthly tiles (activity tab): income in, expenses out, one per month.
+   An opened tile takes the whole row so its line items have room. */
+.month-tiles { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.pay-methods { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.pay-methods .btn { padding: 12px; font-weight: 600; }
+.month-tile { padding: 0; }
+.month-tile[open] { grid-column: 1 / -1; }
+.month-tile > summary { list-style: none; cursor: pointer; padding: 14px 16px; }
+.month-tile > summary::-webkit-details-marker { display: none; }
+.month-tile > summary:hover { background: var(--surface-2); border-radius: var(--radius); }
+.month-tile[data-current] { border-color: var(--accent); }
+.month-tile h3 { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.month-tile h3 .caret { color: var(--text-dim); font-size: 12px; font-weight: 400; }
+.month-tile[open] h3 .caret { transform: rotate(90deg); }
+.month-sums { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 14px; }
+.month-sums td { padding: 2px 0; }
+.month-sums td.money { text-align: right; }
+.month-sums tr.net td { border-top: 1px solid var(--border); padding-top: 6px; font-weight: 700; }
+.net-up   { color: var(--work); }
+.net-down { color: var(--danger); }
+.month-cats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.month-detail { padding: 0 16px 16px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.month-detail .ledger { margin-top: 6px; }
+@media (max-width: 620px) { .month-detail { grid-template-columns: 1fr; } }
+
 /* --- print sheet ---------------------------------------------------------- */
 /* On screen: a full-window preview of a paper page. On paper: only the page. */
 .print-view { position: fixed; inset: 0; z-index: 200; background: var(--bg); overflow-y: auto; }
@@ -419,6 +467,12 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .ps-notes { margin-top: 14px; padding-top: 10px; border-top: 1px solid #ddd; }
 .ps-notes-body { min-height: 3em; white-space: pre-wrap; }
 .ps-notes-body:empty::before { content: attr(data-placeholder); color: #999; }
+.ps-items { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+.ps-items th { font-size: 9pt; text-transform: uppercase; letter-spacing: .04em; color: #666; font-weight: 600;
+               text-align: left; padding: 4px 0; border-bottom: 1px solid #1a1a1a; }
+.ps-items td { padding: 6px 0; border-bottom: 1px solid #ddd; vertical-align: top; }
+.ps-items .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; padding-left: 14px; }
+.ps-items tr { break-inside: avoid; }
 
 @page { margin: 12mm; }
 @media print {
@@ -467,6 +521,7 @@ legend { padding: 0 0 8px; }
 .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field.wide { grid-column: 1 / -1; }
+.field[hidden] { display: none; }
 .field label { font-size: 12px; color: var(--text-dim); font-weight: 600; }
 .field input, .field textarea, .field select {
   font: inherit; color: var(--text); background: var(--bg);
@@ -481,6 +536,9 @@ legend { padding: 0 0 8px; }
 .dyn-row { display: grid; gap: 8px; align-items: end; margin-bottom: 8px; }
 .dyn-row.kv     { grid-template-columns: 1fr 1.4fr auto; }
 .dyn-row.change { grid-template-columns: 1.1fr 1.3fr .6fr auto; }
+.dyn-row.sale-item { grid-template-columns: minmax(0, 1fr) 80px 110px 90px auto; }
+.dyn-row.sale-item .amount { min-height: 38px; display: flex; align-items: center; justify-content: flex-end;
+                             font-variant-numeric: tabular-nums; }
 /* Template steps are a small block rather than a single line — six controls
    in a row is unreadable, and the order of steps matters, so they carry
    their own move buttons. */
@@ -494,7 +552,8 @@ legend { padding: 0 0 8px; }
 .dyn-row.step-editor .substeps-box > .substeps { margin-top: 8px; }
 .dyn-row.step-editor.substep { background: var(--surface); }
 @media (max-width: 620px) {
-  .dyn-row.kv, .dyn-row.change { grid-template-columns: 1fr; }
+  .dyn-row.kv, .dyn-row.change, .dyn-row.sale-item { grid-template-columns: 1fr; }
+  .dyn-row.sale-item .amount { justify-content: flex-start; min-height: 0; }
 }
 .dyn-note { font-size: 12px; color: var(--text-dim); margin: -4px 0 8px; }
 
@@ -666,25 +725,44 @@ const SPEC_FIELDS = (() => {
  * floats to the top and the resting state sinks to the bottom.
  */
 const BIKE_STATUSES = [
-  { id: "scheduled", rank: 2, label: "Scheduled for work", short: "Scheduled",
+  { id: "scheduled", rank: 3, label: "Scheduled for work", short: "Scheduled",
     action: "Schedule for work",    next: "in_shop",   badge: "badge-sched",
     groupHint: "Expected in — the client plans to bring these bikes to us." },
   { id: "in_shop",   rank: 0, label: "In shop",           short: "In shop",
     action: "Check in",             next: "completed", badge: "badge-in",
     groupHint: "With us now, work outstanding." },
   { id: "completed", rank: 1, label: "Work completed",    short: "Completed",
-    action: "Mark work completed",  next: "out",       badge: "badge-done",
-    groupHint: "Done and waiting for the client to collect." },
-  { id: "out",       rank: 3, label: "Out of shop",       short: "Out",
+    action: "Mark work completed",  next: "paid",      badge: "badge-done",
+    groupHint: "Done and waiting for the client to pay." },
+  { id: "paid",      rank: 2, label: "Paid",              short: "Paid",
+    action: "Mark paid",            next: "out",       badge: "badge-paid",
+    groupHint: "Paid for and waiting for the client to collect." },
+  { id: "out",       rank: 4, label: "Out of shop",       short: "Out",
     action: "Mark picked up",       next: "scheduled", badge: "badge-out",
     groupHint: "With their owners. Nothing outstanding." }
+];
+
+/**
+ * How the Clients tab groups people, by their most urgent bike: a bike with
+ * us (being worked on or waiting to be collected), one on its way, or neither.
+ */
+const CLIENT_GROUPS = [
+  { label: "In shop",       statuses: ["in_shop", "completed", "paid"], badge: "badge-in",
+    hint: "A bike with us — being worked on, waiting on payment or ready to collect." },
+  { label: "Scheduled",     statuses: ["scheduled"],            badge: "badge-sched",
+    hint: "Bringing a bike in soon." },
+  { label: "Other clients", statuses: ["out"],                  badge: "badge-out",
+    hint: "No bikes with us." }
 ];
 
 /** Fast lookup: status id -> status. */
 const BIKE_STATUS = new Map(BIKE_STATUSES.map(s => [s.id, s]));
 
-/** Statuses in list order (In shop, Work completed, Scheduled, Out of shop). */
+/** Statuses in list order (In shop, Work completed, Paid, Scheduled, Out of shop). */
 const BIKE_STATUSES_RANKED = BIKE_STATUSES.slice().sort((a, b) => a.rank - b.rank);
+
+/** How a client can settle up, offered when a bike is marked paid. */
+const PAYMENT_METHODS = ["Cash", "Card", "Check", "Venmo", "Zelle"];
 
 /** A bike is out of the shop until someone says otherwise. */
 const DEFAULT_STATUS = "out";
@@ -725,6 +803,14 @@ const JOB_STATES = {
   active:    { label: "In progress", badge: "badge-in" },
   done:      { label: "Completed", badge: "badge-done" }
 };
+
+/**
+ * What the shop spends money on. These are always offered; the shop adds
+ * its own in the expense form or in Settings (db.expenseCategories). An
+ * expense stores the category by name, so removing a category later leaves
+ * the expenses filed under it untouched.
+ */
+const EXPENSE_CATEGORIES = ["Tools", "Parts", "Team", "Other"];
 
 /**
  * Templates the shop starts with. The owner edits these in Settings; each one
@@ -844,7 +930,18 @@ const Util = {
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   },
 
-  today: () => new Date().toISOString().slice(0, 10),
+  /** Today on the shop's own calendar — toISOString() is UTC, a day ahead every evening. */
+  today() {
+    const d = new Date();
+    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
+  },
+
+  /** "2025-04" -> "April 2025"; a blank key is "Undated". */
+  monthLabel(key) {
+    return key
+      ? new Date(key + "-01T00:00:00").toLocaleDateString(CONFIG.locale, { month: "long", year: "numeric" })
+      : "Undated";
+  },
 
   /** "2025-04-08" -> "8 Apr 2025" (falls back to raw text). */
   formatDate(iso) {
@@ -915,9 +1012,11 @@ const Store = {
    * ordinary records from that point on, editable and deletable in Settings.
    */
   empty: () => ({
-    schemaVersion: 6,
+    schemaVersion: 8,
     clients: [],
     workItems: DEFAULT_WORK_ITEMS.map(item => Domain.newWorkItem(item)),
+    expenses: [],
+    expenseCategories: [],
     settings: { lastBy: "", hourlyRate: CONFIG.hourlyRate },
     updatedAt: Date.now()
   }),
@@ -965,6 +1064,16 @@ const Store = {
       });
     });
 
+    // Schema 7: counter sales — items sold to a client, not tied to a bike.
+    data.clients.forEach(client => {
+      if (!Array.isArray(client.sales)) client.sales = [];
+      client.sales.forEach(sale => { sale.items = Array.isArray(sale.items) ? sale.items : []; });
+    });
+
+    // Schema 8: shop expenses, and the categories the shop added for them.
+    if (!Array.isArray(data.expenses)) data.expenses = [];
+    if (!Array.isArray(data.expenseCategories)) data.expenseCategories = [];
+
     data.clients.forEach(client => (client.bikes || []).forEach(bike => {
       if (!BIKE_STATUS.has(bike.status)) bike.status = DEFAULT_STATUS;
       if (!bike.statusDate) bike.statusDate = "";
@@ -988,7 +1097,7 @@ const Store = {
       });
     }));
 
-    data.schemaVersion = 6;
+    data.schemaVersion = 8;
     return data;
   },
 
@@ -1253,7 +1362,40 @@ const Domain = {
     address: data.address || "",
     notes: data.notes || "",
     createdAt: Date.now(),
-    bikes: []
+    bikes: [],
+    sales: []
+  }),
+
+  /**
+   * A counter sale: items sold to a client with no bike involved — a lock,
+   * a set of tubes. `price` on each item is the price of one; the line is
+   * qty × price.
+   */
+  newSale: (data = {}) => ({
+    id: Util.uid("sale"),
+    date: data.date || Util.today(),
+    by: data.by || "",
+    items: (data.items || []).map(Domain.newSaleItem),
+    notes: data.notes || "",
+    createdAt: Date.now()
+  }),
+
+  /** Money the shop paid out. `category` is a name (see EXPENSE_CATEGORIES). */
+  newExpense: (data = {}) => ({
+    id: Util.uid("x"),
+    date: data.date || Util.today(),
+    amount: Util.cents(data.amount),
+    payee: data.payee || "",
+    receipt: data.receipt || "",
+    category: data.category || "Other",
+    createdAt: Date.now()
+  }),
+
+  newSaleItem: (data = {}) => ({
+    id: data.id || Util.uid("si"),
+    name: data.name || "",
+    qty: Number(data.qty) || 0,
+    price: Util.cents(data.price)
   }),
 
   /**
@@ -1431,6 +1573,10 @@ const Domain = {
     return counts;
   },
 
+  /** A client's most urgent bike status — what groups them on the Clients tab. */
+  clientStatus: (client) => client.bikes.map(Domain.status)
+    .reduce((best, s) => s.rank < best.rank ? s : best, BIKE_STATUS.get(DEFAULT_STATUS)),
+
   /** Every changelog entry with full context, newest first. */
   allEvents: (db) =>
     Domain.allBikes(db)
@@ -1482,6 +1628,23 @@ const Domain = {
   visitDates: (visit) => visit.from === visit.to
     ? Util.formatDate(visit.from)
     : `${Util.formatDate(visit.from)} – ${Util.formatDate(visit.to)}`,
+
+  /**
+   * Every finished visit across the shop, most recent first: ones closed by a
+   * pickup, plus the current one once the bike is marked work completed.
+   * Pre-stamp visits (keyed by day) are always in the past, so they count.
+   */
+  finishedVisits: (db) => Domain.allBikes(db)
+    .flatMap(({ client, bike }) => Domain.visits(bike)
+      .filter(v => {
+        const start = v.jobs[0].visitStart;
+        return typeof start !== "number" || start < (bike.leftShopAt || 0)
+          || ["completed", "paid"].includes(Domain.status(bike).id);
+      })
+      .map(visit => ({ client, bike, visit,
+        total: Util.cents(visit.jobs.reduce((sum, j) => sum + Domain.jobPrice(j).total, 0)) })))
+    .sort((a, b) => (b.visit.jobs[b.visit.jobs.length - 1].completedAt || 0)
+                  - (a.visit.jobs[a.visit.jobs.length - 1].completedAt || 0)),
 
   /** Nothing left open and something finished this visit: time to print. */
   readyToPrint: (bike) => !Domain.openJobs(bike).length && Domain.visitJobs(bike).length > 0,
@@ -1608,7 +1771,37 @@ const Domain = {
 
   bikeSpend: (bike) => bike.events.reduce((sum, e) => sum + (Number(e.cost) || 0), 0),
 
-  clientSpend: (client) => client.bikes.reduce((sum, b) => sum + Domain.bikeSpend(b), 0),
+  clientSpend: (client) => client.bikes.reduce((sum, b) => sum + Domain.bikeSpend(b), 0)
+    + (client.sales || []).reduce((sum, s) => sum + Domain.saleTotal(s), 0),
+
+  /* --- sales --- */
+  sale: (client, saleId) => (client && client.sales || []).find(s => s.id === saleId) || null,
+
+  saleLine: (item) => Util.cents((Number(item.qty) || 0) * (Number(item.price) || 0)),
+
+  saleTotal: (sale) => Util.cents(sale.items.reduce((sum, item) => sum + Domain.saleLine(item), 0)),
+
+  /** "2 × Inner tube, Bell" — a sale in one line. */
+  saleSummary: (sale) => sale.items
+    .map(item => (Number(item.qty) === 1 ? "" : Util.hours(item.qty) + " × ") + item.name).join(", "),
+
+  /** A client's sales, newest first. */
+  clientSales: (client) => (client.sales || []).slice().sort(Util.byDateDesc),
+
+  /** Every sale across the shop with its client, newest first. */
+  allSales: (db) => db.clients
+    .flatMap(client => (client.sales || []).map(sale => ({ client, sale })))
+    .sort((a, b) => Util.byDateDesc(a.sale, b.sale)),
+
+  /** Each item name ever sold, with the price it last went for — to pre-fill the sale form. */
+  pastSaleItems(db) {
+    const seen = new Map();
+    Domain.allSales(db).forEach(({ sale }) => sale.items.forEach(item => {
+      const key = item.name.toLowerCase();
+      if (item.name && !seen.has(key)) seen.set(key, item);
+    }));
+    return seen;
+  },
 
   lastDoneJob: (bike) => Domain.history(bike)[0] || null,
 
@@ -1693,7 +1886,77 @@ const Domain = {
 
   clientSearchText(client) {
     return [client.name, client.phone, client.email, client.company, client.notes,
-            ...client.bikes.map(Domain.bikeSearchText)].join(" ").toLowerCase();
+            ...client.bikes.map(Domain.bikeSearchText),
+            ...(client.sales || []).flatMap(s => s.items.map(i => i.name))].join(" ").toLowerCase();
+  },
+
+  /* --- expenses --- */
+  expense: (db, expenseId) => (db.expenses || []).find(x => x.id === expenseId) || null,
+
+  allExpenses: (db) => (db.expenses || []).slice().sort(Util.byDateDesc),
+
+  /** Every category the form offers: the built-in ones, then the shop's own. */
+  expenseCategories: (db) => [...EXPENSE_CATEGORIES, ...(db.expenseCategories || []).map(c => c.name)],
+
+  /**
+   * The categories worth a column: every offered one that has been spent
+   * in, plus names left behind on expenses by a category since removed.
+   */
+  usedExpenseCategories(db) {
+    const used = new Set((db.expenses || []).map(x => x.category));
+    const offered = Domain.expenseCategories(db);
+    return [...offered.filter(c => used.has(c)), ...[...used].filter(c => !offered.includes(c)).sort()];
+  },
+
+  /** Each company paid before — to suggest in the expense form. */
+  pastPayees: (db) => [...new Set(Domain.allExpenses(db).map(x => x.payee).filter(Boolean))],
+
+  /**
+   * Money in and out, month by month, newest first. Income is each finished
+   * visit (by the day it was finished) and each counter sale; expenses are
+   * grouped by category. Every month from the first one with anything in it
+   * up to this one gets an entry, quiet or not, so each month has its tile.
+   *
+   * -> [{ key: "2026-10", income: [row], expenses: [expense],
+   *       incomeTotal, expenseTotal, net, byCategory: Map(name -> amount) }]
+   */
+  months(db) {
+    const lastDone = (visit) => visit.jobs[visit.jobs.length - 1].completedAt || 0;
+    const income = [
+      ...Domain.finishedVisits(db).map(row => Object.assign(row, { date: row.visit.to || "", at: lastDone(row.visit) })),
+      ...Domain.allSales(db).map(({ client, sale }) => ({
+        client, sale, total: Domain.saleTotal(sale), date: sale.date || "", at: sale.createdAt || 0 }))
+    ].sort((a, b) => b.date.localeCompare(a.date) || b.at - a.at);
+    const expenses = Domain.allExpenses(db);
+
+    const months = new Map();
+    const month = (key) => {
+      if (!months.has(key)) months.set(key, { key, income: [], expenses: [] });
+      return months.get(key);
+    };
+    income.forEach(row => month(row.date.slice(0, 7)).income.push(row));
+    expenses.forEach(x => month((x.date || "").slice(0, 7)).expenses.push(x));
+
+    // Fill the gaps between the first dated month and this one.
+    const dated = [...months.keys()].filter(Boolean).sort();
+    if (dated.length) {
+      const now = Util.today().slice(0, 7);
+      let [y, m] = dated[0].split("-").map(Number);
+      for (let key = dated[0]; key <= now; key = `${y}-${String(m).padStart(2, "0")}`) {
+        month(key);
+        if (++m > 12) { m = 1; y++; }
+      }
+    }
+
+    return [...months.values()]
+      .sort((a, b) => (b.key || "0").localeCompare(a.key || "0"))   // "Undated" last
+      .map(mo => {
+        const byCategory = new Map();
+        mo.expenses.forEach(x => byCategory.set(x.category, Util.cents((byCategory.get(x.category) || 0) + x.amount)));
+        const incomeTotal = Util.cents(mo.income.reduce((s, r) => s + r.total, 0));
+        const expenseTotal = Util.cents(mo.expenses.reduce((s, x) => s + x.amount, 0));
+        return Object.assign(mo, { incomeTotal, expenseTotal, net: Util.cents(incomeTotal - expenseTotal), byCategory });
+      });
   },
 
   /** Shop-wide summary numbers for the Activity tab. */
@@ -1706,6 +1969,7 @@ const Domain = {
     bikes.forEach(({ bike }) => { byStatus[Domain.status(bike).id]++; });
 
     const openJobs = jobs.filter(j => j.status !== "done");
+    const sales = Domain.allSales(db).map(({ sale }) => sale);
     return {
       clients: db.clients.length,
       bikes: bikes.length,
@@ -1714,7 +1978,9 @@ const Domain = {
       workItems: db.workItems.length,
       openJobs: openJobs.length,
       openSteps: openJobs.reduce((sum, j) => sum + Domain.jobStats(j).total - Domain.jobStats(j).done, 0),
-      revenue: events.reduce((sum, e) => sum + (Number(e.cost) || 0), 0),
+      sales: sales.length,
+      revenue: events.reduce((sum, e) => sum + (Number(e.cost) || 0), 0)
+             + sales.reduce((sum, s) => sum + Domain.saleTotal(s), 0),
       byStatus
     };
   }
@@ -1769,6 +2035,78 @@ const Actions = {
     App.navigate({ tab: "clients", clientId: null, bikeId: null });
   },
 
+  addSale(clientId, data) {
+    const sale = Domain.newSale(data);
+    Actions.commit(db => {
+      Domain.client(db, clientId).sales.push(sale);
+      db.settings.lastBy = data.by || db.settings.lastBy;
+    });
+    return sale;
+  },
+
+  /** Item ids are kept, so an edit merges cleanly with someone else's. */
+  updateSale(clientId, saleId, data) {
+    Actions.commit(db => {
+      const sale = Domain.sale(Domain.client(db, clientId), saleId);
+      if (!sale) return;
+      Object.assign(sale, { date: data.date || sale.date, by: data.by || "", notes: data.notes || "",
+                            items: data.items.map(Domain.newSaleItem) });
+    });
+  },
+
+  deleteSale(clientId, saleId) {
+    Actions.commit(db => {
+      const client = Domain.client(db, clientId);
+      client.sales = client.sales.filter(s => s.id !== saleId);
+    });
+  },
+
+  /** A category typed into the expense form is added along with the expense. */
+  addExpense(data) {
+    Actions.commit(db => {
+      if (data.newCategory) Actions._offerCategory(db, data.category);
+      db.expenses.push(Domain.newExpense(data));
+    });
+  },
+
+  updateExpense(expenseId, data) {
+    Actions.commit(db => {
+      const expense = Domain.expense(db, expenseId);
+      if (!expense) return;
+      if (data.newCategory) Actions._offerCategory(db, data.category);
+      const { date, amount, payee, receipt, category } = Domain.newExpense(data);
+      Object.assign(expense, { date, amount, payee, receipt, category });
+    });
+  },
+
+  deleteExpense(expenseId) {
+    Actions.commit(db => { db.expenses = db.expenses.filter(x => x.id !== expenseId); });
+  },
+
+  addExpenseCategory(name) {
+    Actions.commit(db => Actions._offerCategory(db, name));
+  },
+
+  /** Make `name` one of the categories offered, unless it already is. */
+  _offerCategory(db, name) {
+    if (!name || Domain.expenseCategories(db).includes(name)) return;
+    db.expenseCategories.push({ id: Util.uid("xc"), name });
+  },
+
+  /** The expenses filed under the old name move with it. */
+  renameExpenseCategory(categoryId, name) {
+    Actions.commit(db => {
+      const category = db.expenseCategories.find(c => c.id === categoryId);
+      if (!category) return;
+      db.expenses.forEach(x => { if (x.category === category.name) x.category = name; });
+      category.name = name;
+    });
+  },
+
+  deleteExpenseCategory(categoryId) {
+    Actions.commit(db => { db.expenseCategories = db.expenseCategories.filter(c => c.id !== categoryId); });
+  },
+
   addBike(clientId, data, opts = {}) {
     const bike = Domain.newBike(data);
     Actions.commit(db => Domain.client(db, clientId).bikes.push(bike));
@@ -1808,8 +2146,11 @@ const Actions = {
    *
    * The status is current state, so it lives on the bike; but *when* it moved
    * is history, so every transition also writes a changelog entry.
+   *
+   * Moving to "paid" takes how the client paid. It is kept on the bike until
+   * the next visit begins, and stamped on the work it paid for (`paidWith`).
    */
-  setBikeStatus(clientId, bikeId, statusId, note) {
+  setBikeStatus(clientId, bikeId, statusId, note, paidWith) {
     if (!BIKE_STATUS.has(statusId)) return;
     Actions.commit(db => {
       const bike = Domain.bike(db, clientId, bikeId);
@@ -1829,6 +2170,16 @@ const Actions = {
       } else if (from.id === "out" && typeof bike.prevLeftShopAt === "number") {
         bike.leftShopAt = bike.prevLeftShopAt;
         delete bike.prevLeftShopAt;
+      }
+
+      if (to.id === "paid" && paidWith) {
+        bike.payment = { method: paidWith, date: bike.statusDate };
+        Domain.visitJobs(bike).forEach(job => { job.paidWith = paidWith; });
+        note = ["Paid by " + paidWith, note].filter(Boolean).join("\n");
+      } else if (to.id !== "out" && to.id !== "paid") {
+        // Moved back before payment, or on to a new visit: no longer paid.
+        if (from.id === "paid") Domain.visitJobs(bike).forEach(job => { delete job.paidWith; });
+        delete bike.payment;
       }
 
       bike.events.push(Domain.newEvent({
@@ -1921,9 +2272,10 @@ const Actions = {
       const names = itemIds.map(id => (Domain.workItem(db, id) || {}).name).filter(Boolean);
       const status = Domain.status(bike);
 
-      if (status.id === "out" || status.id === "completed") {
+      if (["out", "completed", "paid"].includes(status.id)) {
         const to = BIKE_STATUS.get("scheduled");
         bike.status = to.id;
+        delete bike.payment;
         bike.statusDate = Util.today();
         bike.events.push(Domain.newEvent({
           kind: "status", date: bike.statusDate, title: to.label,
@@ -2390,6 +2742,49 @@ const DynRows = {
     })).filter(entry => entry.label || entry.value);
   },
 
+  /* --- sale item rows --- */
+
+  /**
+   * One line of a sale: item, how many, price of one, and what the line comes
+   * to. `listId` names a datalist of items sold before; picking one fills in
+   * the price it last went for, unless a price is already typed.
+   */
+  saleItemRow(item = {}, listId, past) {
+    const amount = Util.el("div", { class: "amount" });
+    const update = () => {
+      amount.textContent = Util.money(Domain.saleLine({
+        qty: Util.parseMoney(qty.value), price: Util.parseMoney(price.value) }));
+    };
+    const name = Util.el("input", { "data-item": "name", value: item.name || "", list: listId,
+                                    autocomplete: "off", placeholder: "e.g. Inner tube 700×32",
+                                    onchange: () => {
+                                      const known = past && past.get(name.value.trim().toLowerCase());
+                                      if (known && !price.value) { price.value = known.price; update(); }
+                                    } });
+    const qty = Util.el("input", { "data-item": "qty", type: "number", min: "0", step: "any",
+                                   value: item.qty ?? 1, oninput: update });
+    const price = Util.el("input", { "data-item": "price", type: "number", min: "0", step: "any",
+                                     value: item.price ?? "", placeholder: "0.00", oninput: update });
+    update();
+
+    return Util.el("div", { class: "dyn-row sale-item", "data-id": item.id || "" }, [
+      Util.el("div", { class: "field" }, [Util.el("label", { text: "Item" }), name]),
+      Util.el("div", { class: "field" }, [Util.el("label", { text: "Qty" }), qty]),
+      Util.el("div", { class: "field" }, [Util.el("label", { text: "Price each" }), price]),
+      Util.el("div", { class: "field" }, [Util.el("label", { text: "Amount" }), amount]),
+      DynRows.removeButton()
+    ]);
+  },
+
+  parseSaleItems(container) {
+    return Array.from(container.querySelectorAll(".dyn-row.sale-item")).map(row => ({
+      id: row.dataset.id || Util.uid("si"),
+      name: row.querySelector('[data-item="name"]').value.trim(),
+      qty: Util.parseMoney(row.querySelector('[data-item="qty"]').value),
+      price: Util.parseMoney(row.querySelector('[data-item="price"]').value)
+    })).filter(item => item.name);
+  },
+
   /* --- part-change rows --- */
 
   /**
@@ -2608,15 +3003,26 @@ const DynRows = {
  * its notes and part changes. Edits made in one are kept if you switch away
  * and back. Both close each item with its price (total, then labor + parts)
  * and end the sheet with the visit's total.
+ *
+ * A counter sale prints the same way as a receipt: one page, itemised, no
+ * short/long toggle.
  */
 const Print = {
   open(client, bike, jobs, { title = "Work summary", date = Util.today() } = {}) {
+    Print._show(title, Print.sheet(client, bike, jobs, title, date), { modes: true });
+  },
+
+  receipt(client, sale) {
+    Print._show("Receipt", Print.receiptSheet(client, sale));
+  },
+
+  /** The full-screen, editable preview with its toolbar. */
+  _show(title, html, { modes = false } = {}) {
     Print.close();
     const root = document.getElementById("print-root");
 
     const sheet = Util.el("div", {
-      class: "ps-sheet", "data-mode": "short", contenteditable: "true", spellcheck: "true",
-      html: Print.sheet(client, bike, jobs, title, date)
+      class: "ps-sheet", "data-mode": "short", contenteditable: "true", spellcheck: "true", html
     });
 
     const modeButton = (mode, label) => Util.el("button", {
@@ -2633,8 +3039,8 @@ const Print = {
         Util.el("strong", { text: title }),
         Util.el("span", { class: "small muted", text: "Click anywhere on the page to edit it." }),
         Util.el("span", { class: "spacer" }),
-        Util.el("div", { class: "seg", role: "group", "aria-label": "Detail" },
-          [modeButton("short", "Short"), modeButton("long", "Long")]),
+        modes ? Util.el("div", { class: "seg", role: "group", "aria-label": "Detail" },
+          [modeButton("short", "Short"), modeButton("long", "Long")]) : null,
         Util.el("button", { type: "button", class: "btn", text: "Close", onclick: Print.close }),
         Util.el("button", { type: "button", class: "btn btn-primary", text: "Print",
                             onclick: () => Print.print(sheet) })
@@ -2660,22 +3066,31 @@ const Print = {
     document.body.classList.remove("printing");
   },
 
-  sheet(client, bike, jobs, title, date) {
-    const s = bike.specs || {};
-    const line = (label, value) => value
-      ? `<div><span class="ps-label">${esc(label)}</span> ${esc(value)}</div>` : "";
+  /** "Phone 555-0100" — nothing at all when the value is blank. */
+  line: (label, value) => value
+    ? `<div><span class="ps-label">${esc(label)}</span> ${esc(value)}</div>` : "",
 
-    return `
+  head: (title, date) => `
       <header class="ps-head">
         <h1>${esc(title)}</h1>
         <div class="ps-date">${esc(Util.formatDate(date))}</div>
-      </header>
-      <section class="ps-meta">
+      </header>`,
+
+  clientBlock: (client) => `
         <div>
           <h2>Client</h2>
           <div class="ps-strong">${esc(client.name)}</div>
-          ${line("Phone", client.phone)}${line("Email", client.email)}${line("Company", client.company)}
-        </div>
+          ${Print.line("Phone", client.phone)}${Print.line("Email", client.email)}${Print.line("Company", client.company)}
+        </div>`,
+
+  sheet(client, bike, jobs, title, date) {
+    const s = bike.specs || {};
+    const line = Print.line;
+
+    return `
+      ${Print.head(title, date)}
+      <section class="ps-meta">
+        ${Print.clientBlock(client)}
         <div>
           <h2>Bike</h2>
           <div class="ps-strong">${esc(Domain.bikeTitle(bike))}</div>
@@ -2698,6 +3113,42 @@ const Print = {
       <section class="ps-total">
         <h2>Total</h2>
         <strong>${esc(Util.money(jobs.reduce((sum, job) => sum + Domain.jobPrice(job).total, 0)))}</strong>
+      </section>`;
+  },
+
+  /** A counter sale: who bought it, each item with its line amount, the total. */
+  receiptSheet(client, sale) {
+    const rows = sale.items.map(item => `
+          <tr>
+            <td>${esc(item.name)}</td>
+            <td class="num">${esc(Util.hours(item.qty))}</td>
+            <td class="num">${esc(Util.money(item.price))}</td>
+            <td class="num">${esc(Util.money(Domain.saleLine(item)))}</td>
+          </tr>`).join("");
+
+    return `
+      ${Print.head("Receipt", sale.date)}
+      <section class="ps-meta">
+        ${Print.clientBlock(client)}
+        <div>
+          <h2>Sale</h2>
+          ${Print.line("Date", Util.formatDate(sale.date))}${Print.line("Served by", sale.by)}
+        </div>
+      </section>
+      <section>
+        <h2>Items</h2>
+        <table class="ps-items">
+          <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Price each</th><th class="num">Amount</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </section>
+      <section class="ps-notes" data-optional>
+        <h2>Notes</h2>
+        <div class="ps-notes-body" data-body data-placeholder="Add a note for the client — optional, left off the page if blank.">${esc(sale.notes)}</div>
+      </section>
+      <section class="ps-total">
+        <h2>Total</h2>
+        <strong>${esc(Util.money(Domain.saleTotal(sale)))}</strong>
       </section>`;
   },
 
@@ -2772,6 +3223,7 @@ const TABS = [
   { id: "bikes",    label: "Bikes" },
   { id: "work",     label: "Work" },
   { id: "activity", label: "Activity" },
+  { id: "expenses", label: "Expenses" },
   { id: "settings", label: "Settings" },
   { id: "data",     label: "Data" }
 ];
@@ -2818,6 +3270,8 @@ const View = {
       case "in_shop":
         return `<button class="btn btn-sm btn-primary" data-action="work:open" ${ids}>Open work</button>`;
       case "completed":
+        return `<button class="btn btn-sm" data-action="bike:status" data-status="paid" ${ids}>Mark paid</button>`;
+      case "paid":
         return `<button class="btn btn-sm" data-action="bike:status" data-status="out" ${ids}>Mark picked up</button>`;
       default:
         return `<button class="btn btn-sm" data-action="work:schedule" ${ids}>Schedule work</button>`;
@@ -2852,6 +3306,7 @@ const View = {
       <div class="status-bar">
         ${View.statusBadge(bike)}
         ${bike.statusDate ? `<span class="small muted">since ${esc(Util.formatDate(bike.statusDate))}</span>` : ""}
+        ${current.id === "paid" && bike.payment ? `<span class="chip">Paid by <strong>${esc(bike.payment.method)}</strong></span>` : ""}
         <span class="spacer"></span>
         <button class="btn btn-stage" data-to="${esc(next.id)}" ${action} ${ids}>${
           esc(current.id === "out" ? "Schedule work…" : next.action)}</button>
@@ -2935,7 +3390,7 @@ const View = {
       .filter(c => !needle || Domain.clientSearchText(c).includes(needle))
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    const cards = clients.map(c => {
+    const card = c => {
       // Only the statuses that need attention are worth the space here;
       // "out of shop" is the norm and says nothing.
       const counts = Domain.clientStatusCounts(c);
@@ -2945,7 +3400,8 @@ const View = {
         .join(" ");
 
       return `
-      <article class="card clickable" data-action="client:open" data-client="${esc(c.id)}">
+      <article class="card clickable" data-status="${esc(Domain.clientStatus(c).id)}"
+               data-action="client:open" data-client="${esc(c.id)}">
         <div class="card-title">
           <h3>${esc(c.name)}</h3>
           <span class="badge">${c.bikes.length} bike${c.bikes.length === 1 ? "" : "s"}</span>
@@ -2956,7 +3412,21 @@ const View = {
           c.bikes.slice(0, 3).map(b => esc(Domain.bikeTitle(b))).join("<br>")
         }${c.bikes.length > 3 ? `<br><span class="muted">+${c.bikes.length - 3} more</span>` : ""}</p>` : ""}
       </article>`;
-    }).join("");
+    };
+
+    // Grouped by each client's most urgent bike; empty groups still show.
+    const groups = CLIENT_GROUPS
+      .map(group => ({ group, items: clients.filter(c => group.statuses.includes(Domain.clientStatus(c).id)) }))
+      .map(({ group, items }) => `
+        <section class="status-group">
+          <div class="row">
+            <h3>${esc(group.label)}</h3>
+            <span class="badge ${group.badge}">${items.length}</span>
+            <span class="small muted">${esc(group.hint)}</span>
+          </div>
+          ${items.length ? `<div class="grid">${items.map(card).join("")}</div>`
+                         : `<p class="small muted" style="margin-top:8px">None right now.</p>`}
+        </section>`).join("");
 
     return `
       <div class="stack">
@@ -2970,7 +3440,7 @@ const View = {
           </div>
         </div>
         ${clients.length
-          ? `<div class="grid">${cards}</div>`
+          ? groups
           : View.empty("👤", db.clients.length ? "No matches" : "No clients yet",
               db.clients.length ? "Try a different search term."
                                 : "Add your first client to start tracking their bikes.",
@@ -3043,6 +3513,8 @@ const View = {
             <button class="btn btn-primary" data-action="bike:stub" data-client="${esc(client.id)}"
                     title="For a bike we have not seen yet — schedule work against it now, fill in the details when it arrives">+ New bike</button>
             <button class="btn" data-action="bike:add" data-client="${esc(client.id)}">+ Add with full details</button>
+            <button class="btn" data-action="sale:add" data-client="${esc(client.id)}"
+                    title="Sell this client items over the counter — no bike needed">+ Add sale</button>
           </div>
         </div>
         ${client.bikes.length
@@ -3050,6 +3522,39 @@ const View = {
           : View.empty("🚲", "No bikes yet",
               "“New bike” takes a name and nothing else — enough to book work in over the phone.",
               `<button class="btn btn-primary" data-action="bike:stub" data-client="${esc(client.id)}">+ New bike</button>`)}
+        ${View.sales(client)}
+      </div>`;
+  },
+
+  /** A client's counter sales, each with its receipt. Nothing at all until there is one. */
+  sales(client) {
+    const sales = Domain.clientSales(client);
+    if (!sales.length) return "";
+    const rows = sales.map(sale => {
+      const ids = `data-client="${esc(client.id)}" data-sale="${esc(sale.id)}"`;
+      return `
+          <tr>
+            <td style="white-space:nowrap">${esc(Util.formatDate(sale.date))}</td>
+            <td>${esc(Domain.saleSummary(sale))}</td>
+            <td class="num money">${esc(Util.money(Domain.saleTotal(sale)))}</td>
+            <td class="num">
+              <button class="btn btn-sm" data-action="sale:print" ${ids}>🖨 Receipt</button>
+              <button class="btn btn-sm" data-action="sale:edit" ${ids}>Edit</button>
+              <button class="btn btn-sm btn-danger" data-action="sale:delete" ${ids}>Delete</button>
+            </td>
+          </tr>`;
+    }).join("");
+
+    return `
+      <div class="card">
+        <h3>Sales <span class="badge">${sales.length}</span></h3>
+        <p class="small muted" style="margin-top:4px">Items sold over the counter, not tied to a bike.</p>
+        <div class="ledger">
+          <table>
+            <thead><tr><th>Date</th><th>Items</th><th class="num">Total</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
       </div>`;
   },
 
@@ -3274,7 +3779,7 @@ const View = {
     const all = Domain.allBikes(db).filter(match);
     const inShop = all.filter(({ bike }) => Domain.status(bike).id === "in_shop");
     const dueIn = all.filter(({ bike }) => Domain.status(bike).id === "scheduled");
-    const ready = all.filter(({ bike }) => Domain.status(bike).id === "completed");
+    const ready = all.filter(({ bike }) => ["completed", "paid"].includes(Domain.status(bike).id));
 
     const selected = route.workBikeId
       ? Domain.bike(db, route.workClientId, route.workBikeId) : null;
@@ -3609,6 +4114,27 @@ const View = {
 
         <div class="card">
           <div class="row between">
+            <h3>Expense categories</h3>
+            <button class="btn btn-sm" data-action="expcat:add">+ Add category</button>
+          </div>
+          <p class="small muted" style="margin-top:6px">
+            What an expense can be filed under. ${EXPENSE_CATEGORIES.map(esc).join(", ")} are always there.
+            Renaming a category moves its expenses with it; removing one leaves its expenses filed under the old name.
+          </p>
+          <div class="row" style="margin-top:10px">
+            ${EXPENSE_CATEGORIES.map(name => `<span class="chip">${esc(name)}</span>`).join("")}
+            ${db.expenseCategories.map(c => `
+              <span class="chip">${esc(c.name)}
+                <button class="btn btn-sm btn-ghost" data-action="expcat:rename" data-category="${esc(c.id)}"
+                        title="Rename">✎</button>
+                <button class="btn btn-sm btn-danger" data-action="expcat:delete" data-category="${esc(c.id)}"
+                        title="Remove">✕</button>
+              </span>`).join("")}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row between">
             <h3>Work items</h3>
             <button class="btn btn-primary" data-action="item:add">+ New work item</button>
           </div>
@@ -3665,6 +4191,10 @@ const View = {
           </div>`;
         }).join("")).join("");
 
+    // Money in and out, a tile per month; an opened tile lists what is behind it.
+    const thisMonth = Util.today().slice(0, 7);
+    const tiles = Domain.months(db).map(mo => View.monthTile(mo, mo.key === thisMonth)).join("");
+
     return `
       <div class="stack">
         <h2>Activity</h2>
@@ -3672,19 +4202,173 @@ const View = {
           <div class="stat"><div class="n">${stats.clients}</div><div class="l">Clients</div></div>
           <div class="stat"><div class="n">${stats.bikes}</div><div class="l">Bikes</div></div>
           <div class="stat"><div class="n">${stats.byStatus.in_shop}</div><div class="l">In shop</div></div>
-          <div class="stat"><div class="n">${stats.byStatus.completed}</div><div class="l">Awaiting pickup</div></div>
+          <div class="stat"><div class="n">${stats.byStatus.completed}</div><div class="l">Awaiting payment</div></div>
+          <div class="stat"><div class="n">${stats.byStatus.paid}</div><div class="l">Paid, awaiting pickup</div></div>
           <div class="stat"><div class="n">${stats.byStatus.scheduled}</div><div class="l">Scheduled</div></div>
           <div class="stat"><div class="n">${stats.openJobs}</div><div class="l">Open work items</div></div>
           <div class="stat"><div class="n">${stats.openSteps}</div><div class="l">Steps outstanding</div></div>
           <div class="stat"><div class="n">${stats.workEntries}</div><div class="l">Jobs done</div></div>
+          <div class="stat"><div class="n">${stats.sales}</div><div class="l">Sales</div></div>
           <div class="stat"><div class="n money">${esc(Util.money(stats.revenue))}</div><div class="l">Recorded spend</div></div>
         </div>
+        ${tiles ? `
+        <div>
+          <div class="row between">
+            <h3>Month by month</h3>
+            <button class="btn btn-sm" data-action="tab" data-tab="expenses">Expenses →</button>
+          </div>
+          <p class="small muted" style="margin:4px 0 10px">
+            Income is each finished visit and counter sale, by the month it was finished or sold; expenses
+            come from the Expenses tab. Open a month to see what is behind it.
+          </p>
+          <div class="month-tiles">${tiles}</div>
+        </div>` : ""}
         ${board ? `
         <div class="card">
           <h3>On the books</h3>
           <p class="small muted" style="margin-top:4px">Bikes that are with us or due in.</p>
           <dl class="spec-grid one-per-line" style="margin-top:10px">${board}</dl>
         </div>` : View.empty("📋", "Nothing on the books", "Bikes that are with us or due in show up here.")}
+      </div>`;
+  },
+
+  /**
+   * One month on the Activity tab: income, expenses and what is left, with
+   * the spend split by category. Opened, it lists every visit, sale and
+   * expense behind those numbers.
+   */
+  monthTile(mo, current) {
+    const net = mo.net >= 0 ? "net-up" : "net-down";
+    const cats = [...mo.byCategory].sort((a, b) => b[1] - a[1])
+      .map(([name, amount]) => `<span class="chip">${esc(name)} <strong class="money">${esc(Util.money(amount))}</strong></span>`)
+      .join("");
+
+    const income = mo.income.map(({ client, bike, visit, sale, total }) => sale ? `
+      <tr data-action="client:open" data-client="${esc(client.id)}" title="Sale · ${esc(Util.formatDate(sale.date))}">
+        <td>${esc(client.name)}</td>
+        <td><span class="badge">Sale</span> ${esc(Domain.saleSummary(sale))}</td>
+        <td class="num money">${esc(Util.money(total))}</td>
+      </tr>` : `
+      <tr data-action="bike:open" data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
+          title="${esc(Domain.visitDates(visit))}">
+        <td>${esc(client.name)}</td>
+        <td>${esc(Domain.bikeTitle(bike))} — ${esc(visit.jobs.map(j => j.name).join(", "))}${
+          visit.jobs.some(j => j.paidWith)
+            ? ` <span class="badge badge-paid">${esc([...new Set(visit.jobs.map(j => j.paidWith).filter(Boolean))].join(", "))}</span>` : ""}</td>
+        <td class="num money">${esc(Util.money(total))}</td>
+      </tr>`).join("");
+
+    const expenses = mo.expenses.map(x => `
+      <tr data-action="expense:edit" data-expense="${esc(x.id)}" title="Edit this expense">
+        <td class="nowrap">${esc(Util.formatDate(x.date))}</td>
+        <td>${esc(x.payee)}${x.receipt ? ` <span class="small muted">#${esc(x.receipt)}</span>` : ""}</td>
+        <td>${esc(x.category)}</td>
+        <td class="num money">${esc(Util.money(x.amount))}</td>
+      </tr>`).join("");
+
+    return `
+      <details class="card month-tile" data-month="${esc(mo.key)}"${current ? " data-current" : ""}
+               ${App.ui.openMonths.has(mo.key) ? "open" : ""}>
+        <summary>
+          <h3><span>${esc(Util.monthLabel(mo.key))}</span>
+            <span class="spacer"></span>${current ? `<span class="badge badge-in">This month</span>` : ""}
+            <span class="caret">▸</span></h3>
+          <table class="month-sums">
+            <tr><td class="muted">Income</td><td class="money">${esc(Util.money(mo.incomeTotal))}</td></tr>
+            <tr><td class="muted">Expenses</td><td class="money">${esc(Util.money(mo.expenseTotal))}</td></tr>
+            <tr class="net"><td>Net</td><td class="money ${net}">${esc(Util.money(mo.net))}</td></tr>
+          </table>
+          ${cats ? `<div class="month-cats">${cats}</div>` : ""}
+        </summary>
+        <div class="month-detail">
+          <div>
+            <h4>Income <span class="badge">${mo.income.length}</span></h4>
+            ${income ? `<div class="ledger"><table><tbody>${income}</tbody></table></div>`
+                     : `<p class="small muted">No finished visits or sales.</p>`}
+          </div>
+          <div>
+            <h4>Expenses <span class="badge">${mo.expenses.length}</span></h4>
+            ${expenses ? `<div class="ledger"><table><tbody>${expenses}</tbody></table></div>`
+                       : `<p class="small muted">No expenses recorded.</p>`}
+          </div>
+        </div>
+      </details>`;
+  },
+
+  /* --- tab: expenses ---------------------------------------------------- */
+
+  /**
+   * What the shop paid out: a month-by-category summary on top, every
+   * expense below it, grouped by month.
+   */
+  expensesTab(db) {
+    const add = `<button class="btn btn-primary" data-action="expense:add">+ Expense</button>`;
+    const months = Domain.months(db).filter(mo => mo.expenses.length);
+    if (!months.length) {
+      return `
+        <div class="stack">
+          <h2>Expenses</h2>
+          ${View.empty("🧾", "No expenses yet",
+            "Record what the shop pays for — tools, parts, the team — and see it month by month.", add)}
+        </div>`;
+    }
+
+    const cats = Domain.usedExpenseCategories(db);
+    const cell = (amount) => amount ? esc(Util.money(amount)) : `<span class="muted">—</span>`;
+    const allTime = (cat) => Util.cents(months.reduce((s, mo) => s + (mo.byCategory.get(cat) || 0), 0));
+    const summary = months.map(mo => `
+      <tr>
+        <td class="nowrap">${esc(Util.monthLabel(mo.key))}</td>
+        ${cats.map(cat => `<td class="num money">${cell(mo.byCategory.get(cat))}</td>`).join("")}
+        <td class="num money"><strong>${esc(Util.money(mo.expenseTotal))}</strong></td>
+      </tr>`).join("");
+    const grandTotal = Util.cents(months.reduce((s, mo) => s + mo.expenseTotal, 0));
+
+    const list = months.map(mo => `
+      <tr class="month"><th colspan="6">${esc(Util.monthLabel(mo.key))}<span class="money">${esc(Util.money(mo.expenseTotal))}</span></th></tr>
+      ${mo.expenses.map(x => `
+      <tr>
+        <td class="nowrap">${esc(Util.formatDate(x.date))}</td>
+        <td>${esc(x.payee)}</td>
+        <td>${esc(x.category)}</td>
+        <td>${esc(x.receipt)}</td>
+        <td class="num money">${esc(Util.money(x.amount))}</td>
+        <td class="actions">
+          <button class="btn btn-sm" data-action="expense:edit" data-expense="${esc(x.id)}">Edit</button>
+          <button class="btn btn-sm btn-danger" data-action="expense:delete" data-expense="${esc(x.id)}">Delete</button>
+        </td>
+      </tr>`).join("")}`).join("");
+
+    return `
+      <div class="stack">
+        <div class="row between"><h2>Expenses</h2>${add}</div>
+
+        <div class="card">
+          <h3>By month</h3>
+          <p class="small muted" style="margin-top:4px">What was spent each month, by category.</p>
+          <div class="ledger wide">
+            <table>
+              <thead><tr><th>Month</th>${cats.map(c => `<th class="num">${esc(c)}</th>`).join("")}<th class="num">Total</th></tr></thead>
+              <tbody>${summary}</tbody>
+              <tfoot><tr>
+                <th>All time</th>
+                ${cats.map(cat => `<th class="num money">${esc(Util.money(allTime(cat)))}</th>`).join("")}
+                <th class="num money">${esc(Util.money(grandTotal))}</th>
+              </tr></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>All expenses</h3>
+          <div class="ledger wide">
+            <table>
+              <thead><tr><th>Date</th><th>Paid to</th><th>Category</th><th>Order / receipt #</th>
+                         <th class="num">Amount</th><th></th></tr></thead>
+              <tbody>${list}</tbody>
+            </table>
+          </div>
+        </div>
       </div>`;
   },
 
@@ -3720,6 +4404,7 @@ const View = {
             <span class="chip">Clients: <strong>${stats.clients}</strong></span>
             <span class="chip">Bikes: <strong>${stats.bikes}</strong></span>
             <span class="chip">Work items: <strong>${stats.workItems}</strong></span>
+            <span class="chip">Sales: <strong>${stats.sales}</strong></span>
             <span class="chip">Open jobs: <strong>${stats.openJobs}</strong></span>
             <span class="chip">Changelog entries: <strong>${stats.entries}</strong></span>
             <span class="chip">Size: <strong>${(bytes / 1024).toFixed(1)} KB</strong></span>
@@ -3800,7 +4485,8 @@ const App = {
   route: { tab: "clients", clientId: null, bikeId: null, workClientId: null, workBikeId: null },
   ui: { searchClients: "", searchBikes: "", searchWork: "", searchLog: "", logFilter: "all", openVisits: new Set(),
         editJobs: new Set(),    // completed work items unlocked for correction
-        openDone: new Set() },  // bikes whose "Completed on this bike" list is expanded
+        openDone: new Set(),    // bikes whose "Completed on this bike" list is expanded
+        openMonths: new Set() },// months opened on the Activity tab
 
   navigate(patch) {
     Object.assign(App.route, patch);
@@ -3821,6 +4507,7 @@ const App = {
       case "bikes":    html = View.bikesTab(App.db, App.ui.searchBikes); break;
       case "work":     html = View.workTab(App.db, App.route, App.ui.searchWork); break;
       case "activity": html = View.activityTab(App.db); break;
+      case "expenses": html = View.expensesTab(App.db); break;
       case "settings": html = View.settingsTab(App.db); break;
       case "data":     html = View.dataTab(App.db, App.ui.logFilter, App.ui.searchLog); break;
       default:
@@ -3912,8 +4599,207 @@ const HANDLERS = {
 
   "client:delete": (d) => {
     const client = Domain.client(App.db, d.client);
-    const msg = `Delete ${client.name}, their ${client.bikes.length} bike(s) and all service history?\n\nThis cannot be undone.`;
+    const sales = (client.sales || []).length;
+    const msg = `Delete ${client.name}, their ${client.bikes.length} bike(s)${sales ? `, ${sales} sale(s)` : ""} and all service history?\n\nThis cannot be undone.`;
     if (confirm(msg)) Actions.deleteClient(client.id);
+  },
+
+  /* --- sales --- */
+  "sale:add": (d) => HANDLERS._saleForm(d.client, null),
+  "sale:edit": (d) => HANDLERS._saleForm(d.client, d.sale),
+
+  "sale:print": (d) => {
+    const client = Domain.client(App.db, d.client);
+    const sale = Domain.sale(client, d.sale);
+    if (sale) Print.receipt(client, sale);
+  },
+
+  "sale:delete": (d) => {
+    const sale = Domain.sale(Domain.client(App.db, d.client), d.sale);
+    if (sale && confirm(`Delete the sale of ${Domain.saleSummary(sale)} (${Util.money(Domain.saleTotal(sale))})?\n\nThis cannot be undone.`)) {
+      Actions.deleteSale(d.client, d.sale);
+    }
+  },
+
+  /* --- expenses --- */
+  "expense:add": () => HANDLERS._expenseForm(null),
+  "expense:edit": (d) => HANDLERS._expenseForm(d.expense),
+
+  "expense:delete": (d) => {
+    const x = Domain.expense(App.db, d.expense);
+    if (x && confirm(`Delete the ${Util.money(x.amount)} expense paid to ${x.payee || "—"} on ${Util.formatDate(x.date)}?\n\nThis cannot be undone.`)) {
+      Actions.deleteExpense(x.id);
+    }
+  },
+
+  /**
+   * Shared add/edit expense form. The category list ends with "Add
+   * category…", which opens a box to name a new one; it is saved with the
+   * expense and offered from then on.
+   */
+  _expenseForm(expenseId) {
+    const expense = Domain.expense(App.db, expenseId);
+    const NEW = "\u0000new";   // can never be a category's name
+    const offered = Domain.expenseCategories(App.db);
+    const current = expense ? expense.category : EXPENSE_CATEGORIES[0];
+    if (!offered.includes(current)) offered.push(current);   // filed under a category since removed
+
+    Modal.open({
+      title: expense ? "Edit expense" : "New expense",
+      submitLabel: expense ? "Save changes" : "Add expense",
+      build: (body) => {
+        const section = Form.section("Expense", [
+          { key: "amount", label: "Amount", type: "number", step: "0.01", min: "0.01", required: true },
+          { key: "date", label: "Date", type: "date", required: true },
+          { key: "payee", label: "Paid to", placeholder: "Company or person", required: true,
+            suggest: Domain.pastPayees(App.db) },
+          { key: "receipt", label: "Order / receipt # (optional)" }
+        ], expense || { date: Util.today() });
+
+        const select = Util.el("select", { id: "f_category", name: "category" }, [
+          ...offered.map(name => Util.el("option", { value: name, text: name, selected: name === current })),
+          Util.el("option", { value: NEW, text: "+ Add category…" })
+        ]);
+        const newName = Util.el("input", { id: "f_newCategory", name: "newCategory", autocomplete: "off",
+                                           placeholder: "e.g. Rent, Utilities, Marketing" });
+        const newField = Util.el("div", { class: "field", hidden: true }, [
+          Util.el("label", { for: "f_newCategory", text: "New category *" }), newName]);
+        select.addEventListener("change", () => {
+          newField.hidden = select.value !== NEW;
+          if (!newField.hidden) newName.focus();
+        });
+        section.querySelector(".fields").append(
+          Util.el("div", { class: "field" }, [Util.el("label", { for: "f_category", text: "Category" }), select]),
+          newField);
+        body.append(section);
+      },
+      onSubmit: (body) => {
+        const values = Form.values(body);
+        let category = values.category, newCategory = false;
+        if (category === NEW) {
+          const input = body.querySelector("#f_newCategory");
+          if (!values.newCategory) {
+            input.setCustomValidity("Name the new category"); input.reportValidity(); input.setCustomValidity("");
+            return false;
+          }
+          // Typing the name of one already offered just picks that one.
+          category = Domain.expenseCategories(App.db).find(c => c.toLowerCase() === values.newCategory.toLowerCase());
+          newCategory = !category;
+          category = category || values.newCategory;
+        }
+        const data = { amount: values.amount, date: values.date, payee: values.payee,
+                       receipt: values.receipt, category, newCategory };
+        if (expense) Actions.updateExpense(expense.id, data);
+        else Actions.addExpense(data);
+      }
+    });
+  },
+
+  /* --- expense categories (Settings) --- */
+  "expcat:add": () => HANDLERS._categoryForm(null),
+  "expcat:rename": (d) => HANDLERS._categoryForm(d.category),
+
+  "expcat:delete": (d) => {
+    const category = App.db.expenseCategories.find(c => c.id === d.category);
+    if (!category) return;
+    const used = App.db.expenses.filter(x => x.category === category.name).length;
+    if (confirm(`Remove the category "${category.name}"?` + (used
+        ? `\n\nThe ${used} expense(s) filed under it keep it; it just stops being offered for new ones.` : ""))) {
+      Actions.deleteExpenseCategory(category.id);
+    }
+  },
+
+  /** Name a new expense category, or rename one of the shop's own. */
+  _categoryForm(categoryId) {
+    const category = App.db.expenseCategories.find(c => c.id === categoryId);
+    Modal.open({
+      title: category ? "Rename category" : "New expense category",
+      submitLabel: category ? "Rename" : "Add category",
+      build: (body) => body.append(Form.section("Category", [
+        { key: "name", label: "Name", required: true, placeholder: "e.g. Rent, Utilities, Marketing" }
+      ], category || {})),
+      onSubmit: (body) => {
+        const name = Form.values(body).name;
+        const input = body.querySelector("#f_name");
+        const taken = Domain.expenseCategories(App.db)
+          .some(c => c.toLowerCase() === name.toLowerCase() && (!category || c !== category.name));
+        if (!name || taken) {
+          input.setCustomValidity(name ? "There is already a category called that" : "Name the category");
+          input.reportValidity(); input.setCustomValidity("");
+          return false;
+        }
+        if (category) Actions.renameExpenseCategory(category.id, name);
+        else Actions.addExpenseCategory(name);
+      }
+    });
+  },
+
+  /**
+   * Shared add/edit sale form: when, who, a line per item, an optional note
+   * for the receipt. The total follows every keystroke. A new sale offers its
+   * receipt straight away, since that is usually the next thing wanted.
+   */
+  _saleForm(clientId, saleId) {
+    const client = Domain.client(App.db, clientId);
+    const sale = Domain.sale(client, saleId);
+    const past = Domain.pastSaleItems(App.db);
+    const listId = Util.uid("sold");
+
+    Modal.open({
+      title: sale ? "Edit sale" : `New sale — ${client.name}`,
+      submitLabel: sale ? "Save changes" : "Record sale",
+      build: (body) => {
+        body.append(Form.section("Sale", [
+          { key: "date", label: "Date", type: "date" },
+          { key: "by", label: "Sold by", placeholder: "Your name" }
+        ], sale || { by: App.db.settings.lastBy || "", date: Util.today() }));
+
+        const rows = DynRows.container("sale-item");
+        ((sale && sale.items) || [{}]).forEach(item => rows.append(DynRows.saleItemRow(item, listId, past)));
+        body.append(Util.el("fieldset", {}, [
+          Util.el("legend", {}, [
+            Util.el("h4", { text: "Items" }),
+            Util.el("div", { class: "hint", text: "Price is for one; the amount is quantity × price. Items sold before are suggested as you type." })
+          ]),
+          Util.el("datalist", { id: listId }, Array.from(past.values(), item => Util.el("option", { value: item.name }))),
+          rows,
+          DynRows.addButton("+ Add item", rows, () => DynRows.saleItemRow({}, listId, past))
+        ]));
+
+        body.append(Form.section("Notes", [
+          { key: "notes", label: "Note for the receipt (optional)", type: "textarea", wide: true, rows: 2,
+            placeholder: "e.g. Paid by card. Exchange within 30 days with this receipt." }
+        ], sale || {}));
+
+        const total = Util.el("div", { class: "money", style: "font-size:18px" });
+        const update = () => {
+          total.innerHTML = `<strong>${esc(Util.money(Domain.saleTotal({ items: DynRows.parseSaleItems(body) })))}</strong>`;
+        };
+        body.append(Util.el("div", { style: "margin-top:4px" }, [total]));
+        body.addEventListener("input", update);
+        body.addEventListener("click", () => setTimeout(update, 0));   // a row removed
+        update();
+      },
+      onSubmit: (body) => {
+        const values = Form.values(body);
+        const items = DynRows.parseSaleItems(body);
+        if (!items.length) {
+          const first = body.querySelector('[data-item="name"]');
+          if (first) { first.setCustomValidity("Name at least one item"); first.reportValidity(); first.setCustomValidity(""); }
+          return false;
+        }
+        const data = { date: values.date, by: values.by, notes: values.notes, items };
+        if (sale) return void Actions.updateSale(clientId, sale.id, data);
+
+        const added = Actions.addSale(clientId, data);
+        // Deferred: this form closes itself once onSubmit returns.
+        setTimeout(() => Modal.ask({
+          title: "Sale recorded",
+          message: `${Domain.saleSummary(added)} to ${client.name} — ${Util.money(Domain.saleTotal(added))}.\n\nPrint a receipt?`,
+          actions: [{ label: "Print receipt", class: "btn-primary", run: () => HANDLERS["sale:print"]({ client: clientId, sale: added.id }) }]
+        }), 0);
+      }
+    });
   },
 
   /* --- bikes --- */
@@ -4029,6 +4915,7 @@ const HANDLERS = {
    * than just refusing.
    */
   "bike:status": (d) => {
+    if (d.status === "paid") return HANDLERS._paymentPrompt(d.client, d.bike);
     const bike = Domain.bike(App.db, d.client, d.bike);
     const open = bike ? Domain.openJobs(bike) : [];
 
@@ -4049,6 +4936,39 @@ const HANDLERS = {
         { label: "Open the work space", class: "btn-primary",
           run: () => App.navigate({ tab: "work", workClientId: d.client, workBikeId: d.bike }) }
       ]
+    });
+  },
+
+  /**
+   * Marking a bike paid asks how, and that is all: one tap on a method
+   * records it. Anything not listed can be typed under "Other".
+   */
+  _paymentPrompt(clientId, bikeId) {
+    const client = Domain.client(App.db, clientId);
+    const bike = Domain.bike(App.db, clientId, bikeId);
+    if (!bike) return;
+    const due = Util.cents(Domain.visitJobs(bike).reduce((sum, j) => sum + Domain.jobPrice(j).total, 0));
+    const pay = (method) => { Modal.close(); Actions.setBikeStatus(clientId, bikeId, "paid", "", method); };
+
+    Modal.open({
+      title: "How did they pay?",
+      submitLabel: "Record other",
+      build: (body) => body.append(
+        Util.el("p", { class: "small muted", style: "margin:0 0 12px" },
+          `${client.name} — ${Domain.bikeTitle(bike)}` + (due ? ` · ${Util.money(due)} for this visit` : "")),
+        Util.el("div", { class: "pay-methods" }, PAYMENT_METHODS.map(method =>
+          Util.el("button", { type: "button", class: "btn", text: method, onclick: () => pay(method) }))),
+        Util.el("div", { class: "fields", style: "margin-top:14px" }, [
+          Form.field({ key: "other", label: "Other", placeholder: "e.g. Gift card, store credit" })
+        ])),
+      onSubmit: (body) => {
+        const input = body.querySelector("#f_other");
+        if (!input.value.trim()) {
+          input.setCustomValidity("Pick a method above, or type one here"); input.reportValidity(); input.setCustomValidity("");
+          return false;
+        }
+        pay(input.value.trim());
+      }
     });
   },
 
@@ -4462,12 +5382,13 @@ document.addEventListener("click", (ev) => {
   handler(target.dataset, target);
 });
 
-/** Remember which "Completed on this bike" lists are open across renders. */
+/** Remember which "Completed on this bike" lists and monthly tiles are open across renders. */
 document.addEventListener("toggle", (ev) => {
-  const bikeId = ev.target.dataset && ev.target.dataset.doneFor;
-  if (!bikeId) return;
-  if (ev.target.open) App.ui.openDone.add(bikeId);
-  else App.ui.openDone.delete(bikeId);
+  const { doneFor, month } = ev.target.dataset || {};
+  const [open, key] = doneFor ? [App.ui.openDone, doneFor] : month !== undefined ? [App.ui.openMonths, month] : [];
+  if (!open) return;
+  if (ev.target.open) open.add(key);
+  else open.delete(key);
 }, true);
 
 /** An open ⋯ menu closes when you click anywhere outside it. */
