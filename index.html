@@ -167,6 +167,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .badge-sched  { background: var(--st-sched-bg); color: var(--st-sched); }
 .badge-paid   { background: var(--st-paid-bg);  color: var(--st-paid); }
 .badge-out    { background: var(--surface-2);   color: var(--text-dim); }
+.badge-removed { background: var(--surface-2);  color: var(--danger); }
 .badge-status { background: var(--st-in-bg);    color: var(--st-in); }
 .chip {
   display: inline-block; padding: 3px 9px; border-radius: 999px;
@@ -174,6 +175,9 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
   font-size: 12px; color: var(--text-dim);
 }
 .chip strong { color: var(--text); font-weight: 600; }
+/* A chip that opens what it shows — a recorded payment. */
+button.chip { font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+button.chip:hover { border-color: var(--accent); color: var(--text); }
 
 /* status row (bike page): where the bike is, and the one button that moves it on */
 .status-bar {
@@ -399,8 +403,6 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 /* monthly tiles (activity tab): income in, expenses out, one per month.
    An opened tile takes the whole row so its line items have room. */
 .month-tiles { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
-.pay-methods { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
-.pay-methods .btn { padding: 12px; font-weight: 600; }
 .month-tile { padding: 0; }
 .month-tile[open] { grid-column: 1 / -1; }
 .month-tile > summary { list-style: none; cursor: pointer; padding: 14px 16px; }
@@ -417,9 +419,11 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
 .net-up   { color: var(--work); }
 .net-down { color: var(--danger); }
 .month-cats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.month-detail { padding: 0 16px 16px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.month-detail { padding: 0 16px 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 900px) { .month-detail { grid-template-columns: minmax(0, 1fr); } }
+.ledger .note { display: block; font-size: 12px; color: var(--text-dim); white-space: pre-line; }
+.month-tile, .month-detail > * { min-width: 0; }   /* let a wide table scroll inside, not widen the page */
 .month-detail .ledger { margin-top: 6px; }
-@media (max-width: 620px) { .month-detail { grid-template-columns: 1fr; } }
 
 /* --- print sheet ---------------------------------------------------------- */
 /* On screen: a full-window preview of a paper page. On paper: only the page. */
@@ -794,6 +798,19 @@ const ENTRY_KINDS = {
 };
 
 /**
+ * Kinds of activity log entry: work called off, a record taken away, or the
+ * whole database swapped for another (import, sample data, reset).
+ */
+const ACTIVITY_KINDS = {
+  cancel:  { label: "Cancelled", badge: "badge-sched" },
+  delete:  { label: "Deleted",   badge: "badge-removed" },
+  replace: { label: "Replaced",  badge: "badge-removed" }
+};
+
+/** The activity log keeps this many entries; the oldest drop off. */
+const ACTIVITY_KEPT = 1000;
+
+/**
  * Where a scheduled work item is up to. Jobs live on the bike, not on the
  * template, and are snapshots — editing a template later never rewrites work
  * that has already been scheduled or done.
@@ -1017,6 +1034,7 @@ const Store = {
     workItems: DEFAULT_WORK_ITEMS.map(item => Domain.newWorkItem(item)),
     expenses: [],
     expenseCategories: [],
+    activity: [],
     settings: { lastBy: "", hourlyRate: CONFIG.hourlyRate },
     updatedAt: Date.now()
   }),
@@ -1073,6 +1091,8 @@ const Store = {
     // Schema 8: shop expenses, and the categories the shop added for them.
     if (!Array.isArray(data.expenses)) data.expenses = [];
     if (!Array.isArray(data.expenseCategories)) data.expenseCategories = [];
+    // The shop's activity log: what was deleted, cancelled or sent home.
+    if (!Array.isArray(data.activity)) data.activity = [];
 
     data.clients.forEach(client => (client.bikes || []).forEach(bike => {
       if (!BIKE_STATUS.has(bike.status)) bike.status = DEFAULT_STATUS;
@@ -1080,6 +1100,10 @@ const Store = {
       if (!Array.isArray(bike.jobs)) bike.jobs = [];
       bike.stub = !!bike.stub;
       if (typeof bike.leftShopAt !== "number") bike.leftShopAt = Store._lastLeftShop(bike);
+      // Payments first recorded only a method on the work; the date was on the bike.
+      if (bike.payment) bike.jobs.forEach(job => {
+        if (job.paidWith === bike.payment.method && !job.paidDate) job.paidDate = bike.payment.date;
+      });
       bike.jobs.forEach(job => {
         if (!JOB_STATES[job.status]) job.status = "scheduled";
         job.summary = job.summary || "";
@@ -1388,6 +1412,7 @@ const Domain = {
     payee: data.payee || "",
     receipt: data.receipt || "",
     category: data.category || "Other",
+    note: data.note || "",
     createdAt: Date.now()
   }),
 
@@ -1511,6 +1536,23 @@ const Domain = {
     createdAt: Date.now()
   }),
 
+  /**
+   * An activity log entry: something deleted, cancelled or sent home. The
+   * client and bike are kept as names, since the records it is about may
+   * be gone.
+   */
+  newActivity: (data = {}) => ({
+    id: Util.uid("a"),
+    kind: ACTIVITY_KINDS[data.kind] ? data.kind : "delete",
+    title: data.title || "",
+    detail: data.detail || "",
+    client: data.client || "",
+    bike: data.bike || "",
+    amount: Util.cents(data.amount || 0),
+    date: Util.today(),
+    at: Date.now()
+  }),
+
   /* --- lookups --- */
   client: (db, id) => db.clients.find(c => c.id === id) || null,
 
@@ -1549,8 +1591,23 @@ const Domain = {
   /** The status record for a bike; never null, unknown ids fall back. */
   status: (bike) => BIKE_STATUS.get(bike && bike.status) || BIKE_STATUS.get(DEFAULT_STATUS),
 
-  /** The next step in the workflow — what the big button on the bike page does. */
-  nextStatus: (bike) => BIKE_STATUS.get(Domain.status(bike).next),
+  /**
+   * The next step in the workflow — what the big button on the bike page does.
+   * Payment is skipped only when the visit has nothing in it to pay for: no
+   * work still open, and none finished this visit that is not paid for
+   * already. Any unpaid finished work, whatever its price, goes through "paid".
+   */
+  nextStatus(bike) {
+    const next = BIKE_STATUS.get(Domain.status(bike).next);
+    const nothingDue = !Domain.openJobs(bike).length && !Domain.visitJobs(bike).some(j => !j.paidWith);
+    return next.id === "paid" && nothingDue ? BIKE_STATUS.get("out") : next;
+  },
+
+  /**
+   * A visit with no work finished in it can be called off: the bike goes
+   * home, any open work is cancelled, and nothing is charged.
+   */
+  canCancelVisit: (bike) => Domain.isActive(bike) && !Domain.visitJobs(bike).length,
 
   /** True while the bike is anywhere other than back with its owner. */
   isActive: (bike) => Domain.status(bike).id !== DEFAULT_STATUS,
@@ -1629,22 +1686,83 @@ const Domain = {
     ? Util.formatDate(visit.from)
     : `${Util.formatDate(visit.from)} – ${Util.formatDate(visit.to)}`,
 
+  /** Every job in the visit has a payment against it. */
+  visitPaid: (visit) => visit.jobs.every(j => j.paidWith),
+
   /**
-   * Every finished visit across the shop, most recent first: ones closed by a
-   * pickup, plus the current one once the bike is marked work completed.
-   * Pre-stamp visits (keyed by day) are always in the past, so they count.
+   * A past visit — the bike has gone home since — with no payment recorded:
+   * work from before payments were tracked. The visit still under way is
+   * paid through the status flow instead.
    */
-  finishedVisits: (db) => Domain.allBikes(db)
-    .flatMap(({ client, bike }) => Domain.visits(bike)
-      .filter(v => {
-        const start = v.jobs[0].visitStart;
-        return typeof start !== "number" || start < (bike.leftShopAt || 0)
-          || ["completed", "paid"].includes(Domain.status(bike).id);
-      })
-      .map(visit => ({ client, bike, visit,
-        total: Util.cents(visit.jobs.reduce((sum, j) => sum + Domain.jobPrice(j).total, 0)) })))
-    .sort((a, b) => (b.visit.jobs[b.visit.jobs.length - 1].completedAt || 0)
-                  - (a.visit.jobs[a.visit.jobs.length - 1].completedAt || 0)),
+  visitNeedsPayment: (bike, visit) => !Domain.visitPaid(visit)
+    && (Domain.status(bike).id === "out" || visit.jobs.every(j => (j.completedAt || 0) <= (bike.leftShopAt || 0))),
+
+  visitTotal: (visit) => Util.cents(visit.jobs.reduce((sum, j) => sum + Domain.jobPrice(j).total, 0)),
+
+  /**
+   * The work a payment dialog acts on: the unpaid work to take a payment
+   * for, or with `edit` the paid work to correct. Correcting the payment
+   * taken when the bike was marked paid touches only the work it paid for
+   * (`bike.payment.jobs`), never an earlier payment in the same visit.
+   */
+  paymentJobs(bike, visit, edit) {
+    if (!visit) return Domain.visitJobs(bike).filter(j => !j.paidWith);
+    const held = edit && bike.payment && bike.payment.jobs
+      && visit.key === (Domain.currentVisit(bike) || {}).key ? bike.payment.jobs : null;
+    return visit.jobs.filter(j => (edit ? !!j.paidWith : !j.paidWith) && (!held || held.includes(j.id)));
+  },
+
+  /** The visit the bike is on now (work finished since it last went home), if any. */
+  currentVisit(bike) {
+    const first = Domain.visitJobs(bike)[0];
+    return first ? Domain.visits(bike).find(v => v.jobs.includes(first)) : null;
+  },
+
+  /**
+   * Money taken for work, one row per visit and day paid — normally one row
+   * a visit. Only work with a payment recorded counts.
+   *
+   * row: { client, bike, visit, jobs, total, date (paid), methods, note }
+   */
+  paidWork: (db) => Domain.allBikes(db).flatMap(({ client, bike }) =>
+    Domain.visits(bike).flatMap(visit => {
+      const byDate = new Map();
+      visit.jobs.filter(j => j.paidWith).forEach(job => {
+        const date = job.paidDate || job.completedDate || "";
+        if (!byDate.has(date)) byDate.set(date, []);
+        byDate.get(date).push(job);
+      });
+      return Array.from(byDate, ([date, jobs]) => ({
+        client, bike, visit, jobs, date, total: Domain.visitTotal({ jobs }),
+        methods: [...new Set(jobs.map(j => j.paidWith))].join(", "),
+        note: [...new Set(jobs.map(j => j.paidNote).filter(Boolean))].join(" · ")
+      }));
+    })),
+
+  /**
+   * Finished work nobody has paid for yet. `awaiting` is on bikes still with
+   * the shop (or due back) — money about to come in. `unrecorded` is past
+   * visits whose bike has gone home without a payment being recorded,
+   * mostly work from before payments were tracked.
+   *
+   * row: { client, bike, visit, jobs (the unpaid ones), total, date (finished), current }
+   */
+  pendingPayments(db) {
+    const awaiting = [], unrecorded = [];
+    Domain.allBikes(db).forEach(({ client, bike }) => {
+      const current = Domain.status(bike).id !== "out" ? Domain.currentVisit(bike) : null;   // a fresh copy: match by key
+      Domain.visits(bike).forEach(visit => {
+        const jobs = visit.jobs.filter(j => !j.paidWith);
+        if (!jobs.length) return;
+        const row = { client, bike, visit, jobs, total: Domain.visitTotal({ jobs }),
+                      date: jobs[jobs.length - 1].completedDate || "", current: !!current && visit.key === current.key };
+        if (row.current) awaiting.push(row);
+        else if (Domain.visitNeedsPayment(bike, visit)) unrecorded.push(row);
+      });
+    });
+    const newest = (a, b) => b.date.localeCompare(a.date);
+    return { awaiting: awaiting.sort(newest), unrecorded: unrecorded.sort(newest) };
+  },
 
   /** Nothing left open and something finished this visit: time to print. */
   readyToPrint: (bike) => !Domain.openJobs(bike).length && Domain.visitJobs(bike).length > 0,
@@ -1912,18 +2030,18 @@ const Domain = {
   pastPayees: (db) => [...new Set(Domain.allExpenses(db).map(x => x.payee).filter(Boolean))],
 
   /**
-   * Money in and out, month by month, newest first. Income is each finished
-   * visit (by the day it was finished) and each counter sale; expenses are
-   * grouped by category. Every month from the first one with anything in it
+   * Money in and out, month by month, newest first. Income is what was
+   * paid, by the day it was paid: work with a payment recorded, and counter
+   * sales (paid on the day of the sale). Expenses are grouped by category. Every month from the first one with anything in it
    * up to this one gets an entry, quiet or not, so each month has its tile.
    *
    * -> [{ key: "2026-10", income: [row], expenses: [expense],
    *       incomeTotal, expenseTotal, net, byCategory: Map(name -> amount) }]
    */
   months(db) {
-    const lastDone = (visit) => visit.jobs[visit.jobs.length - 1].completedAt || 0;
+    const lastDone = (jobs) => jobs[jobs.length - 1].completedAt || 0;
     const income = [
-      ...Domain.finishedVisits(db).map(row => Object.assign(row, { date: row.visit.to || "", at: lastDone(row.visit) })),
+      ...Domain.paidWork(db).map(row => Object.assign(row, { at: lastDone(row.jobs) })),
       ...Domain.allSales(db).map(({ client, sale }) => ({
         client, sale, total: Domain.saleTotal(sale), date: sale.date || "", at: sale.createdAt || 0 }))
     ].sort((a, b) => b.date.localeCompare(a.date) || b.at - a.at);
@@ -1999,6 +2117,15 @@ const Actions = {
   },
 
   /**
+   * Write to the activity log, inside the commit that did the deed, so the
+   * entry and the change it records are saved (or merged) together.
+   */
+  _log(db, data) {
+    (db.activity = db.activity || []).push(Domain.newActivity(data));
+    if (db.activity.length > ACTIVITY_KEPT) db.activity.splice(0, db.activity.length - ACTIVITY_KEPT);
+  },
+
+  /**
    * A mutation with no visible consequence beyond the control the user is
    * already looking at — a step's notes field. Saving is debounced and
    * nothing re-renders, so typing is never interrupted mid-word.
@@ -2031,7 +2158,14 @@ const Actions = {
   },
 
   deleteClient(clientId) {
-    Actions.commit(db => { db.clients = db.clients.filter(c => c.id !== clientId); });
+    Actions.commit(db => {
+      const client = Domain.client(db, clientId);
+      if (!client) return;
+      db.clients = db.clients.filter(c => c !== client);
+      const sales = (client.sales || []).length;
+      Actions._log(db, { title: "Client deleted", client: client.name,
+        detail: `${client.bikes.length} bike(s)${sales ? `, ${sales} sale(s)` : ""} and all their history` });
+    });
     App.navigate({ tab: "clients", clientId: null, bikeId: null });
   },
 
@@ -2057,7 +2191,11 @@ const Actions = {
   deleteSale(clientId, saleId) {
     Actions.commit(db => {
       const client = Domain.client(db, clientId);
-      client.sales = client.sales.filter(s => s.id !== saleId);
+      const sale = Domain.sale(client, saleId);
+      if (!sale) return;
+      client.sales = client.sales.filter(s => s !== sale);
+      Actions._log(db, { title: "Sale deleted", client: client.name, amount: Domain.saleTotal(sale),
+        detail: `${Domain.saleSummary(sale)} (sold ${Util.formatDate(sale.date)})` });
     });
   },
 
@@ -2074,13 +2212,19 @@ const Actions = {
       const expense = Domain.expense(db, expenseId);
       if (!expense) return;
       if (data.newCategory) Actions._offerCategory(db, data.category);
-      const { date, amount, payee, receipt, category } = Domain.newExpense(data);
-      Object.assign(expense, { date, amount, payee, receipt, category });
+      const { date, amount, payee, receipt, category, note } = Domain.newExpense(data);
+      Object.assign(expense, { date, amount, payee, receipt, category, note });
     });
   },
 
   deleteExpense(expenseId) {
-    Actions.commit(db => { db.expenses = db.expenses.filter(x => x.id !== expenseId); });
+    Actions.commit(db => {
+      const x = Domain.expense(db, expenseId);
+      if (!x) return;
+      db.expenses = db.expenses.filter(e => e !== x);
+      Actions._log(db, { title: "Expense deleted", amount: x.amount,
+        detail: `Paid to ${x.payee || "—"} · ${x.category} · ${Util.formatDate(x.date)}` });
+    });
   },
 
   addExpenseCategory(name) {
@@ -2104,7 +2248,12 @@ const Actions = {
   },
 
   deleteExpenseCategory(categoryId) {
-    Actions.commit(db => { db.expenseCategories = db.expenseCategories.filter(c => c.id !== categoryId); });
+    Actions.commit(db => {
+      const category = db.expenseCategories.find(c => c.id === categoryId);
+      if (!category) return;
+      db.expenseCategories = db.expenseCategories.filter(c => c !== category);
+      Actions._log(db, { title: "Expense category removed", detail: category.name });
+    });
   },
 
   addBike(clientId, data, opts = {}) {
@@ -2148,58 +2297,120 @@ const Actions = {
    * is history, so every transition also writes a changelog entry.
    *
    * Moving to "paid" takes how the client paid. It is kept on the bike until
-   * the next visit begins, and stamped on the work it paid for (`paidWith`).
+   * the next visit begins, and stamped on the work it paid for (`paidWith`,
+   * `paidDate`, `paidNote`), which is where it outlives the visit.
+   *
+   * payment: { method, date (default today), note }
    */
-  setBikeStatus(clientId, bikeId, statusId, note, paidWith) {
+  setBikeStatus(clientId, bikeId, statusId, note, payment) {
     if (!BIKE_STATUS.has(statusId)) return;
     Actions.commit(db => {
       const bike = Domain.bike(db, clientId, bikeId);
+      if (bike) Actions._setStatus(bike, statusId, note, payment);
+    });
+  },
+
+  /** setBikeStatus on a bike already in hand, inside someone else's commit. */
+  _setStatus(bike, statusId, note, payment) {
+    const from = Domain.status(bike);
+    if (from.id === statusId) return;
+    const to = BIKE_STATUS.get(statusId);
+
+    bike.status = to.id;
+    bike.statusDate = Util.today();
+    // Back with its owner: whatever happens next is a new visit. Moving
+    // back out of "out" was a slip, so the visit it closed is reopened, and
+    // the bike returns to the stage it left from (`prevStatus`) — which is
+    // not always "paid", since a visit can end without a charge.
+    if (to.id === "out") {
+      bike.prevLeftShopAt = bike.leftShopAt || 0;
+      bike.leftShopAt = Date.now();
+      bike.prevStatus = from.id;
+    } else if (from.id === "out") {
+      if (typeof bike.prevLeftShopAt === "number") bike.leftShopAt = bike.prevLeftShopAt;
+      delete bike.prevLeftShopAt;
+      delete bike.prevStatus;
+    }
+
+    if (to.id === "paid" && payment) {
+      // Only work not paid for yet: work added after an earlier payment in
+      // the same visit is paid for on its own, and that payment stands.
+      const jobs = Domain.paymentJobs(bike, null);
+      bike.payment = { method: payment.method, date: payment.date || bike.statusDate, note: payment.note || "",
+                       jobs: jobs.map(j => j.id) };
+      jobs.forEach(job => Actions._stampPayment(job, bike.payment));
+      const when = bike.payment.date !== bike.statusDate ? " on " + Util.formatDate(bike.payment.date) : "";
+      note = ["Paid by " + bike.payment.method + when, bike.payment.note, note].filter(Boolean).join("\n");
+    } else if (to.id !== "out" && to.id !== "paid") {
+      // Moved back before payment, or on to a new visit: no longer paid. Only
+      // the payment taken at "paid" comes off — the work it lists; a payment
+      // recorded before that list was kept comes off the whole visit.
+      const held = bike.payment && bike.payment.jobs;
+      if (from.id === "paid") Domain.visitJobs(bike).filter(j => !held || held.includes(j.id))
+        .forEach(job => Actions._stampPayment(job, null));
+      delete bike.payment;
+    }
+
+    bike.events.push(Domain.newEvent({
+      kind: "status",
+      date: bike.statusDate,
+      title: to.label,
+      description: note || "",
+      cost: 0,
+      // Recorded as a "note" change: the log shows the move, but nothing on
+      // the bike's specification is touched by it.
+      changes: [{ target: "note", key: "status", label: "Status",
+                  from: from.label, to: to.label, cost: 0 }]
+    }));
+  },
+
+  /**
+   * Record a payment against a visit after the fact, or correct one.
+   *
+   * Recording stamps the work in the visit that has no payment yet; editing
+   * restamps the work that has one. When it is the bike's current, paid
+   * visit, the payment on the bike follows. With no visit (a bike marked paid
+   * with no finished work) only the bike's payment changes. The bike's log
+   * notes each one as a record edit.
+   */
+  setVisitPayment(clientId, bikeId, visitKey, payment, edit) {
+    const { method, date, note = "" } = payment;
+    Actions.commit(db => {
+      const bike = Domain.bike(db, clientId, bikeId);
       if (!bike) return;
+      const visit = visitKey ? Domain.visits(bike).find(v => v.key === visitKey) : null;
+      if (visitKey && !visit) return;
 
-      const from = Domain.status(bike);
-      if (from.id === statusId) return;
-      const to = BIKE_STATUS.get(statusId);
+      const jobs = visit ? Domain.paymentJobs(bike, visit, edit) : [];
+      const was = jobs.length ? jobs[0].paidWith : bike.payment && bike.payment.method;
+      jobs.forEach(job => Actions._stampPayment(job, { method, date, note }));
+      if (bike.payment && (!visit || visit.key === (Domain.currentVisit(bike) || {}).key)) Object.assign(bike.payment, { method, date, note });
 
-      bike.status = to.id;
-      bike.statusDate = Util.today();
-      // Back with its owner: whatever happens next is a new visit. Moving
-      // back out of "out" was a slip, so the visit it closed is reopened.
-      if (to.id === "out") {
-        bike.prevLeftShopAt = bike.leftShopAt || 0;
-        bike.leftShopAt = Date.now();
-      } else if (from.id === "out" && typeof bike.prevLeftShopAt === "number") {
-        bike.leftShopAt = bike.prevLeftShopAt;
-        delete bike.prevLeftShopAt;
-      }
-
-      if (to.id === "paid" && paidWith) {
-        bike.payment = { method: paidWith, date: bike.statusDate };
-        Domain.visitJobs(bike).forEach(job => { job.paidWith = paidWith; });
-        note = ["Paid by " + paidWith, note].filter(Boolean).join("\n");
-      } else if (to.id !== "out" && to.id !== "paid") {
-        // Moved back before payment, or on to a new visit: no longer paid.
-        if (from.id === "paid") Domain.visitJobs(bike).forEach(job => { delete job.paidWith; });
-        delete bike.payment;
-      }
-
+      const what = visit ? `${jobs.map(j => j.name).join(", ")} (${Domain.visitDates(visit)}) — ` : "";
       bike.events.push(Domain.newEvent({
-        kind: "status",
-        date: bike.statusDate,
-        title: to.label,
-        description: note || "",
-        cost: 0,
-        // Recorded as a "note" change: the log shows the move, but nothing on
-        // the bike's specification is touched by it.
-        changes: [{ target: "note", key: "status", label: "Status",
-                    from: from.label, to: to.label, cost: 0 }]
+        kind: "edit", date: Util.today(), title: edit ? "Payment changed" : "Payment recorded",
+        description: `${what}paid by ${method} on ${Util.formatDate(date)}` + (edit && was && was !== method ? ` (was ${was})` : "")
+          + (note ? "\n" + note : ""),
+        cost: 0, changes: []
       }));
     });
+  },
+
+  /** Write a payment onto a job, or with null take it off. */
+  _stampPayment(job, payment) {
+    if (payment) Object.assign(job, { paidWith: payment.method, paidDate: payment.date, paidNote: payment.note || "" });
+    else { delete job.paidWith; delete job.paidDate; delete job.paidNote; }
   },
 
   deleteBike(clientId, bikeId) {
     Actions.commit(db => {
       const client = Domain.client(db, clientId);
-      client.bikes = client.bikes.filter(b => b.id !== bikeId);
+      const bike = Domain.bike(db, clientId, bikeId);
+      if (!bike) return;
+      client.bikes = client.bikes.filter(b => b !== bike);
+      const done = Domain.doneJobs(bike).length;
+      Actions._log(db, { title: "Bike deleted", client: client.name, bike: Domain.bikeTitle(bike),
+        detail: `${done} job(s) of service history` + (Domain.openJobs(bike).length ? `, ${Domain.openJobs(bike).length} open work item(s)` : "") });
     });
     App.navigate({ tab: "clients", clientId, bikeId: null });
   },
@@ -2237,7 +2448,12 @@ const Actions = {
   },
 
   deleteWorkItem(itemId) {
-    Actions.commit(db => { db.workItems = db.workItems.filter(w => w.id !== itemId); });
+    Actions.commit(db => {
+      const item = Domain.workItem(db, itemId);
+      if (!item) return;
+      db.workItems = db.workItems.filter(w => w !== item);
+      Actions._log(db, { title: "Work item removed from Settings", detail: item.name });
+    });
   },
 
   restoreDefaultWorkItems() {
@@ -2254,7 +2470,8 @@ const Actions = {
    * A bike nobody has seen yet moves to "scheduled" as a side effect — that is
    * what scheduling work *means*, and it is the state the front counter looks
    * for when someone walks in. A bike already in the shop stays in the shop:
-   * this is the mid-job "while it was up on the stand…" path.
+   * this is the mid-job "while it was up on the stand…" path, and one that
+   * was finished (or paid for) and waiting to go goes back on the bench.
    */
   scheduleWork(clientId, bikeId, itemIds, opts = {}) {
     Actions.commit(db => {
@@ -2273,7 +2490,7 @@ const Actions = {
       const status = Domain.status(bike);
 
       if (["out", "completed", "paid"].includes(status.id)) {
-        const to = BIKE_STATUS.get("scheduled");
+        const to = BIKE_STATUS.get(status.id === "out" ? "scheduled" : "in_shop");
         bike.status = to.id;
         delete bike.payment;
         bike.statusDate = Util.today();
@@ -2287,10 +2504,46 @@ const Actions = {
     });
   },
 
+  /**
+   * Take a job off a bike. Deleting the last finished record of the visit
+   * under way also drops the payment held on the bike, since there is no
+   * work left for it to be a payment for. The status is left alone, and a
+   * bike that has gone home keeps its payment (the visit is over).
+   */
   deleteJob(clientId, bikeId, jobId) {
     Actions.commit(db => {
       const bike = Domain.bike(db, clientId, bikeId);
-      if (bike) bike.jobs = bike.jobs.filter(j => j.id !== jobId);
+      const job = Domain.job(bike, jobId);
+      if (!job) return;
+      bike.jobs = bike.jobs.filter(j => j !== job);
+      if (job.status === "done" && Domain.isActive(bike) && !Domain.visitJobs(bike).length) delete bike.payment;
+      const client = Domain.client(db, clientId);
+      Actions._log(db, job.status === "done"
+        ? { title: "Work record deleted", client: client.name, bike: Domain.bikeTitle(bike), amount: Domain.jobPrice(job).total,
+            detail: `${job.name} (completed ${Util.formatDate(job.completedDate)})` + (job.paidWith ? ` — was paid by ${job.paidWith}` : "") }
+        : { kind: "cancel", title: "Work item cancelled", client: client.name, bike: Domain.bikeTitle(bike), detail: job.name });
+    });
+  },
+
+  /**
+   * Call off a visit nothing was done in — booked by mistake, or no work
+   * needed after all. Open work is cancelled, any payment held on the bike
+   * is dropped, and the bike goes home with nothing charged. "Move back"
+   * from "out" undoes the status (the cancelled work stays cancelled).
+   */
+  cancelVisit(clientId, bikeId) {
+    Actions.commit(db => {
+      const bike = Domain.bike(db, clientId, bikeId);
+      if (!bike || !Domain.canCancelVisit(bike)) return;
+      const booking = Domain.status(bike).id === "scheduled";
+      const cancelled = Domain.openJobs(bike).map(j => j.name);
+      const what = booking ? "Booking cancelled" : "Visit cancelled — sent home";
+      bike.jobs = Domain.doneJobs(bike);
+      delete bike.payment;
+      Actions._setStatus(bike, "out", [what + ", nothing charged",
+        cancelled.length ? "Cancelled: " + cancelled.join(", ") : ""].filter(Boolean).join("\n"));
+      Actions._log(db, { kind: "cancel", title: what, client: Domain.client(db, clientId).name, bike: Domain.bikeTitle(bike),
+        detail: (cancelled.length ? "Cancelled: " + cancelled.join(", ") : "No work on it") + " · nothing charged" });
     });
   },
 
@@ -2382,12 +2635,14 @@ const Actions = {
 
   /** Remove a part change; on a completed job, the part it fitted is put back. */
   removeStepChange(clientId, bikeId, jobId, stepId, changeId) {
-    Actions._withJob(Actions.commit, clientId, bikeId, jobId, (bike, job) => {
+    Actions._withJob(Actions.commit, clientId, bikeId, jobId, (bike, job, db) => {
       const step = Domain.step(job, stepId);
       const change = step && step.changes.find(c => c.id === changeId);
       if (!change) return false;
       if (job.status === "done") Actions._revertChange(bike, change);
       step.changes = step.changes.filter(c => c !== change);
+      Actions._log(db, { title: "Part change removed", client: Domain.client(db, clientId).name, bike: Domain.bikeTitle(bike),
+        amount: change.cost, detail: `${Domain.changeLabel(change)}: ${change.to || "—"} — on ${job.name}` });
     });
   },
 
@@ -2526,12 +2781,19 @@ const Actions = {
   deleteEvent(clientId, bikeId, eventId) {
     Actions.commitLocal(db => {
       const bike = Domain.bike(db, clientId, bikeId);
-      if (bike) bike.events = bike.events.filter(e => e.id !== eventId);
+      const event = bike && bike.events.find(e => e.id === eventId);
+      if (!event) return;
+      bike.events = bike.events.filter(e => e !== event);
+      Actions._log(db, { title: "Changelog entry deleted", client: Domain.client(db, clientId).name, bike: Domain.bikeTitle(bike),
+        detail: `${event.title || "(untitled)"} (${Util.formatDate(event.date)})` });
     });
   },
 
-  replaceDatabase(data) {
+  /** `how` is what the log says happened: "Imported a backup", "Everything deleted"… */
+  replaceDatabase(data, how) {
     App.db = Store.migrate(data);
+    if (how) Actions._log(App.db, { kind: "replace", title: how,
+      detail: `${App.db.clients.length} client(s) now on record` });
     Store.save(App.db, { replace: true });
     App.navigate({ tab: "clients", clientId: null, bikeId: null, workBikeId: null, workClientId: null });
   }
@@ -2580,11 +2842,13 @@ const Modal = {
    * A question with several ways out — no form, no saving.
    *
    * `message` is plain text; blank lines split it into paragraphs. `actions`
-   * are rendered after Cancel in the order given, each `{ label, class, run }`.
+   * are rendered after the dismiss button (`dismissLabel`, "Cancel" unless
+   * that would read as one of the actions) in the order given, each
+   * `{ label, class, run }`; with none, it is a notice with one way out.
    * The dialog closes before `run()` is called, so an action is free to open a
    * modal of its own.
    */
-  ask({ title, message, actions = [] }) {
+  ask({ title, message, actions = [], dismissLabel = "Cancel" }) {
     Modal.close();
 
     const dialog = Util.el("div", {
@@ -2594,7 +2858,7 @@ const Modal = {
       Util.el("div", { class: "body" },
         String(message).split("\n\n").map(text => Util.el("p", { text }))),
       Util.el("footer", {}, [
-        Util.el("button", { type: "button", class: "btn", text: "Cancel", onclick: Modal.close })
+        Util.el("button", { type: "button", class: "btn", text: dismissLabel, onclick: Modal.close })
       ].concat(actions.map(action => Util.el("button", {
         type: "button",
         class: "btn " + (action.class || ""),
@@ -3269,8 +3533,10 @@ const View = {
                         title="Mark this bike as arrived and put it on the work board">→ Check in</button>`;
       case "in_shop":
         return `<button class="btn btn-sm btn-primary" data-action="work:open" ${ids}>Open work</button>`;
-      case "completed":
-        return `<button class="btn btn-sm" data-action="bike:status" data-status="paid" ${ids}>Mark paid</button>`;
+      case "completed": {
+        const next = Domain.nextStatus(bike);   // straight to pickup when there is nothing to pay for
+        return `<button class="btn btn-sm" data-action="bike:status" data-status="${esc(next.id)}" ${ids}>${esc(next.action)}</button>`;
+      }
       case "paid":
         return `<button class="btn btn-sm" data-action="bike:status" data-status="out" ${ids}>Mark picked up</button>`;
       default:
@@ -3290,26 +3556,51 @@ const View = {
   },
 
   /**
-   * The bike page's status row: where the bike is now, and the one button
-   * that moves it to the next stage, coloured for the stage it moves it to.
-   * From "out" the next step is booking work in, so that button opens the
-   * scheduling dialog rather than setting a bare status.
+   * The one button that moves a bike to its next stage, coloured for the
+   * stage it moves it to — on the bike page and in the work space alike.
+   * From "out" the next step is booking work in, so it opens the scheduling
+   * dialog rather than setting a bare status.
    */
-  statusBar(client, bike) {
+  nextStepButton(client, bike, size = "") {
     const current = Domain.status(bike);
     const next = Domain.nextStatus(bike);
     const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"`;
     const action = current.id === "out"
       ? `data-action="work:schedule"` : `data-action="bike:status" data-status="${esc(next.id)}"`;
+    return `<button class="btn btn-stage ${size}" data-to="${esc(next.id)}" ${action} ${ids}>${
+      esc(current.id === "out" ? "Schedule work…" : next.action)}</button>`;
+  },
+
+  /**
+   * Calling off a visit nothing was done in, next to the button that moves
+   * it on: a booking that is not coming in, or a bike going home unrepaired.
+   */
+  cancelVisitButton(client, bike, size = "") {
+    if (!Domain.canCancelVisit(bike)) return "";
+    const booking = Domain.status(bike).id === "scheduled";
+    return `<button class="btn btn-danger ${size}" data-action="bike:cancel"
+                    data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
+                    title="${booking ? "Not coming in after all: take it off the schedule"
+                                     : "No work needed after all: send it home with nothing charged"}">${
+      booking ? "Cancel booking" : "Cancel &amp; send home"}</button>`;
+  },
+
+  /** The bike page's status row: where the bike is now, and what moves it on. */
+  statusBar(client, bike) {
+    const current = Domain.status(bike);
+    const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"`;
 
     return `
       <div class="status-bar">
         ${View.statusBadge(bike)}
-        ${bike.statusDate ? `<span class="small muted">since ${esc(Util.formatDate(bike.statusDate))}</span>` : ""}
-        ${current.id === "paid" && bike.payment ? `<span class="chip">Paid by <strong>${esc(bike.payment.method)}</strong></span>` : ""}
+        ${bike.statusDate && current.id !== "paid" ? `<span class="small muted">since ${esc(Util.formatDate(bike.statusDate))}</span>` : ""}
+        ${current.id === "paid" && bike.payment ? `
+          <button class="chip" data-action="payment:edit" ${ids}
+                  data-visit="${esc((Domain.currentVisit(bike) || {}).key || "")}"
+                  title="Change how or when this was paid">Paid by <strong>${esc(bike.payment.method)}</strong> ✎</button>` : ""}
         <span class="spacer"></span>
-        <button class="btn btn-stage" data-to="${esc(next.id)}" ${action} ${ids}>${
-          esc(current.id === "out" ? "Schedule work…" : next.action)}</button>
+        ${View.cancelVisitButton(client, bike)}
+        ${View.nextStepButton(client, bike)}
       </div>`;
   },
 
@@ -3320,8 +3611,12 @@ const View = {
   bikeMenu(client, bike) {
     const ids = `data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"`;
     const current = Domain.status(bike);
-    // Backing out of "scheduled" would be cancelling a booking, not fixing a slip.
+    // Backing out of "scheduled" would be cancelling a booking, not fixing a
+    // slip — that is "Cancel booking". Nor can a bike with work done on it
+    // this visit be un-arrived. Out of "out", back to where it left from.
     const back = current.id === "scheduled" ? null
+      : current.id === "in_shop" && Domain.visitJobs(bike).length ? null
+      : current.id === "out" && BIKE_STATUS.has(bike.prevStatus) ? BIKE_STATUS.get(bike.prevStatus)
       : BIKE_STATUSES.find(s => s.next === current.id);
     return `
       <details class="menu">
@@ -3671,6 +3966,8 @@ const View = {
       // How many notes a visit holds, so the one worth opening stands out.
       const notes = v.jobs.reduce((n, j) =>
         n + (j.summary ? 1 : 0) + Domain.allSteps(j).filter(st => st.notes).length, 0);
+      const unpaid = Domain.visitNeedsPayment(bike, v);
+      const paidWith = [...new Set(v.jobs.map(j => j.paidWith).filter(Boolean))].join(", ");
       return `
         <li>
           <button class="visit-row" aria-expanded="${open}" data-action="history:toggle"
@@ -3679,11 +3976,17 @@ const View = {
             <span class="date">${esc(Domain.visitDates(v))}</span>
             <span class="work">${esc(v.jobs.map(j => j.name).join(", "))}</span>
             ${notes ? `<span class="chip">${notes} note${notes === 1 ? "" : "s"}</span>` : ""}
+            ${unpaid ? `<span class="badge badge-sched">No payment recorded</span>`
+              : Domain.visitPaid(v) ? `<span class="chip">Paid by <strong>${esc(paidWith)}</strong></span>` : ""}
           </button>
           ${open ? `
             <div class="visit-body">
               <div class="row" style="margin-bottom:10px">
                 <span class="spacer"></span>
+                ${unpaid ? `<button class="btn btn-sm" data-action="history:pay" ${ids} data-visit="${esc(v.key)}"
+                        title="Record how and when this work was paid for">Record payment</button>` : ""}
+                ${v.jobs.some(j => j.paidWith) ? `<button class="btn btn-sm" data-action="payment:edit" ${ids} data-visit="${esc(v.key)}"
+                        title="Change how or when this was paid">Edit payment</button>` : ""}
                 <button class="btn btn-sm" data-action="print:history" ${ids} data-visit="${esc(v.key)}"
                         title="Reprint the summary for this visit">Print visit</button>
               </div>
@@ -3781,8 +4084,9 @@ const View = {
     const dueIn = all.filter(({ bike }) => Domain.status(bike).id === "scheduled");
     const ready = all.filter(({ bike }) => ["completed", "paid"].includes(Domain.status(bike).id));
 
-    const selected = route.workBikeId
-      ? Domain.bike(db, route.workClientId, route.workBikeId) : null;
+    // A bike that has gone home is off the board, so it is not shown either.
+    const picked = route.workBikeId ? Domain.bike(db, route.workClientId, route.workBikeId) : null;
+    const selected = picked && Domain.isActive(picked) ? picked : null;
     const selectedClient = selected ? Domain.client(db, route.workClientId) : null;
 
     const railItem = ({ client, bike }) => {
@@ -4024,23 +4328,20 @@ const View = {
             <button class="btn btn-sm" data-action="bike:open" ${ids}>Open bike record</button>
             <button class="btn btn-sm" data-action="work:schedule" ${ids}
                     title="Something else needs doing while it is on the stand">+ Add work item</button>
-            ${Domain.status(bike).id === "scheduled"
-              ? `<button class="btn btn-sm btn-primary" data-action="bike:checkin" ${ids}
-                         title="It is here — put it on the bench">→ Check in</button>`
-              : ""}
-            ${open.length || Domain.status(bike).id !== "in_shop" ? "" : `
-              <button class="btn btn-sm btn-primary" data-action="bike:status"
-                      data-status="completed" ${ids}>Mark work completed</button>`}
+            ${View.cancelVisitButton(client, bike, "btn-sm")}
+            ${open.length && Domain.status(bike).id === "in_shop" ? ""   // finishing the items comes first
+              : View.nextStepButton(client, bike, "btn-sm")}
           </div>
         </div>
 
         ${open.length
           ? open.map(job => View.workJob(client, bike, job)).join("")
           : View.empty("✅", "No open work items",
-              "Everything scheduled for this bike is done. Print a summary for the client, add another work item, or mark the bike ready for collection.",
-              (Domain.readyToPrint(bike)
-                ? `<button class="btn btn-primary" data-action="print:visit" ${ids}>Print</button> ` : "")
-              + `<button class="btn" data-action="work:schedule" ${ids}>+ Add work item</button>`)}
+              Domain.canCancelVisit(bike)
+                ? "Nothing has been done on this visit. Add a work item above, or cancel the visit if no work is needed."
+                : "Everything scheduled for this bike is done. Print a summary for the client, or move the bike on with the button above.",
+              Domain.readyToPrint(bike)
+                ? `<button class="btn btn-primary" data-action="print:visit" ${ids}>Print</button>` : "")}
 
         ${done.length ? `
           <details data-done-for="${esc(bike.id)}"
@@ -4194,6 +4495,7 @@ const View = {
     // Money in and out, a tile per month; an opened tile lists what is behind it.
     const thisMonth = Util.today().slice(0, 7);
     const tiles = Domain.months(db).map(mo => View.monthTile(mo, mo.key === thisMonth)).join("");
+    const pending = View.pending(db);
 
     return `
       <div class="stack">
@@ -4211,6 +4513,7 @@ const View = {
           <div class="stat"><div class="n">${stats.sales}</div><div class="l">Sales</div></div>
           <div class="stat"><div class="n money">${esc(Util.money(stats.revenue))}</div><div class="l">Recorded spend</div></div>
         </div>
+        ${pending}
         ${tiles ? `
         <div>
           <div class="row between">
@@ -4218,8 +4521,8 @@ const View = {
             <button class="btn btn-sm" data-action="tab" data-tab="expenses">Expenses →</button>
           </div>
           <p class="small muted" style="margin:4px 0 10px">
-            Income is each finished visit and counter sale, by the month it was finished or sold; expenses
-            come from the Expenses tab. Open a month to see what is behind it.
+            Income is what was paid each month, by the day it was paid — work once its payment is recorded,
+            and counter sales. Expenses come from the Expenses tab. Open a month to see what is behind it.
           </p>
           <div class="month-tiles">${tiles}</div>
         </div>` : ""}
@@ -4229,6 +4532,84 @@ const View = {
           <p class="small muted" style="margin-top:4px">Bikes that are with us or due in.</p>
           <dl class="spec-grid one-per-line" style="margin-top:10px">${board}</dl>
         </div>` : View.empty("📋", "Nothing on the books", "Bikes that are with us or due in show up here.")}
+        ${View.activityLog(db)}
+      </div>`;
+  },
+
+  /** The activity log: everything deleted, cancelled or sent home, newest first. */
+  activityLog(db) {
+    const entries = (db.activity || []).slice().sort((a, b) => b.at - a.at);
+    const time = (at) => new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    const rows = entries.map(a => {
+      const kind = ACTIVITY_KINDS[a.kind] || ACTIVITY_KINDS.delete;
+      return `
+        <tr>
+          <td class="nowrap">${esc(Util.formatDate(a.date))} <span class="muted">${esc(time(a.at))}</span></td>
+          <td><span class="badge ${kind.badge}">${esc(kind.label)}</span> ${esc(a.title)}</td>
+          <td>${esc([a.client, a.bike].filter(Boolean).join(" · ") || "—")}<span class="note">${esc(a.detail)}</span></td>
+          <td class="num money">${a.amount ? esc(Util.money(a.amount)) : ""}</td>
+        </tr>`;
+    }).join("");
+    return `
+      <div class="card">
+        <h3>Deleted &amp; cancelled</h3>
+        <p class="small muted" style="margin-top:4px">
+          Every deletion, cancellation and bike sent home without charge, newest first.</p>
+        ${rows ? `<div class="ledger wide"><table>
+            <thead><tr><th>When</th><th>What</th><th>Client · bike</th><th class="num">Amount</th></tr></thead>
+            <tbody>${rows}</tbody></table></div>`
+          : `<p class="small muted" style="margin-top:10px">Nothing deleted or cancelled yet.</p>`}
+      </div>`;
+  },
+
+  /**
+   * Finished work not paid for yet, above the months. Work on bikes still
+   * with us comes first — that money is on its way. Older visits with no
+   * payment recorded (mostly from before payments were tracked) are folded
+   * away below, each with the button that records it.
+   */
+  pending(db) {
+    const { awaiting, unrecorded } = Domain.pendingPayments(db);
+    const sum = (rows) => Util.cents(rows.reduce((s, r) => s + r.total, 0));
+    const row = (r, action) => `
+      <tr data-action="bike:open" data-client="${esc(r.client.id)}" data-bike="${esc(r.bike.id)}">
+        <td class="nowrap">${esc(Util.formatDate(r.date))}</td>
+        <td>${esc(r.client.name)}</td>
+        <td>${esc(Domain.bikeTitle(r.bike))} — ${esc(r.jobs.map(j => j.name).join(", "))}</td>
+        <td class="num money">${esc(Util.money(r.total))}</td>
+        <td class="actions">${action(r)}</td>
+      </tr>`;
+    const ids = (r) => `data-client="${esc(r.client.id)}" data-bike="${esc(r.bike.id)}"`;
+    const table = (rows, action) => `
+      <div class="ledger"><table>
+        <thead><tr><th>Finished</th><th>Client</th><th>Bike / work</th><th class="num">Amount</th><th></th></tr></thead>
+        <tbody>${rows.map(r => row(r, action)).join("")}</tbody>
+      </table></div>`;
+
+    const awaitingAction = (r) => Domain.status(r.bike).id === "completed"
+      ? `<button class="btn btn-sm" data-action="bike:status" data-status="paid" ${ids(r)}>Mark paid</button>`
+      : `<span class="badge ${Domain.status(r.bike).badge}">${esc(Domain.status(r.bike).short)}</span>`;
+    const recordAction = (r) =>
+      `<button class="btn btn-sm" data-action="history:pay" ${ids(r)} data-visit="${esc(r.visit.key)}">Record payment</button>`;
+
+    return `
+      <div class="card">
+        <div class="row between">
+          <h3>Pending <span class="badge">${awaiting.length}</span></h3>
+          <strong class="money">${esc(Util.money(sum(awaiting)))}</strong>
+        </div>
+        <p class="small muted" style="margin-top:4px">Finished work on bikes still with us that has not been paid for yet.</p>
+        ${awaiting.length ? table(awaiting, awaitingAction)
+          : `<p class="small muted" style="margin-top:10px">Nothing waiting on payment.</p>`}
+        ${unrecorded.length ? `
+        <details style="margin-top:12px">
+          <summary class="small" style="cursor:pointer">
+            Older work with no payment recorded — ${unrecorded.length} visit${unrecorded.length === 1 ? "" : "s"},
+            ${esc(Util.money(sum(unrecorded)))}
+          </summary>
+          <p class="small muted" style="margin:6px 0 0">These bikes have gone home. Record how and when each was paid and it moves into the month it was paid.</p>
+          ${table(unrecorded, recordAction)}
+        </details>` : ""}
       </div>`;
   },
 
@@ -4243,25 +4624,30 @@ const View = {
       .map(([name, amount]) => `<span class="chip">${esc(name)} <strong class="money">${esc(Util.money(amount))}</strong></span>`)
       .join("");
 
-    const income = mo.income.map(({ client, bike, visit, sale, total }) => sale ? `
-      <tr data-action="client:open" data-client="${esc(client.id)}" title="Sale · ${esc(Util.formatDate(sale.date))}">
+    const income = mo.income.map(({ client, bike, visit, jobs, sale, total, date, methods, note }) => sale ? `
+      <tr data-action="client:open" data-client="${esc(client.id)}" title="Counter sale">
+        <td class="nowrap">${esc(Util.formatDate(date))}</td>
         <td>${esc(client.name)}</td>
         <td><span class="badge">Sale</span> ${esc(Domain.saleSummary(sale))}</td>
+        <td></td>
         <td class="num money">${esc(Util.money(total))}</td>
       </tr>` : `
       <tr data-action="bike:open" data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
-          title="${esc(Domain.visitDates(visit))}">
+          title="Work ${esc(Domain.visitDates(visit))}">
+        <td class="nowrap">${esc(Util.formatDate(date))}</td>
         <td>${esc(client.name)}</td>
-        <td>${esc(Domain.bikeTitle(bike))} — ${esc(visit.jobs.map(j => j.name).join(", "))}${
-          visit.jobs.some(j => j.paidWith)
-            ? ` <span class="badge badge-paid">${esc([...new Set(visit.jobs.map(j => j.paidWith).filter(Boolean))].join(", "))}</span>` : ""}</td>
+        <td>${esc(Domain.bikeTitle(bike))} — ${esc(jobs.map(j => j.name).join(", "))}${
+          note ? `<span class="note">${esc(note)}</span>` : ""}</td>
+        <td><button class="chip" data-action="payment:edit" data-client="${esc(client.id)}" data-bike="${esc(bike.id)}"
+                    data-visit="${esc(visit.key)}" title="Change how or when this was paid">${esc(methods)} ✎</button></td>
         <td class="num money">${esc(Util.money(total))}</td>
       </tr>`).join("");
 
     const expenses = mo.expenses.map(x => `
       <tr data-action="expense:edit" data-expense="${esc(x.id)}" title="Edit this expense">
         <td class="nowrap">${esc(Util.formatDate(x.date))}</td>
-        <td>${esc(x.payee)}${x.receipt ? ` <span class="small muted">#${esc(x.receipt)}</span>` : ""}</td>
+        <td>${esc(x.payee)}${x.receipt ? ` <span class="small muted">#${esc(x.receipt)}</span>` : ""}${
+          x.note ? `<span class="note">${esc(x.note)}</span>` : ""}</td>
         <td>${esc(x.category)}</td>
         <td class="num money">${esc(Util.money(x.amount))}</td>
       </tr>`).join("");
@@ -4283,12 +4669,16 @@ const View = {
         <div class="month-detail">
           <div>
             <h4>Income <span class="badge">${mo.income.length}</span></h4>
-            ${income ? `<div class="ledger"><table><tbody>${income}</tbody></table></div>`
-                     : `<p class="small muted">No finished visits or sales.</p>`}
+            ${income ? `<div class="ledger wide"><table>
+                <thead><tr><th>Date paid</th><th>Client</th><th>Bike / work</th><th>Paid by</th><th class="num">Amount</th></tr></thead>
+                <tbody>${income}</tbody></table></div>`
+                     : `<p class="small muted">Nothing paid this month.</p>`}
           </div>
           <div>
             <h4>Expenses <span class="badge">${mo.expenses.length}</span></h4>
-            ${expenses ? `<div class="ledger"><table><tbody>${expenses}</tbody></table></div>`
+            ${expenses ? `<div class="ledger wide"><table>
+                <thead><tr><th>Date paid</th><th>Paid to</th><th>Category</th><th class="num">Amount</th></tr></thead>
+                <tbody>${expenses}</tbody></table></div>`
                        : `<p class="small muted">No expenses recorded.</p>`}
           </div>
         </div>
@@ -4329,7 +4719,7 @@ const View = {
       ${mo.expenses.map(x => `
       <tr>
         <td class="nowrap">${esc(Util.formatDate(x.date))}</td>
-        <td>${esc(x.payee)}</td>
+        <td>${esc(x.payee)}${x.note ? `<span class="note">${esc(x.note)}</span>` : ""}</td>
         <td>${esc(x.category)}</td>
         <td>${esc(x.receipt)}</td>
         <td class="num money">${esc(Util.money(x.amount))}</td>
@@ -4363,7 +4753,7 @@ const View = {
           <h3>All expenses</h3>
           <div class="ledger wide">
             <table>
-              <thead><tr><th>Date</th><th>Paid to</th><th>Category</th><th>Order / receipt #</th>
+              <thead><tr><th>Date paid</th><th>Paid to</th><th>Category</th><th>Order / receipt #</th>
                          <th class="num">Amount</th><th></th></tr></thead>
               <tbody>${list}</tbody>
             </table>
@@ -4597,11 +4987,25 @@ const HANDLERS = {
     });
   },
 
+  /**
+   * The app's own "are you sure?" for anything that removes or calls off
+   * something: what will happen, one button that does it, and a way back.
+   * The action itself writes the activity log entry.
+   */
+  _confirm({ title, message, label, run, dismissLabel = "Cancel" }) {
+    Modal.ask({ title, dismissLabel, message: message + "\n\nThis is recorded in Activity.",
+                actions: [{ label, class: "btn-danger", run }] });
+  },
+
   "client:delete": (d) => {
     const client = Domain.client(App.db, d.client);
+    if (!client) return;
     const sales = (client.sales || []).length;
-    const msg = `Delete ${client.name}, their ${client.bikes.length} bike(s)${sales ? `, ${sales} sale(s)` : ""} and all service history?\n\nThis cannot be undone.`;
-    if (confirm(msg)) Actions.deleteClient(client.id);
+    HANDLERS._confirm({
+      title: "Delete client?", label: "Delete client",
+      message: `Delete ${client.name}, their ${client.bikes.length} bike(s)${sales ? `, ${sales} sale(s)` : ""} and all service history?\n\nThis cannot be undone.`,
+      run: () => Actions.deleteClient(client.id)
+    });
   },
 
   /* --- sales --- */
@@ -4616,9 +5020,12 @@ const HANDLERS = {
 
   "sale:delete": (d) => {
     const sale = Domain.sale(Domain.client(App.db, d.client), d.sale);
-    if (sale && confirm(`Delete the sale of ${Domain.saleSummary(sale)} (${Util.money(Domain.saleTotal(sale))})?\n\nThis cannot be undone.`)) {
-      Actions.deleteSale(d.client, d.sale);
-    }
+    if (!sale) return;
+    HANDLERS._confirm({
+      title: "Delete sale?", label: "Delete sale",
+      message: `Delete the sale of ${Domain.saleSummary(sale)} (${Util.money(Domain.saleTotal(sale))})?\n\nThis cannot be undone.`,
+      run: () => Actions.deleteSale(d.client, d.sale)
+    });
   },
 
   /* --- expenses --- */
@@ -4627,9 +5034,12 @@ const HANDLERS = {
 
   "expense:delete": (d) => {
     const x = Domain.expense(App.db, d.expense);
-    if (x && confirm(`Delete the ${Util.money(x.amount)} expense paid to ${x.payee || "—"} on ${Util.formatDate(x.date)}?\n\nThis cannot be undone.`)) {
-      Actions.deleteExpense(x.id);
-    }
+    if (!x) return;
+    HANDLERS._confirm({
+      title: "Delete expense?", label: "Delete expense",
+      message: `Delete the ${Util.money(x.amount)} expense paid to ${x.payee || "—"} on ${Util.formatDate(x.date)}?\n\nThis cannot be undone.`,
+      run: () => Actions.deleteExpense(x.id)
+    });
   },
 
   /**
@@ -4650,7 +5060,7 @@ const HANDLERS = {
       build: (body) => {
         const section = Form.section("Expense", [
           { key: "amount", label: "Amount", type: "number", step: "0.01", min: "0.01", required: true },
-          { key: "date", label: "Date", type: "date", required: true },
+          { key: "date", label: "Date paid", type: "date", required: true },
           { key: "payee", label: "Paid to", placeholder: "Company or person", required: true,
             suggest: Domain.pastPayees(App.db) },
           { key: "receipt", label: "Order / receipt # (optional)" }
@@ -4670,7 +5080,9 @@ const HANDLERS = {
         });
         section.querySelector(".fields").append(
           Util.el("div", { class: "field" }, [Util.el("label", { for: "f_category", text: "Category" }), select]),
-          newField);
+          newField,
+          Form.field({ key: "note", label: "Note (optional)", type: "textarea", rows: 2,
+                       placeholder: "e.g. Replacement torque wrench — old one failed calibration" }, expense ? expense.note : ""));
         body.append(section);
       },
       onSubmit: (body) => {
@@ -4688,7 +5100,7 @@ const HANDLERS = {
           category = category || values.newCategory;
         }
         const data = { amount: values.amount, date: values.date, payee: values.payee,
-                       receipt: values.receipt, category, newCategory };
+                       receipt: values.receipt, note: values.note, category, newCategory };
         if (expense) Actions.updateExpense(expense.id, data);
         else Actions.addExpense(data);
       }
@@ -4703,10 +5115,12 @@ const HANDLERS = {
     const category = App.db.expenseCategories.find(c => c.id === d.category);
     if (!category) return;
     const used = App.db.expenses.filter(x => x.category === category.name).length;
-    if (confirm(`Remove the category "${category.name}"?` + (used
-        ? `\n\nThe ${used} expense(s) filed under it keep it; it just stops being offered for new ones.` : ""))) {
-      Actions.deleteExpenseCategory(category.id);
-    }
+    HANDLERS._confirm({
+      title: "Remove category?", label: "Remove category",
+      message: `Remove the category "${category.name}"?` + (used
+        ? `\n\nThe ${used} expense(s) filed under it keep it; it just stops being offered for new ones.` : ""),
+      run: () => Actions.deleteExpenseCategory(category.id)
+    });
   },
 
   /** Name a new expense category, or rename one of the shop's own. */
@@ -4940,34 +5354,76 @@ const HANDLERS = {
   },
 
   /**
-   * Marking a bike paid asks how, and that is all: one tap on a method
-   * records it. Anything not listed can be typed under "Other".
+   * Marking a bike paid asks when (today unless changed), how — picked from
+   * a list, or typed under "Other…" — and takes an optional note.
+   *
+   * Given a past visit it records that visit's payment instead (dated the
+   * day its work was finished), and with `edit` it reopens a payment already
+   * recorded — the visit's, or with no visit the bike's own — to correct it.
    */
-  _paymentPrompt(clientId, bikeId) {
+  _paymentPrompt(clientId, bikeId, visitKey, edit) {
     const client = Domain.client(App.db, clientId);
     const bike = Domain.bike(App.db, clientId, bikeId);
     if (!bike) return;
-    const due = Util.cents(Domain.visitJobs(bike).reduce((sum, j) => sum + Domain.jobPrice(j).total, 0));
-    const pay = (method) => { Modal.close(); Actions.setBikeStatus(clientId, bikeId, "paid", "", method); };
+    const visit = visitKey ? Domain.visits(bike).find(v => v.key === visitKey) : null;
+    if (visitKey && !visit) return;
+
+    // Only the work this payment is for — not work an earlier payment covered.
+    const jobs = Domain.paymentJobs(bike, visit, edit);
+    const paidJob = edit && visit && jobs.find(j => j.paidWith);
+    const existing = paidJob
+      ? { method: paidJob.paidWith, date: paidJob.paidDate || paidJob.completedDate, note: paidJob.paidNote || "" }
+      : edit ? bike.payment : null;
+    if (edit && !existing) return;
+    const due = Domain.visitTotal({ jobs });
+    const OTHER = "\u0000other";   // can never be a method's name
+    const listed = existing && PAYMENT_METHODS.includes(existing.method);
 
     Modal.open({
-      title: "How did they pay?",
-      submitLabel: "Record other",
-      build: (body) => body.append(
-        Util.el("p", { class: "small muted", style: "margin:0 0 12px" },
-          `${client.name} — ${Domain.bikeTitle(bike)}` + (due ? ` · ${Util.money(due)} for this visit` : "")),
-        Util.el("div", { class: "pay-methods" }, PAYMENT_METHODS.map(method =>
-          Util.el("button", { type: "button", class: "btn", text: method, onclick: () => pay(method) }))),
-        Util.el("div", { class: "fields", style: "margin-top:14px" }, [
-          Form.field({ key: "other", label: "Other", placeholder: "e.g. Gift card, store credit" })
-        ])),
+      title: edit ? "Edit payment" : visit ? "Record payment" : "Mark paid",
+      submitLabel: "Submit",
+      build: (body) => {
+        body.append(Util.el("p", { class: "small muted", style: "margin:0 0 12px" },
+          `${client.name} — ${Domain.bikeTitle(bike)}`
+          + (visit ? ` · ${jobs.map(j => j.name).join(", ")} (${Domain.visitDates(visit)})` : "")
+          + (due ? ` · ${Util.money(due)}` : "")));
+
+        const method = Util.el("select", { id: "f_method", name: "method", required: true }, [
+          Util.el("option", { value: "", text: "Select…", selected: !existing }),
+          ...PAYMENT_METHODS.map(m => Util.el("option", { value: m, text: m, selected: !!existing && existing.method === m })),
+          Util.el("option", { value: OTHER, text: "Other…", selected: !!existing && !listed })
+        ]);
+        const other = Form.field({ key: "other", label: "Other method *", placeholder: "e.g. Gift card, store credit" },
+                                 existing && !listed ? existing.method : "");
+        other.hidden = method.value !== OTHER;
+        method.addEventListener("change", () => {
+          other.hidden = method.value !== OTHER;
+          if (!other.hidden) other.querySelector("input").focus();
+        });
+
+        body.append(Util.el("div", { class: "fields" }, [
+          Form.field({ key: "paidDate", label: "Paid on", type: "date", required: true },
+                     existing ? existing.date : (visit && visit.to) || Util.today()),
+          Util.el("div", { class: "field" }, [Util.el("label", { for: "f_method", text: "Paid by *" }), method]),
+          other,
+          Form.field({ key: "note", label: "Note (optional)", type: "textarea", rows: 2,
+                       placeholder: "e.g. Paid half now, rest on pickup" }, existing ? existing.note : "")
+        ]));
+      },
       onSubmit: (body) => {
-        const input = body.querySelector("#f_other");
-        if (!input.value.trim()) {
-          input.setCustomValidity("Pick a method above, or type one here"); input.reportValidity(); input.setCustomValidity("");
-          return false;
+        const values = Form.values(body);
+        let method = values.method;
+        if (method === OTHER) {
+          const input = body.querySelector("#f_other");
+          if (!values.other) {
+            input.setCustomValidity("Type how they paid"); input.reportValidity(); input.setCustomValidity("");
+            return false;
+          }
+          method = values.other;
         }
-        pay(input.value.trim());
+        const payment = { method, date: values.paidDate, note: values.note };
+        if (visit || edit) Actions.setVisitPayment(clientId, bikeId, visitKey, payment, edit);
+        else Actions.setBikeStatus(clientId, bikeId, "paid", "", payment);
       }
     });
   },
@@ -4975,11 +5431,35 @@ const HANDLERS = {
   /** From the ⋯ menu: undo a stage that was moved on by mistake. */
   "bike:back": (d) => Actions.setBikeStatus(d.client, d.bike, d.status),
 
+  /** Call off a visit nothing was done in: the bike goes home, nothing charged. */
+  "bike:cancel": (d) => {
+    const bike = Domain.bike(App.db, d.client, d.bike);
+    if (!bike || !Domain.canCancelVisit(bike)) return;
+    const open = Domain.openJobs(bike);
+    const booking = Domain.status(bike).id === "scheduled";
+    HANDLERS._confirm({
+      title: booking ? "Cancel this booking?" : "Send home without charging?",
+      label: booking ? "Cancel booking" : "Send home",
+      dismissLabel: "Keep it",
+      message:
+        (booking
+          ? `“${Domain.bikeTitle(bike)}” comes off the schedule and stays ${BIKE_STATUS.get("out").label.toLowerCase()}. Nothing is charged.`
+          : `“${Domain.bikeTitle(bike)}” goes back to its owner with nothing charged, and the visit is noted as cancelled in its history.`)
+        + (open.length ? `\n\nIts open work is cancelled too — ${open.map(j => j.name).join(", ")}. `
+          + `Any notes and part changes recorded against those steps are lost.` : "")
+        + (bike.payment ? `\n\nThe payment recorded on it (${bike.payment.method}) is removed.` : ""),
+      run: () => Actions.cancelVisit(d.client, d.bike)
+    });
+  },
+
   "bike:delete": (d) => {
     const bike = Domain.bike(App.db, d.client, d.bike);
-    if (confirm(`Delete “${Domain.bikeTitle(bike)}” and all of its service history?\n\nThis cannot be undone.`)) {
-      Actions.deleteBike(d.client, d.bike);
-    }
+    if (!bike) return;
+    HANDLERS._confirm({
+      title: "Delete bike?", label: "Delete bike",
+      message: `Delete “${Domain.bikeTitle(bike)}” and all of its service history?\n\nThis cannot be undone.`,
+      run: () => Actions.deleteBike(d.client, d.bike)
+    });
   },
 
   /* --- scheduling work --- */
@@ -5051,10 +5531,25 @@ const HANDLERS = {
     const bike = Domain.bike(App.db, d.client, d.bike);
     const job = Domain.job(bike, d.job);
     if (!job) return;
-    const msg = job.status === "done"
-      ? `Delete the record of “${job.name}”?\n\nIts steps and notes will no longer appear in this bike's service history. This cannot be undone.`
-      : `Cancel “${job.name}”?\n\nAny notes and part changes recorded against its steps are lost.`;
-    if (confirm(msg)) Actions.deleteJob(d.client, d.bike, d.job);
+    const done = job.status === "done";
+    HANDLERS._confirm({
+      title: done ? "Delete work record?" : "Cancel work item?",
+      label: done ? "Delete record" : "Cancel work item",
+      dismissLabel: done ? "Cancel" : "Keep it",
+      message: done
+        ? `Delete the record of “${job.name}”?\n\nIts steps and notes will no longer appear in this bike's service history`
+          + (job.paidWith ? `, and the payment against it (${job.paidWith}) goes with it` : "") + `. This cannot be undone.`
+        : `Cancel “${job.name}”?\n\nAny notes and part changes recorded against its steps are lost.`,
+      run: () => {
+        Actions.deleteJob(d.client, d.bike, d.job);
+        // With the last open item gone, the visit is either empty — offer to
+        // call it off — or finished: offer the move a completion would.
+        const left = Domain.bike(App.db, d.client, d.bike);
+        if (done || !left || Domain.openJobs(left).length) return;
+        if (Domain.canCancelVisit(left)) HANDLERS["bike:cancel"](d);
+        else HANDLERS._offerCompleted(d, left);
+      }
+    });
   },
 
   /* --- working through a job --- */
@@ -5101,7 +5596,18 @@ const HANDLERS = {
     });
   },
 
-  "step:part-remove": (d) => Actions.removeStepChange(d.client, d.bike, d.job, d.step, d.change),
+  "step:part-remove": (d) => {
+    const job = Domain.job(Domain.bike(App.db, d.client, d.bike), d.job);
+    const step = job && Domain.step(job, d.step);
+    const change = step && (step.changes || []).find(c => c.id === d.change);
+    if (!change) return;
+    HANDLERS._confirm({
+      title: "Remove part change?", label: "Remove",
+      message: `Remove “${Domain.changeLabel(change)}: ${change.to || "—"}” from “${job.name}”?`
+        + (job.status === "done" ? "\n\nThe bike's record goes back to what it had before, if nothing has changed it since." : ""),
+      run: () => Actions.removeStepChange(d.client, d.bike, d.job, d.step, d.change)
+    });
+  },
 
   /**
    * Unlock a completed work item to correct it in place, or lock it again.
@@ -5209,19 +5715,26 @@ const HANDLERS = {
         // With nothing left open, the bike itself is done — offer the move
         // rather than making someone remember to go and find it.
         const bikeNow = Domain.bike(App.db, d.client, d.bike);
-        if (bikeNow && !Domain.openJobs(bikeNow).length && Domain.status(bikeNow).id === "in_shop") {
-          setTimeout(() => Modal.ask({
-            title: "All work finished",
-            message: `Nothing is outstanding on “${Domain.bikeTitle(bikeNow)}”.\n\n`
-                   + `Mark it completed so the front counter knows it is ready for collection?`,
-            actions: [
-              { label: "Print summary", run: () => HANDLERS["print:visit"](d) },
-              { label: "Mark work completed", class: "btn-primary",
-                run: () => Actions.setBikeStatus(d.client, d.bike, "completed") }
-            ]
-          }), 0);
-        }
+        if (bikeNow && !Domain.openJobs(bikeNow).length) setTimeout(() => HANDLERS._offerCompleted(d, bikeNow), 0);
       }
+    });
+  },
+
+  /**
+   * Nothing left open on a bike that is on the bench and has work done:
+   * offer the move to "completed" rather than make someone go and find it.
+   */
+  _offerCompleted(d, bike) {
+    if (Domain.status(bike).id !== "in_shop" || !Domain.visitJobs(bike).length) return;
+    Modal.ask({
+      title: "All work finished",
+      message: `Nothing is outstanding on “${Domain.bikeTitle(bike)}”.\n\n`
+             + `Mark it completed so the front counter knows it is ready for collection?`,
+      actions: [
+        { label: "Print summary", run: () => HANDLERS["print:visit"](d) },
+        { label: "Mark work completed", class: "btn-primary",
+          run: () => Actions.setBikeStatus(d.client, d.bike, "completed") }
+      ]
     });
   },
 
@@ -5235,9 +5748,11 @@ const HANDLERS = {
   "item:delete": (d) => {
     const item = Domain.workItem(App.db, d.item);
     if (!item) return;
-    if (confirm(`Delete the work item “${item.name}”?\n\nWork already scheduled or completed keeps its own copy of the steps and is not affected.`)) {
-      Actions.deleteWorkItem(d.item);
-    }
+    HANDLERS._confirm({
+      title: "Delete work item?", label: "Delete work item",
+      message: `Delete the work item “${item.name}”?\n\nWork already scheduled or completed keeps its own copy of the steps and is not affected.`,
+      run: () => Actions.deleteWorkItem(d.item)
+    });
   },
 
   /** Shared new/edit template form. Steps are dynamic rows in order. */
@@ -5280,6 +5795,12 @@ const HANDLERS = {
     });
   },
 
+  /** Backfill a payment on a past visit that has none (see Domain.visitNeedsPayment). */
+  "history:pay": (d) => HANDLERS._paymentPrompt(d.client, d.bike, d.visit),
+
+  /** Reopen a recorded payment to correct it — from Activity, the status bar or the history. */
+  "payment:edit": (d) => HANDLERS._paymentPrompt(d.client, d.bike, d.visit || null, true),
+
   /** Expand or collapse one visit in a bike's service history. */
   "history:toggle": (d) => {
     const key = d.bike + ":" + d.visit;
@@ -5310,11 +5831,11 @@ const HANDLERS = {
   /* --- changelog (Data tab) --- */
   "log:filter": (d) => { App.ui.logFilter = d.filter; App.renderKeepingPlace(); },
 
-  "event:delete": (d) => {
-    if (confirm("Delete this changelog entry?\n\nThe bike's current details and service history are not changed.")) {
-      Actions.deleteEvent(d.client, d.bike, d.event);
-    }
-  },
+  "event:delete": (d) => HANDLERS._confirm({
+    title: "Delete changelog entry?", label: "Delete entry",
+    message: "Delete this changelog entry?\n\nThe bike's current details and service history are not changed.",
+    run: () => Actions.deleteEvent(d.client, d.bike, d.event)
+  }),
 
   "data:export": () => {
     const stamp = new Date().toISOString().slice(0, 10);
@@ -5324,15 +5845,24 @@ const HANDLERS = {
   "data:import": () => document.getElementById("import-file").click(),
 
   "data:sample": () => {
-    if (App.db.clients.length && !confirm("Loading sample data replaces everything currently stored. Continue?")) return;
-    Actions.replaceDatabase(SAMPLE_DATA());
+    const load = () => Actions.replaceDatabase(SAMPLE_DATA(), "Sample data loaded");
+    if (!App.db.clients.length) return load();
+    HANDLERS._confirm({
+      title: "Load sample data?", label: "Replace with sample data",
+      message: "Loading sample data replaces everything currently stored.", run: load
+    });
   },
 
-  "data:reset": () => {
-    if (!confirm("Delete every client, bike, work item and all service history?\n\nThis cannot be undone. Export a backup first if you might want it back.")) return;
-    if (!confirm("Really delete everything?")) return;
-    Actions.replaceDatabase(Store.empty());
-  }
+  /** Asked twice: there is no way back from this one but a backup. */
+  "data:reset": () => HANDLERS._confirm({
+    title: "Delete everything?", label: "Delete everything",
+    message: "Delete every client, bike, work item and all service history?\n\nThis cannot be undone. Export a backup first if you might want it back.",
+    run: () => HANDLERS._confirm({
+      title: "Really delete everything?", label: "Yes, delete everything",
+      message: "Last chance: every record in the shop is removed.",
+      run: () => Actions.replaceDatabase(Store.empty(), "Everything deleted")
+    })
+  })
 };
 
 /**
@@ -5431,11 +5961,13 @@ document.addEventListener("change", (ev) => {
       const data = JSON.parse(reader.result);
       if (!data || !Array.isArray(data.clients)) throw new Error("Not a registry backup file.");
       const count = data.clients.length;
-      if (confirm(`Import ${count} client(s)? This replaces everything currently stored.`)) {
-        Actions.replaceDatabase(data);
-      }
+      HANDLERS._confirm({
+        title: "Import backup?", label: "Import and replace",
+        message: `Import ${count} client(s) from “${file.name}”? This replaces everything currently stored.`,
+        run: () => Actions.replaceDatabase(data, `Imported “${file.name}”`)
+      });
     } catch (err) {
-      alert("Could not import that file: " + err.message);
+      Modal.ask({ title: "Could not import that file", message: err.message, dismissLabel: "OK" });
     }
     ev.target.value = "";
   };
